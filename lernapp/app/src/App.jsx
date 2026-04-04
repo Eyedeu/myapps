@@ -24,6 +24,25 @@ const defaultState = {
 
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
+function extractTitle(text, fallback) {
+  const firstHeading = String(text || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line.startsWith("# "));
+  return firstHeading ? firstHeading.replace(/^#\s+/, "").trim() : fallback;
+}
+
+function parseExamJson(text) {
+  try {
+    const clean = String(text).replace(/```json/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(clean);
+    if (parsed && Array.isArray(parsed.questions)) return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -170,24 +189,24 @@ function renderRichText(text) {
 }
 
 function buildHomeworkPrompt(settings) {
-  return `GOREV: ODEV COZUMU (${settings.sourceLanguage} -> ${settings.targetLanguage})
+  return `GOREV: ODEV COZUMU (Almanca -> Turkce)
 TALIMATLAR:
 1. Gorselleri veya PDF sayfalarini analiz et.
 2. BIREBIR SAYFA YAPISI: Orijinal sayfadaki basliklari, paragraflari ve duzeni koruyarak Markdown formatinda yeniden olustur.
 3. COZUM ENTEGRASYONU: Sorularin oldugu yerlere cozumleri dogru noktada yerlestir.
-4. Onemli notlari ayri bir "Kontrol Notlari" bolumunde ver.
+4. KULLANICIYA sureci aciklama, "bunu yaptim" gibi meta yorumlar, markdown kisitlari, teknik notlar veya kontrol notlari yazma.
+5. Sadece cozumlu nihai icerigi ver.
 
 CIKTI DUZENI:
 # Baslik
 ## Sayfa 1
 [Sayfanin cozumlu hali]
 ## Sayfa 2
-[Sayfanin cozumlu hali]
-## Kontrol Notlari`;
+[Sayfanin cozumlu hali]`;
 }
 
 function buildTopicPrompt(settings) {
-  return `GOREV: KONU ANLATIMI (${settings.targetLanguage})
+  return `GOREV: KONU ANLATIMI (Turkce)
 TALIMATLAR:
 1. Icerigi detaylica ama temiz bir duzende anlat.
 2. Asagidaki bolum basliklariyla ilerle:
@@ -197,24 +216,49 @@ TALIMATLAR:
    ## Adim Adim Anlatim
    ## Onemli Terimler
    ## Kisa Tekrar
-3. Onemli terimleri Kaynak Dil - Hedef Dil seklinde yaz.
+3. Onemli terimleri Almanca - Turkce seklinde yaz.
 4. Onemli yerleri **kalin** yap.
 5. Gorseldeki baglamdan kopma.`;
 }
 
 function buildExamPrompt(settings, contextText) {
-  return `GOREV: SINAV HAZIRLIGI (${settings.sourceLanguage})
+  return `GOREV: SINAV HAZIRLIGI (Almanca sorular, Turkce tercume parantez icinde)
 KULLANILACAK MALZEME:
 ${contextText || "Yuklenen dosyalar"}
 
 TALIMATLAR:
 1. Sinavda cikabilecek olabilecek en fazla soru cesidini kullan.
 2. Coktan secmeli, dogru-yanlis, bosluk doldurma, acik uclu, eslestirme, mini vaka sorulari hazirla.
-3. Her soru icin dogru cevap ve kisa aciklama ver.
-4. Sorulari Kolay, Orta, Zor basliklari altinda grupla.`;
+3. Sorular ve cevaplar ALMANCA olsun. Turkce tercumeleri parantez icinde ekle.
+4. Her soru icin neden dogru oldugunu kisa acikla. Yanlis secenekler varsa neden yanlis olduklarini da kisa not olarak ekle.
+5. CIKTIYI SADECE GECERLI JSON olarak ver.
+
+FORMAT:
+{
+  "title": "Sinava uygun baslik",
+  "questions": [
+    {
+      "type": "multiple_choice",
+      "difficulty": "Kolay",
+      "question_de": "Frage auf Deutsch",
+      "question_tr": "Turkce ceviri",
+      "options": [
+        {
+          "de": "Antwort A",
+          "tr": "Cevap A",
+          "isCorrect": false,
+          "reason": "Kisa aciklama"
+        }
+      ],
+      "answer_de": "Richtige Antwort",
+      "answer_tr": "Dogru cevap cevirisi",
+      "explanation": "Dogru cevabin kisa aciklamasi"
+    }
+  ]
+}`;
 }
 
-function ArchiveList({ title, items, onOpen, emptyText }) {
+function ArchiveList({ title, items, onOpen, onDelete, emptyText }) {
   return (
     <div className="panel archive-panel">
       <div className="panel-title">{title}</div>
@@ -227,6 +271,7 @@ function ArchiveList({ title, items, onOpen, emptyText }) {
               <span>{formatDate(item.createdAt)}</span>
               <span>{item.usedModel || "-"}</span>
             </div>
+            <span className="delete-link" onClick={(event) => { event.stopPropagation(); onDelete(item); }}>Sil</span>
           </button>
         ))}
       </div>
@@ -234,8 +279,39 @@ function ArchiveList({ title, items, onOpen, emptyText }) {
   );
 }
 
+function ExamQuestion({ question, index }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="exam-question">
+      <div className="exam-q-head">
+        <strong>{index + 1}. {question.question_de}</strong>
+        <span className="exam-tr">({question.question_tr})</span>
+      </div>
+      <div className="exam-options">
+        {(question.options || []).map((option, optionIndex) => (
+          <div key={optionIndex} className={`exam-option ${open && option.isCorrect ? "correct" : ""}`}>
+            <div>{option.de}</div>
+            <div className="exam-tr">({option.tr})</div>
+            {open && <div className="exam-reason">{option.reason}</div>}
+          </div>
+        ))}
+      </div>
+      <button className="ghost" onClick={() => setOpen((current) => !current)}>
+        {open ? "Cevabi Gizle" : "Cevabi Goster"}
+      </button>
+      {open && (
+        <div className="exam-answer">
+          <strong>Dogru Cevap:</strong> {question.answer_de} <span className="exam-tr">({question.answer_tr})</span>
+          <div className="exam-reason">{question.explanation}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ContentViewer({ item, onClose, fullScreen, onToggleFullScreen }) {
   if (!item) return null;
+  const examData = item.questions ? item : parseExamJson(item.output);
   return (
     <div className={fullScreen ? "viewer-overlay full" : "viewer-overlay"}>
       <div className={fullScreen ? "viewer-card full" : "viewer-card"}>
@@ -255,7 +331,17 @@ function ContentViewer({ item, onClose, fullScreen, onToggleFullScreen }) {
             <button className="ghost" onClick={onClose}>Kapat</button>
           </div>
         </div>
-        <div className="viewer-content">{renderRichText(item.output)}</div>
+        <div className="viewer-content">
+          {examData ? (
+            <div className="exam-view">
+              {(examData.questions || []).map((question, index) => (
+                <ExamQuestion key={index} question={question} index={index} />
+              ))}
+            </div>
+          ) : (
+            renderRichText(item.output)
+          )}
+        </div>
       </div>
     </div>
   );
@@ -275,6 +361,7 @@ function App() {
   const [error, setError] = useState("");
   const [viewerItem, setViewerItem] = useState(null);
   const [viewerFullScreen, setViewerFullScreen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => setState(loadState()), []);
   useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(state)), [state]);
@@ -341,7 +428,7 @@ function App() {
         id: uid(),
         courseId: activeCourseId,
         kind,
-        title: kind === "homework" ? "Cozumlu Odev" : "Konu Anlatimi",
+        title: extractTitle(result.text, kind === "homework" ? "Cozumlu Odev" : "Konu Anlatimi"),
         sourceFiles: selectedFiles.map((file) => file.name),
         output: result.text,
         usedModel: result.usedModel,
@@ -376,8 +463,9 @@ function App() {
       const exam = {
         id: uid(),
         courseId: activeCourseId,
-        title: `Sinav Seti ${courseExams.length + 1}`,
+        title: parseExamJson(result.text)?.title || `Sinav Seti ${courseExams.length + 1}`,
         output: result.text,
+        questions: parseExamJson(result.text)?.questions || null,
         usedModel: result.usedModel,
         sourceFiles: selectedFiles.map((file) => file.name),
         sourceEntryIds: selectedEntryIds,
@@ -468,6 +556,27 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
     event.target.value = "";
   }
 
+  function confirmDelete() {
+    if (!deleteTarget) return;
+    if (deleteTarget.collection === "entries") {
+      setState((current) => ({
+        ...current,
+        entries: current.entries.filter((entry) => entry.id !== deleteTarget.id)
+      }));
+    }
+    if (deleteTarget.collection === "exams") {
+      setState((current) => ({
+        ...current,
+        exams: current.exams.filter((exam) => exam.id !== deleteTarget.id)
+      }));
+    }
+    if (viewerItem?.id === deleteTarget.id) {
+      setViewerItem(null);
+      setViewerFullScreen(false);
+    }
+    setDeleteTarget(null);
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -524,7 +633,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
             <h2>{activeCourse ? activeCourse.title : "Bir ders sec"}</h2>
           </div>
           <div className="top-actions">
-            <div className="lang-pill">{state.settings.sourceLanguage} {"->"} {state.settings.targetLanguage}</div>
+            <div className="lang-pill">Almanca {"->"} Turkce</div>
             <div className="tab-strip">
               {[
                 ["homework", "Odev Cozumu"],
@@ -564,7 +673,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
                 {busy ? "Hazirlaniyor..." : "Cozumlu Odev Olustur"}
               </button>
             </div>
-            <ArchiveList title="Odev Arsivi" items={homeworkEntries} onOpen={setViewerItem} emptyText="Bu derste henuz cozumlu odev yok." />
+            <ArchiveList title="Odev Arsivi" items={homeworkEntries} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "entries" })} emptyText="Bu derste henuz cozumlu odev yok." />
           </section>
         )}
 
@@ -583,7 +692,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
                 {busy ? "Hazirlaniyor..." : "Konu Anlatimi Uret"}
               </button>
             </div>
-            <ArchiveList title="Anlatim Arsivi" items={topicEntries} onOpen={setViewerItem} emptyText="Bu derste henuz konu anlatimi yok." />
+            <ArchiveList title="Anlatim Arsivi" items={topicEntries} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "entries" })} emptyText="Bu derste henuz konu anlatimi yok." />
           </section>
         )}
 
@@ -616,7 +725,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
                 {busy ? "Hazirlaniyor..." : "Sinav Seti Olustur"}
               </button>
             </div>
-            <ArchiveList title="Sinav Arsivi" items={courseExams} onOpen={setViewerItem} emptyText="Bu derste henuz sinav seti yok." />
+            <ArchiveList title="Sinav Arsivi" items={courseExams} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "exams" })} emptyText="Bu derste henuz sinav seti yok." />
           </section>
         )}
 
@@ -673,23 +782,19 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
                 <input value={state.settings.customModel} onChange={(event) => updateSettings({ customModel: event.target.value })} placeholder="API model kimligini buraya yaz" />
               </>
             )}
-            <div className="field-grid">
-              <div>
-                <label>Kaynak Dil</label>
-                <select value={state.settings.sourceLanguage} onChange={(event) => updateSettings({ sourceLanguage: event.target.value })}>
-                  <option>Almanca</option>
-                  <option>Ingilizce</option>
-                  <option>Turkce</option>
-                </select>
-              </div>
-              <div>
-                <label>Hedef Dil</label>
-                <select value={state.settings.targetLanguage} onChange={(event) => updateSettings({ targetLanguage: event.target.value })}>
-                  <option>Turkce</option>
-                  <option>Almanca</option>
-                  <option>Ingilizce</option>
-                </select>
-              </div>
+            <p className="muted">Bu uygulama Almanca materyalleri Turkce anlatim uzerine optimize edildi.</p>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="modal-backdrop" onClick={() => setDeleteTarget(null)}>
+          <div className="modal" onClick={(event) => event.stopPropagation()}>
+            <h3>Silmek istiyor musun?</h3>
+            <p className="muted">Bu islem geri alinamaz.</p>
+            <div className="row">
+              <button className="ghost" onClick={() => setDeleteTarget(null)}>Vazgec</button>
+              <button className="primary" onClick={confirmDelete}>Sil</button>
             </div>
           </div>
         </div>
