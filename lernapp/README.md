@@ -22,16 +22,19 @@ npm run dev
 npm run build
 ```
 
-## GitHub Pages yayinlama
-
-1. Repo'yu GitHub'a gonder.
-2. Gerekirse `package.json` icindeki `deploy` scriptiyle yayinla:
+GitHub Pages icin repo kokundeki `docs/lernapp` klasorunu guncellemek istersen:
 
 ```bash
-npm run deploy
+npm run build:pages
 ```
 
-Alternatif olarak `dist/` klasorunu manuel olarak Pages kaynagi olarak yayinlayabilirsin.
+## GitHub Pages yayinlama
+
+1. `npm run build:pages` calistir.
+2. Repo'yu GitHub'a push et.
+3. GitHub `Settings -> Pages` altinda source olarak `Deploy from a branch` sec.
+4. Branch: `main`
+5. Folder: `/docs`
 
 ## API anahtari
 
