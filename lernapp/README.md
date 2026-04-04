@@ -7,7 +7,7 @@ Bu proje, gonderdigin Firebase tabanli React uygulamasinin GitHub Pages uzerinde
 - Firebase bagimliliklari kaldirildi.
 - Tum uygulama verileri `localStorage` icinde tutulur.
 - Gemini API anahtari arayuzden girilir ve sadece tarayicida saklanir.
-- GitHub Pages icin `Vite` tabanli statik derleme yapisi eklendi.
+- GitHub Pages icin `main / root` uyumlu `Vite` derleme yapisi eklendi.
 
 ## Kurulum
 
@@ -22,19 +22,19 @@ npm run dev
 npm run build
 ```
 
-GitHub Pages icin repo kokundeki `docs/lernapp` klasorunu guncellemek istersen:
+Bu komut yayinlanacak dosyalari dogrudan `lernapp/` kokune yazar:
 
-```bash
-npm run build:pages
-```
+- `index.html`
+- `assets/`
 
 ## GitHub Pages yayinlama
 
-1. `npm run deploy` calistir.
-2. Bu komut derlenmis dosyalari `gh-pages` branch icinde sadece `lernapp/` klasorune yazar.
-3. GitHub `Settings -> Pages` altinda source olarak `Deploy from a branch` sec.
-4. Branch: `gh-pages`
-5. Folder: `/ (root)`
+1. `npm run build` calistir.
+2. Olusan degisiklikleri `main` branch'e commit et.
+3. GitHub'a push et.
+4. GitHub `Settings -> Pages` altinda source olarak `Deploy from a branch` sec.
+5. Branch: `main`
+6. Folder: `/ (root)`
 
 Site adresi:
 
