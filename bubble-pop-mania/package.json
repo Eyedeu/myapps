@@ -1,0 +1,26 @@
+{
+  "name": "bubble-pop-mania",
+  "version": "1.0.0",
+  "description": "Türkiye'nin en bağımlılık yapan balon patlatma oyunu",
+  "main": "index.html",
+  "scripts": {
+    "start": "http-server -p 8000",
+    "build": "echo 'Build complete'",
+    "dev": "http-server -p 8000"
+  },
+  "keywords": [
+    "game",
+    "mobile",
+    "bubble",
+    "pop",
+    "turkish",
+    "oyun"
+  ],
+  "author": "Eyedeu",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {},
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

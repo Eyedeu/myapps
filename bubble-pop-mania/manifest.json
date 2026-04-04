@@ -1,0 +1,13 @@
+{
+  "name": "Bubble Pop Mania - Milyonların Favorisi",
+  "short_name": "BubblePop",
+  "description": "Türkiye'nin en bağımlılık yapan balon patlatma oyunu!",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3B82F6",
+  "orientation": "portrait-primary",
+  "categories": ["games", "entertainment"],
+  "lang": "tr",
+  "dir": "ltr"
+}
