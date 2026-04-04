@@ -30,11 +30,15 @@ npm run build:pages
 
 ## GitHub Pages yayinlama
 
-1. `npm run build:pages` calistir.
-2. Repo'yu GitHub'a push et.
+1. `npm run deploy` calistir.
+2. Bu komut derlenmis dosyalari `gh-pages` branch icinde sadece `lernapp/` klasorune yazar.
 3. GitHub `Settings -> Pages` altinda source olarak `Deploy from a branch` sec.
-4. Branch: `main`
-5. Folder: `/docs`
+4. Branch: `gh-pages`
+5. Folder: `/ (root)`
+
+Site adresi:
+
+`https://eyedeu.github.io/myapps/lernapp/`
 
 ## API anahtari
 
