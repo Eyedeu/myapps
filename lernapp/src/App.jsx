@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 
 const STORAGE_KEY = "ausbildung-webapp-v1";
-const GEMINI_API_KEY = "AIzaSyB1xn6hncf2TygWKFBWSdfZHdDdawkbDAo";
 
 const defaultState = {
   settings: {
+    geminiApiKey: "",
     sourceLanguage: "Almanca",
     targetLanguage: "Turkce"
   },
@@ -252,7 +252,7 @@ Yaniti duz metin ve anlasilir bolumlerle ver.`;
 
     try {
       const result = await callGemini({
-        apiKey: GEMINI_API_KEY,
+        apiKey: state.settings.geminiApiKey,
         prompt,
         files: selectedFiles
       });
@@ -345,7 +345,7 @@ ${text}
 Kisa, ogretici ve duzenli cevap ver.`;
 
       const answer = await callGemini({
-        apiKey: GEMINI_API_KEY,
+        apiKey: state.settings.geminiApiKey,
         prompt
       });
 
@@ -413,7 +413,7 @@ Kisa, ogretici ve duzenli cevap ver.`;
 
         <div className="stack">
           <button className="primary" onClick={() => setShowSettings(true)}>
-            Dil Ayarlari
+            API Ayarlari
           </button>
           <button
             className="secondary"
@@ -686,11 +686,25 @@ Kisa, ogretici ve duzenli cevap ver.`;
         <div className="modal-backdrop" onClick={() => setShowSettings(false)}>
           <div className="modal" onClick={(event) => event.stopPropagation()}>
             <div className="row between">
-              <h3>Dil Ayarlari</h3>
+              <h3>API ve Dil Ayarlari</h3>
               <button className="ghost" onClick={() => setShowSettings(false)}>
                 Kapat
               </button>
             </div>
+
+            <label>Gemini API Anahtari</label>
+            <input
+              type="password"
+              value={state.settings.geminiApiKey}
+              onChange={(event) =>
+                updateSettings({ geminiApiKey: event.target.value.trim() })
+              }
+              placeholder="API key gir"
+            />
+            <p className="help">
+              API anahtari sadece bu tarayicida localStorage icinde saklanir.
+              GitHub repo icine yazilmaz.
+            </p>
 
             <label>Kaynak Dil</label>
             <select
