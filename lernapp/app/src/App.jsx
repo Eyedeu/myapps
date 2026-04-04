@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-const STORAGE_KEY = "ausbildung-webapp-v2";
+const STORAGE_KEY = "ausbildung-webapp-v3";
 
 const MODEL_OPTIONS = [
   ["gemini-3-flash-preview", "Gemini 3 Flash"],
@@ -57,15 +57,14 @@ function fileToInlineData(file) {
 function normalizeError(message, model) {
   const text = String(message || "");
   const lowered = text.toLowerCase();
-
   if (lowered.includes("high demand") || lowered.includes("overloaded")) {
-    return `${model} modeli su anda yogun. Uygulama otomatik olarak yedek modele gecmeyi dener; yine de hata gorursen biraz sonra tekrar dene.`;
+    return `${model} modeli su anda yogun. Uygulama otomatik olarak yedek modele gecmeyi dener.`;
   }
   if (lowered.includes("quota")) {
-    return `${model} icin kota dolu veya bu key ile erisim yok. Gemini 3 Flash ya da Gemini 2.5 Flash dene.`;
+    return `${model} icin kota dolu veya bu key ile erisim yok.`;
   }
   if (lowered.includes("not found") || lowered.includes("not supported")) {
-    return `${model} modeli bulunamadi. Bu durumda AI Studio'daki gorunen ad ile API model kimligi farkli olabilir; Ozel Model Kimligi alanini kontrol et.`;
+    return `${model} modeli bulunamadi. Ozel model kimligini kontrol et.`;
   }
   if (lowered.includes("api key")) {
     return "API anahtari gecersiz veya eksik.";
@@ -74,9 +73,6 @@ function normalizeError(message, model) {
 }
 
 async function tryGeminiCall({ apiKey, model, prompt, files = [] }) {
-  if (!apiKey) throw new Error("Gemini API anahtari gerekli.");
-  if (!model) throw new Error("Gecerli bir model secilmedi.");
-
   const fileParts = await Promise.all(files.map(fileToInlineData));
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -88,17 +84,10 @@ async function tryGeminiCall({ apiKey, model, prompt, files = [] }) {
       })
     }
   );
-
   const data = await response.json();
   if (!response.ok) {
-    return {
-      ok: false,
-      status: response.status,
-      model,
-      message: data?.error?.message || "Gemini istegi sirasinda bir hata olustu."
-    };
+    return { ok: false, status: response.status, model, message: data?.error?.message || "Hata" };
   }
-
   return {
     ok: true,
     model,
@@ -107,19 +96,17 @@ async function tryGeminiCall({ apiKey, model, prompt, files = [] }) {
 }
 
 async function callGemini({ apiKey, model, prompt, files = [] }) {
+  if (!apiKey) throw new Error("Gemini API anahtari gerekli.");
+  if (!model) throw new Error("Gecerli bir model secilmedi.");
+
   const candidates = [model, "gemini-3-flash-preview", "gemini-2.5-flash"]
     .filter((value, index, array) => value && array.indexOf(value) === index);
 
   let lastFailure = null;
-
   for (const candidate of candidates) {
     const result = await tryGeminiCall({ apiKey, model: candidate, prompt, files });
     if (result.ok) {
-      return {
-        text: result.text,
-        usedModel: result.model,
-        fallbackUsed: result.model !== model
-      };
+      return { text: result.text, usedModel: result.model, fallbackUsed: result.model !== model };
     }
 
     lastFailure = result;
@@ -129,15 +116,10 @@ async function callGemini({ apiKey, model, prompt, files = [] }) {
       result.status === 503 ||
       lowered.includes("high demand") ||
       lowered.includes("overloaded") ||
-      lowered.includes("unavailable");
-    const missingModel =
-      result.status === 404 ||
+      lowered.includes("unavailable") ||
       lowered.includes("not found") ||
       lowered.includes("not supported");
-
-    if (!(retryable || missingModel)) {
-      throw new Error(normalizeError(result.message, candidate));
-    }
+    if (!retryable) throw new Error(normalizeError(result.message, candidate));
   }
 
   throw new Error(normalizeError(lastFailure?.message, lastFailure?.model || model));
@@ -163,44 +145,120 @@ function downloadJson(filename, payload) {
   URL.revokeObjectURL(url);
 }
 
-function buildHomeworkPrompt(settings) {
-  return `Sen mesleki egitim odakli bir asistan olarak yuklenen sayfalari analiz et.
-Kaynak dil: ${settings.sourceLanguage}
-Hedef dil: ${settings.targetLanguage}
+function renderRichText(text) {
+  if (!text) return null;
+  return String(text).split("\n").map((line, index) => {
+    const trimmed = line.trim();
+    if (!trimmed) return <div key={index} className="rt-space" />;
+    if (trimmed.startsWith("# ")) return <h1 key={index} className="rt-h1">{trimmed.slice(2)}</h1>;
+    if (trimmed.startsWith("## ")) return <h2 key={index} className="rt-h2">{trimmed.slice(3)}</h2>;
+    if (trimmed.startsWith("### ")) return <h3 key={index} className="rt-h3">{trimmed.slice(4)}</h3>;
+    if (/^\d+\.\s/.test(trimmed)) return <div key={index} className="rt-number">{trimmed}</div>;
+    if (trimmed.startsWith("- ")) return <div key={index} className="rt-bullet">{trimmed.slice(2)}</div>;
 
-GOREV:
-1. Sayfadaki duzeni, basliklari, maddeleri ve bosluk mantigini koru.
-2. Sorularin veya bosluklarin bulundugu yerlere dogru cevaplari yerlestir.
-3. Ciktin sayfa sayfa ilerlesin ve orijinal akis bozulmasin.
-4. Cozumler dogrudan ilgili satirin altinda veya ayni blokta olsun.
-5. Gereksiz uzun anlatim ekleme.`;
+    const parts = trimmed.split(/(\*\*.*?\*\*)/g);
+    return (
+      <p key={index} className="rt-p">
+        {parts.map((part, partIndex) =>
+          part.startsWith("**") && part.endsWith("**")
+            ? <strong key={partIndex} className="rt-strong">{part.slice(2, -2)}</strong>
+            : <span key={partIndex}>{part}</span>
+        )}
+      </p>
+    );
+  });
+}
+
+function buildHomeworkPrompt(settings) {
+  return `GOREV: ODEV COZUMU (${settings.sourceLanguage} -> ${settings.targetLanguage})
+TALIMATLAR:
+1. Gorselleri veya PDF sayfalarini analiz et.
+2. BIREBIR SAYFA YAPISI: Orijinal sayfadaki basliklari, paragraflari ve duzeni koruyarak Markdown formatinda yeniden olustur.
+3. COZUM ENTEGRASYONU: Sorularin oldugu yerlere cozumleri dogru noktada yerlestir.
+4. Onemli notlari ayri bir "Kontrol Notlari" bolumunde ver.
+
+CIKTI DUZENI:
+# Baslik
+## Sayfa 1
+[Sayfanin cozumlu hali]
+## Sayfa 2
+[Sayfanin cozumlu hali]
+## Kontrol Notlari`;
 }
 
 function buildTopicPrompt(settings) {
-  return `Sen mesleki egitim materyalini anlatan bir ogretmensin.
-Kaynak dil: ${settings.sourceLanguage}
-Hedef dil: ${settings.targetLanguage}
-
-GOREV:
-1. Yuklenen sayfalardan baglamdan kopmadan konu anlatimi hazirla.
-2. Anlatim hedef dilde olsun.
-3. Onemli terimleri Kaynak Dil - Hedef Dil seklinde listele.
-4. Orijinal sayfa mantigina sadik kal ama daha temiz ve ogretici duzende sun.`;
+  return `GOREV: KONU ANLATIMI (${settings.targetLanguage})
+TALIMATLAR:
+1. Icerigi detaylica ama temiz bir duzende anlat.
+2. Asagidaki bolum basliklariyla ilerle:
+   # Baslik
+   ## Zusammenfassung
+   ## Konu Ozeti
+   ## Adim Adim Anlatim
+   ## Onemli Terimler
+   ## Kisa Tekrar
+3. Onemli terimleri Kaynak Dil - Hedef Dil seklinde yaz.
+4. Onemli yerleri **kalin** yap.
+5. Gorseldeki baglamdan kopma.`;
 }
 
 function buildExamPrompt(settings, contextText) {
-  return `Sen bir sinav hazirlama asistani olarak calis.
-Kaynak dil: ${settings.sourceLanguage}
-Hedef dil: ${settings.targetLanguage}
-
+  return `GOREV: SINAV HAZIRLIGI (${settings.sourceLanguage})
 KULLANILACAK MALZEME:
 ${contextText || "Yuklenen dosyalar"}
 
-GOREV:
-1. Mumkun olan en kapsayici sinav setini hazirla.
-2. Coktan secmeli, dogru-yanlis, bosluk doldurma, acik uclu, eslestirme ve mini vaka gibi farkli soru tipleri kullan.
-3. Sorular kaynak dilde olsun.
-4. Her sorunun altinda dogru cevap ve kisa aciklama olsun.`;
+TALIMATLAR:
+1. Sinavda cikabilecek olabilecek en fazla soru cesidini kullan.
+2. Coktan secmeli, dogru-yanlis, bosluk doldurma, acik uclu, eslestirme, mini vaka sorulari hazirla.
+3. Her soru icin dogru cevap ve kisa aciklama ver.
+4. Sorulari Kolay, Orta, Zor basliklari altinda grupla.`;
+}
+
+function ArchiveList({ title, items, onOpen, emptyText }) {
+  return (
+    <div className="panel archive-panel">
+      <div className="panel-title">{title}</div>
+      <div className="archive-list">
+        {items.length === 0 && <p className="empty">{emptyText}</p>}
+        {items.map((item) => (
+          <button key={item.id} className="archive-item" onClick={() => onOpen(item)}>
+            <strong>{item.title}</strong>
+            <div className="archive-meta">
+              <span>{formatDate(item.createdAt)}</span>
+              <span>{item.usedModel || "-"}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ContentViewer({ item, onClose, fullScreen, onToggleFullScreen }) {
+  if (!item) return null;
+  return (
+    <div className={fullScreen ? "viewer-overlay full" : "viewer-overlay"}>
+      <div className={fullScreen ? "viewer-card full" : "viewer-card"}>
+        <div className="viewer-top">
+          <div>
+            <h2>{item.title}</h2>
+            <div className="viewer-meta">
+              <span>{formatDate(item.createdAt)}</span>
+              <span>{item.usedModel || "-"}</span>
+              <span>{item.kindLabel || item.typeLabel || "Icerik"}</span>
+            </div>
+          </div>
+          <div className="viewer-actions">
+            <button className="ghost" onClick={onToggleFullScreen}>
+              {fullScreen ? "Kucult" : "Buyut"}
+            </button>
+            <button className="ghost" onClick={onClose}>Kapat</button>
+          </div>
+        </div>
+        <div className="viewer-content">{renderRichText(item.output)}</div>
+      </div>
+    </div>
+  );
 }
 
 function App() {
@@ -215,6 +273,8 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const [viewerItem, setViewerItem] = useState(null);
+  const [viewerFullScreen, setViewerFullScreen] = useState(false);
 
   useEffect(() => setState(loadState()), []);
   useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(state)), [state]);
@@ -230,26 +290,19 @@ function App() {
     () => state.entries.filter((entry) => entry.courseId === activeCourseId),
     [state.entries, activeCourseId]
   );
-  const homeworkEntries = courseEntries.filter((entry) => entry.kind === "homework");
-  const topicEntries = courseEntries.filter((entry) => entry.kind === "topic");
+  const homeworkEntries = courseEntries.filter((entry) => entry.kind === "homework").map((entry) => ({ ...entry, kindLabel: "Odev Cozumu" }));
+  const topicEntries = courseEntries.filter((entry) => entry.kind === "topic").map((entry) => ({ ...entry, kindLabel: "Konu Anlatimi" }));
   const courseExams = useMemo(
-    () => state.exams.filter((exam) => exam.courseId === activeCourseId),
+    () => state.exams.filter((exam) => exam.courseId === activeCourseId).map((exam) => ({ ...exam, kindLabel: "Sinav Hazirligi" })),
     [state.exams, activeCourseId]
   );
   const activeChat = useMemo(() => {
     if (!activeCourseId) return null;
-    return state.chats.find((chat) => chat.courseId === activeCourseId) || {
-      id: null,
-      courseId: activeCourseId,
-      messages: []
-    };
+    return state.chats.find((chat) => chat.courseId === activeCourseId) || { id: null, courseId: activeCourseId, messages: [] };
   }, [state.chats, activeCourseId]);
 
   function updateSettings(patch) {
-    setState((current) => ({
-      ...current,
-      settings: { ...current.settings, ...patch }
-    }));
+    setState((current) => ({ ...current, settings: { ...current.settings, ...patch } }));
   }
 
   function addCourse() {
@@ -269,10 +322,7 @@ function App() {
       exams: current.exams.filter((exam) => exam.courseId !== courseId),
       chats: current.chats.filter((chat) => chat.courseId !== courseId)
     }));
-    if (activeCourseId === courseId) {
-      setActiveCourseId(null);
-      setSelectedEntryIds([]);
-    }
+    if (activeCourseId === courseId) setActiveCourseId(null);
   }
 
   async function createEntry(kind) {
@@ -280,16 +330,13 @@ function App() {
     setBusy(true);
     setStatus(kind === "homework" ? "Odev cozumu hazirlaniyor..." : "Konu anlatimi hazirlaniyor...");
     setError("");
-
     try {
-      const prompt = kind === "homework" ? buildHomeworkPrompt(state.settings) : buildTopicPrompt(state.settings);
       const result = await callGemini({
         apiKey: state.settings.geminiApiKey,
         model: resolvedModel,
-        prompt,
+        prompt: kind === "homework" ? buildHomeworkPrompt(state.settings) : buildTopicPrompt(state.settings),
         files: selectedFiles
       });
-
       const entry = {
         id: uid(),
         courseId: activeCourseId,
@@ -300,13 +347,10 @@ function App() {
         usedModel: result.usedModel,
         createdAt: new Date().toISOString()
       };
-
       setState((current) => ({ ...current, entries: [entry, ...current.entries] }));
       setSelectedFiles([]);
-      setStatus(
-        (kind === "homework" ? "Cozumlu odev olusturuldu." : "Konu anlatimi olusturuldu.") +
-        (result.fallbackUsed ? ` Kullanilan model: ${result.usedModel}.` : "")
-      );
+      setViewerItem({ ...entry, kindLabel: kind === "homework" ? "Odev Cozumu" : "Konu Anlatimi" });
+      setStatus(`${kind === "homework" ? "Cozumlu odev" : "Konu anlatimi"} olusturuldu.${result.fallbackUsed ? ` Kullanilan model: ${result.usedModel}.` : ""}`);
     } catch (err) {
       setError(err.message);
       setStatus("");
@@ -316,37 +360,33 @@ function App() {
   }
 
   async function createExam() {
-    if (!activeCourseId) return;
-    if (selectedFiles.length === 0 && selectedEntryIds.length === 0) return;
-
+    if (!activeCourseId || (selectedFiles.length === 0 && selectedEntryIds.length === 0)) return;
     setBusy(true);
     setStatus("Sinav seti olusturuluyor...");
     setError("");
-
     try {
       const pickedEntries = courseEntries.filter((entry) => selectedEntryIds.includes(entry.id));
-      const contextText = pickedEntries.map((entry) => `Baslik: ${entry.title}\nIcerik:\n${entry.output}`).join("\n\n---\n\n");
+      const contextText = pickedEntries.map((entry) => `Baslik: ${entry.title}\n${entry.output}`).join("\n\n---\n\n");
       const result = await callGemini({
         apiKey: state.settings.geminiApiKey,
         model: resolvedModel,
         prompt: buildExamPrompt(state.settings, contextText),
         files: selectedFiles
       });
-
       const exam = {
         id: uid(),
         courseId: activeCourseId,
         title: `Sinav Seti ${courseExams.length + 1}`,
         output: result.text,
         usedModel: result.usedModel,
-        sourceEntryIds: selectedEntryIds,
         sourceFiles: selectedFiles.map((file) => file.name),
+        sourceEntryIds: selectedEntryIds,
         createdAt: new Date().toISOString()
       };
-
       setState((current) => ({ ...current, exams: [exam, ...current.exams] }));
       setSelectedFiles([]);
       setSelectedEntryIds([]);
+      setViewerItem({ ...exam, kindLabel: "Sinav Hazirligi" });
       setStatus(`Sinav seti hazir.${result.fallbackUsed ? ` Kullanilan model: ${result.usedModel}.` : ""}`);
     } catch (err) {
       setError(err.message);
@@ -359,22 +399,14 @@ function App() {
   async function sendChatMessage() {
     const text = chatInput.trim();
     if (!text || !activeCourseId) return;
-
     const userMessage = { id: uid(), role: "user", text, createdAt: new Date().toISOString() };
     const context = courseEntries.slice(0, 6).map((entry) => `${entry.title}\n${entry.output}`).join("\n\n---\n\n");
     const nextMessages = [...(activeChat?.messages || []), userMessage];
 
     setState((current) => {
       const existing = current.chats.find((chat) => chat.courseId === activeCourseId);
-      const updated = existing
-        ? { ...existing, messages: nextMessages }
-        : { id: uid(), courseId: activeCourseId, messages: nextMessages };
-      return {
-        ...current,
-        chats: existing
-          ? current.chats.map((chat) => (chat.courseId === activeCourseId ? updated : chat))
-          : [updated, ...current.chats]
-      };
+      const updated = existing ? { ...existing, messages: nextMessages } : { id: uid(), courseId: activeCourseId, messages: nextMessages };
+      return { ...current, chats: existing ? current.chats.map((chat) => (chat.courseId === activeCourseId ? updated : chat)) : [updated, ...current.chats] };
     });
 
     setChatInput("");
@@ -398,7 +430,6 @@ ${text}
 
 Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
       });
-
       const modelMessage = {
         id: uid(),
         role: "model",
@@ -406,7 +437,6 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
         usedModel: result.usedModel,
         createdAt: new Date().toISOString()
       };
-
       setState((current) => ({
         ...current,
         chats: current.chats.map((chat) =>
@@ -429,11 +459,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
     reader.onload = () => {
       try {
         const parsed = JSON.parse(String(reader.result));
-        setState({
-          ...defaultState,
-          ...parsed,
-          settings: { ...defaultState.settings, ...(parsed.settings || {}) }
-        });
+        setState({ ...defaultState, ...parsed, settings: { ...defaultState.settings, ...(parsed.settings || {}) } });
       } catch {
         setError("Ice aktarma dosyasi gecersiz.");
       }
@@ -468,33 +494,23 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
             <div className="panel-title">Derslerim</div>
             <span className="badge">{state.courses.length}</span>
           </div>
-          <div className="list course-list">
+          <div className="archive-list">
             {state.courses.length === 0 && <p className="empty">Baslamak icin soldan yeni bir ders ac.</p>}
             {state.courses.map((course) => (
               <button
                 key={course.id}
-                className={`course-item ${activeCourseId === course.id ? "active" : ""}`}
+                className={`archive-item ${activeCourseId === course.id ? "active" : ""}`}
                 onClick={() => {
                   setActiveCourseId(course.id);
                   setSelectedEntryIds([]);
                 }}
               >
-                <div className="row between full-width">
-                  <strong>{course.title}</strong>
-                  <span className="meta-date">{formatDate(course.createdAt)}</span>
+                <strong>{course.title}</strong>
+                <div className="archive-meta">
+                  <span>{formatDate(course.createdAt)}</span>
+                  <span>{state.entries.filter((entry) => entry.courseId === course.id).length} icerik</span>
                 </div>
-                <span className="preview">
-                  {state.entries.filter((entry) => entry.courseId === course.id).length} icerik
-                </span>
-                <span
-                  className="delete-link"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    removeCourse(course.id);
-                  }}
-                >
-                  Dersi sil
-                </span>
+                <span className="delete-link" onClick={(event) => { event.stopPropagation(); removeCourse(course.id); }}>Dersi sil</span>
               </button>
             ))}
           </div>
@@ -516,11 +532,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
                 ["exam", "Sinav Hazirligi"],
                 ["chat", "Sohbet"]
               ].map((item) => (
-                <button
-                  key={item[0]}
-                  className={activeTab === item[0] ? "tab active" : "tab"}
-                  onClick={() => setActiveTab(item[0])}
-                >
+                <button key={item[0]} className={activeTab === item[0] ? "tab active" : "tab"} onClick={() => setActiveTab(item[0])}>
                   {item[1]}
                 </button>
               ))}
@@ -541,7 +553,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
           <section className="workspace-grid">
             <div className="panel emphasis">
               <div className="panel-title">Odev Cozumu</div>
-              <p className="section-copy">Yukledigin PDF veya gorselleri analiz edip ayni sayfa akisini koruyarak cozumlu halde sunar.</p>
+              <p className="section-copy">Yukledigin sayfalari ayni akisla, cozumleri dogru yerde olacak sekilde hazirlar.</p>
               <label>Dosya Yukle</label>
               <input type="file" multiple accept=".pdf,image/*" onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))} />
               <div className="file-list">
@@ -552,23 +564,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
                 {busy ? "Hazirlaniyor..." : "Cozumlu Odev Olustur"}
               </button>
             </div>
-            <div className="panel">
-              <div className="panel-title">Olusan Odevler</div>
-              <div className="list note-list">
-                {homeworkEntries.length === 0 && <p className="empty">Bu derste henuz cozumlu odev yok.</p>}
-                {homeworkEntries.map((entry) => (
-                  <article key={entry.id} className="output-card">
-                    <div className="row between full-width">
-                      <strong>{entry.title}</strong>
-                      <span className="meta-date">{formatDate(entry.createdAt)}</span>
-                    </div>
-                    <span className="preview">{entry.sourceFiles.join(", ")}</span>
-                    <span className="preview">Model: {entry.usedModel || resolvedModel}</span>
-                    <pre>{entry.output}</pre>
-                  </article>
-                ))}
-              </div>
-            </div>
+            <ArchiveList title="Odev Arsivi" items={homeworkEntries} onOpen={setViewerItem} emptyText="Bu derste henuz cozumlu odev yok." />
           </section>
         )}
 
@@ -576,7 +572,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
           <section className="workspace-grid">
             <div className="panel emphasis">
               <div className="panel-title">Konu Anlatimi</div>
-              <p className="section-copy">Sayfanin baglamini koruyarak hedef dilde anlatim ve onemli terimlerin kaynak-hedef karsiliklarini olusturur.</p>
+              <p className="section-copy">Baslikli, ozetli ve daha okunabilir bolumlere ayrilmis anlatim olusturur.</p>
               <label>Dosya Yukle</label>
               <input type="file" multiple accept=".pdf,image/*" onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))} />
               <div className="file-list">
@@ -587,23 +583,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
                 {busy ? "Hazirlaniyor..." : "Konu Anlatimi Uret"}
               </button>
             </div>
-            <div className="panel">
-              <div className="panel-title">Anlatim Arsivi</div>
-              <div className="list note-list">
-                {topicEntries.length === 0 && <p className="empty">Bu derste henuz konu anlatimi yok.</p>}
-                {topicEntries.map((entry) => (
-                  <article key={entry.id} className="output-card">
-                    <div className="row between full-width">
-                      <strong>{entry.title}</strong>
-                      <span className="meta-date">{formatDate(entry.createdAt)}</span>
-                    </div>
-                    <span className="preview">{entry.sourceFiles.join(", ")}</span>
-                    <span className="preview">Model: {entry.usedModel || resolvedModel}</span>
-                    <pre>{entry.output}</pre>
-                  </article>
-                ))}
-              </div>
-            </div>
+            <ArchiveList title="Anlatim Arsivi" items={topicEntries} onOpen={setViewerItem} emptyText="Bu derste henuz konu anlatimi yok." />
           </section>
         )}
 
@@ -611,7 +591,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
           <section className="workspace-grid">
             <div className="panel emphasis">
               <div className="panel-title">Sinav Hazirligi</div>
-              <p className="section-copy">Yeni dosya yukleyebilir veya onceki odev ve konu anlatimlarini secip gercege yakin soru tipleriyle kapsamli sinav seti uretebilirsin.</p>
+              <p className="section-copy">Yeni dosya yukleyebilir veya onceki icerikleri secip sinav seti olusturabilirsin.</p>
               <label>Yeni Dosya Yukle</label>
               <input type="file" multiple accept=".pdf,image/*" onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))} />
               <label>Onceden Uretilen Icerikler</label>
@@ -636,23 +616,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
                 {busy ? "Hazirlaniyor..." : "Sinav Seti Olustur"}
               </button>
             </div>
-            <div className="panel">
-              <div className="panel-title">Hazirlanan Sinavlar</div>
-              <div className="list note-list">
-                {courseExams.length === 0 && <p className="empty">Bu derste henuz sinav seti yok.</p>}
-                {courseExams.map((exam) => (
-                  <article key={exam.id} className="output-card">
-                    <div className="row between full-width">
-                      <strong>{exam.title}</strong>
-                      <span className="meta-date">{formatDate(exam.createdAt)}</span>
-                    </div>
-                    <span className="preview">{exam.sourceFiles.join(", ") || "Onceden secilen icerikler"}</span>
-                    <span className="preview">Model: {exam.usedModel || resolvedModel}</span>
-                    <pre>{exam.output}</pre>
-                  </article>
-                ))}
-              </div>
-            </div>
+            <ArchiveList title="Sinav Arsivi" items={courseExams} onOpen={setViewerItem} emptyText="Bu derste henuz sinav seti yok." />
           </section>
         )}
 
@@ -672,7 +636,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
                   </div>
                 ))}
               </div>
-              <textarea rows="5" value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Dersle ilgili soru sor, terim sor, odev mantigini sor..." />
+              <textarea rows="5" value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Dersle ilgili soru sor..." />
               <button className="primary" disabled={busy} onClick={sendChatMessage}>
                 {busy ? "Gonderiliyor..." : "Mesaji Gonder"}
               </button>
@@ -682,6 +646,13 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
 
         {(status || error) && <div className={error ? "status error" : "status"}>{error || status}</div>}
       </main>
+
+      <ContentViewer
+        item={viewerItem}
+        onClose={() => { setViewerItem(null); setViewerFullScreen(false); }}
+        fullScreen={viewerFullScreen}
+        onToggleFullScreen={() => setViewerFullScreen((current) => !current)}
+      />
 
       {showSettings && (
         <div className="modal-backdrop" onClick={() => setShowSettings(false)}>
