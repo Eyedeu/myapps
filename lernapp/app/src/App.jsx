@@ -4,7 +4,6 @@ const STORAGE_KEY = "ausbildung-webapp-v2";
 
 const MODEL_OPTIONS = [
   ["gemini-3-flash-preview", "Gemini 3 Flash"],
-  ["gemini-3.1-flash-lite", "Gemini 3.1 Flash Lite"],
   ["gemini-2.5-flash", "Gemini 2.5 Flash"],
   ["custom", "Ozel Model Kimligi"]
 ];
@@ -57,21 +56,27 @@ function fileToInlineData(file) {
 
 function normalizeError(message, model) {
   const text = String(message || "");
-  if (text.toLowerCase().includes("quota")) {
-    return `${model} icin kota dolu veya bu API key ile erisim yok. Ayarlardan Gemini 3 Flash ya da Gemini 3.1 Flash Lite dene.`;
+  const lowered = text.toLowerCase();
+
+  if (lowered.includes("high demand") || lowered.includes("overloaded")) {
+    return `${model} modeli su anda yogun. Uygulama otomatik olarak yedek modele gecmeyi dener; yine de hata gorursen biraz sonra tekrar dene.`;
   }
-  if (text.toLowerCase().includes("not found")) {
-    return `${model} modeli bulunamadi. Ozel model kimligini kontrol et.`;
+  if (lowered.includes("quota")) {
+    return `${model} icin kota dolu veya bu key ile erisim yok. Gemini 3 Flash ya da Gemini 2.5 Flash dene.`;
   }
-  if (text.toLowerCase().includes("api key")) {
+  if (lowered.includes("not found") || lowered.includes("not supported")) {
+    return `${model} modeli bulunamadi. Bu durumda AI Studio'daki gorunen ad ile API model kimligi farkli olabilir; Ozel Model Kimligi alanini kontrol et.`;
+  }
+  if (lowered.includes("api key")) {
     return "API anahtari gecersiz veya eksik.";
   }
   return text || "Gemini istegi sirasinda bir hata olustu.";
 }
 
-async function callGemini({ apiKey, model, prompt, files = [] }) {
+async function tryGeminiCall({ apiKey, model, prompt, files = [] }) {
   if (!apiKey) throw new Error("Gemini API anahtari gerekli.");
   if (!model) throw new Error("Gecerli bir model secilmedi.");
+
   const fileParts = await Promise.all(files.map(fileToInlineData));
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -83,9 +88,59 @@ async function callGemini({ apiKey, model, prompt, files = [] }) {
       })
     }
   );
+
   const data = await response.json();
-  if (!response.ok) throw new Error(normalizeError(data?.error?.message, model));
-  return data?.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("\n").trim() || "";
+  if (!response.ok) {
+    return {
+      ok: false,
+      status: response.status,
+      model,
+      message: data?.error?.message || "Gemini istegi sirasinda bir hata olustu."
+    };
+  }
+
+  return {
+    ok: true,
+    model,
+    text: data?.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("\n").trim() || ""
+  };
+}
+
+async function callGemini({ apiKey, model, prompt, files = [] }) {
+  const candidates = [model, "gemini-3-flash-preview", "gemini-2.5-flash"]
+    .filter((value, index, array) => value && array.indexOf(value) === index);
+
+  let lastFailure = null;
+
+  for (const candidate of candidates) {
+    const result = await tryGeminiCall({ apiKey, model: candidate, prompt, files });
+    if (result.ok) {
+      return {
+        text: result.text,
+        usedModel: result.model,
+        fallbackUsed: result.model !== model
+      };
+    }
+
+    lastFailure = result;
+    const lowered = String(result.message || "").toLowerCase();
+    const retryable =
+      result.status === 429 ||
+      result.status === 503 ||
+      lowered.includes("high demand") ||
+      lowered.includes("overloaded") ||
+      lowered.includes("unavailable");
+    const missingModel =
+      result.status === 404 ||
+      lowered.includes("not found") ||
+      lowered.includes("not supported");
+
+    if (!(retryable || missingModel)) {
+      throw new Error(normalizeError(result.message, candidate));
+    }
+  }
+
+  throw new Error(normalizeError(lastFailure?.message, lastFailure?.model || model));
 }
 
 function formatDate(value) {
@@ -116,19 +171,9 @@ Hedef dil: ${settings.targetLanguage}
 GOREV:
 1. Sayfadaki duzeni, basliklari, maddeleri ve bosluk mantigini koru.
 2. Sorularin veya bosluklarin bulundugu yerlere dogru cevaplari yerlestir.
-3. Ciktin "sayfa sayfa" ilerlesin ve orijinal akisi bozulmasin.
-4. Odev cozumleri dogrudan ilgili satirin altinda veya ayni blokta olsun.
-5. Gereksiz uzun anlatim ekleme.
-
-CIKTI FORMATI:
-# Baslik
-## Sayfa 1
-[Orijinal yapinin korunmus cozumlu hali]
-
-## Sayfa 2
-[Orijinal yapinin korunmus cozumlu hali]
-
-En sonda kisa bir "Kontrol Notlari" bolumu ekle.`;
+3. Ciktin sayfa sayfa ilerlesin ve orijinal akis bozulmasin.
+4. Cozumler dogrudan ilgili satirin altinda veya ayni blokta olsun.
+5. Gereksiz uzun anlatim ekleme.`;
 }
 
 function buildTopicPrompt(settings) {
@@ -139,16 +184,8 @@ Hedef dil: ${settings.targetLanguage}
 GOREV:
 1. Yuklenen sayfalardan baglamdan kopmadan konu anlatimi hazirla.
 2. Anlatim hedef dilde olsun.
-3. Onemli terimleri "Kaynak Dil - Hedef Dil" seklinde listele.
-4. Orijinal sayfa mantigina sadik kal ama daha temiz ve ogretici bir duzende sun.
-5. Gerekiyorsa tablo benzeri karsilastirmalar kullan.
-
-CIKTI FORMATI:
-# Konu Ozeti
-## Adim Adim Anlatim
-## Onemli Terimler
-- terim kaynak - terim hedef
-## Kisa Tekrar`;
+3. Onemli terimleri Kaynak Dil - Hedef Dil seklinde listele.
+4. Orijinal sayfa mantigina sadik kal ama daha temiz ve ogretici duzende sun.`;
 }
 
 function buildExamPrompt(settings, contextText) {
@@ -160,23 +197,10 @@ KULLANILACAK MALZEME:
 ${contextText || "Yuklenen dosyalar"}
 
 GOREV:
-1. Gercek sinav yapisina uygun olabilecek en fazla sayida soru hazirla.
-2. Sadece coktan secmeli degil; dogru-yanlis, bosluk doldurma, acik uclu, eslestirme, mini vaka, kisa yorum sorulari da kullan.
+1. Mumkun olan en kapsayici sinav setini hazirla.
+2. Coktan secmeli, dogru-yanlis, bosluk doldurma, acik uclu, eslestirme ve mini vaka gibi farkli soru tipleri kullan.
 3. Sorular kaynak dilde olsun.
-4. Her sorunun altinda dogru cevap ve kisa aciklama olsun.
-5. Sorulari zorluk seviyesine gore ayir.
-
-CIKTI FORMATI:
-# Sinav Seti
-## Kolay
-## Orta
-## Zor
-Her soruda:
-Soru Tipi:
-Soru:
-Secenekler:
-Dogru Cevap:
-Aciklama:`;
+4. Her sorunun altinda dogru cevap ve kisa aciklama olsun.`;
 }
 
 function App() {
@@ -202,7 +226,6 @@ function App() {
   const resolvedModel = state.settings.model === "custom"
     ? state.settings.customModel.trim()
     : state.settings.model;
-
   const courseEntries = useMemo(
     () => state.entries.filter((entry) => entry.courseId === activeCourseId),
     [state.entries, activeCourseId]
@@ -257,28 +280,33 @@ function App() {
     setBusy(true);
     setStatus(kind === "homework" ? "Odev cozumu hazirlaniyor..." : "Konu anlatimi hazirlaniyor...");
     setError("");
+
     try {
-      const prompt = kind === "homework"
-        ? buildHomeworkPrompt(state.settings)
-        : buildTopicPrompt(state.settings);
-      const output = await callGemini({
+      const prompt = kind === "homework" ? buildHomeworkPrompt(state.settings) : buildTopicPrompt(state.settings);
+      const result = await callGemini({
         apiKey: state.settings.geminiApiKey,
         model: resolvedModel,
         prompt,
         files: selectedFiles
       });
+
       const entry = {
         id: uid(),
         courseId: activeCourseId,
         kind,
         title: kind === "homework" ? "Cozumlu Odev" : "Konu Anlatimi",
         sourceFiles: selectedFiles.map((file) => file.name),
-        output,
+        output: result.text,
+        usedModel: result.usedModel,
         createdAt: new Date().toISOString()
       };
+
       setState((current) => ({ ...current, entries: [entry, ...current.entries] }));
       setSelectedFiles([]);
-      setStatus(kind === "homework" ? "Cozumlu odev olusturuldu." : "Konu anlatimi olusturuldu.");
+      setStatus(
+        (kind === "homework" ? "Cozumlu odev olusturuldu." : "Konu anlatimi olusturuldu.") +
+        (result.fallbackUsed ? ` Kullanilan model: ${result.usedModel}.` : "")
+      );
     } catch (err) {
       setError(err.message);
       setStatus("");
@@ -290,33 +318,36 @@ function App() {
   async function createExam() {
     if (!activeCourseId) return;
     if (selectedFiles.length === 0 && selectedEntryIds.length === 0) return;
+
     setBusy(true);
     setStatus("Sinav seti olusturuluyor...");
     setError("");
+
     try {
       const pickedEntries = courseEntries.filter((entry) => selectedEntryIds.includes(entry.id));
-      const contextText = pickedEntries
-        .map((entry) => `Baslik: ${entry.title}\nIcerik:\n${entry.output}`)
-        .join("\n\n---\n\n");
-      const output = await callGemini({
+      const contextText = pickedEntries.map((entry) => `Baslik: ${entry.title}\nIcerik:\n${entry.output}`).join("\n\n---\n\n");
+      const result = await callGemini({
         apiKey: state.settings.geminiApiKey,
         model: resolvedModel,
         prompt: buildExamPrompt(state.settings, contextText),
         files: selectedFiles
       });
+
       const exam = {
         id: uid(),
         courseId: activeCourseId,
         title: `Sinav Seti ${courseExams.length + 1}`,
-        output,
+        output: result.text,
+        usedModel: result.usedModel,
         sourceEntryIds: selectedEntryIds,
         sourceFiles: selectedFiles.map((file) => file.name),
         createdAt: new Date().toISOString()
       };
+
       setState((current) => ({ ...current, exams: [exam, ...current.exams] }));
       setSelectedFiles([]);
       setSelectedEntryIds([]);
-      setStatus("Sinav seti hazir.");
+      setStatus(`Sinav seti hazir.${result.fallbackUsed ? ` Kullanilan model: ${result.usedModel}.` : ""}`);
     } catch (err) {
       setError(err.message);
       setStatus("");
@@ -328,9 +359,11 @@ function App() {
   async function sendChatMessage() {
     const text = chatInput.trim();
     if (!text || !activeCourseId) return;
+
     const userMessage = { id: uid(), role: "user", text, createdAt: new Date().toISOString() };
     const context = courseEntries.slice(0, 6).map((entry) => `${entry.title}\n${entry.output}`).join("\n\n---\n\n");
     const nextMessages = [...(activeChat?.messages || []), userMessage];
+
     setState((current) => {
       const existing = current.chats.find((chat) => chat.courseId === activeCourseId);
       const updated = existing
@@ -343,12 +376,14 @@ function App() {
           : [updated, ...current.chats]
       };
     });
+
     setChatInput("");
     setBusy(true);
     setStatus("Sohbet yaniti hazirlaniyor...");
     setError("");
+
     try {
-      const answer = await callGemini({
+      const result = await callGemini({
         apiKey: state.settings.geminiApiKey,
         model: resolvedModel,
         prompt: `Sen destekleyici bir Ausbildung asistanisin.
@@ -363,14 +398,22 @@ ${text}
 
 Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
       });
-      const modelMessage = { id: uid(), role: "model", text: answer, createdAt: new Date().toISOString() };
+
+      const modelMessage = {
+        id: uid(),
+        role: "model",
+        text: result.text,
+        usedModel: result.usedModel,
+        createdAt: new Date().toISOString()
+      };
+
       setState((current) => ({
         ...current,
         chats: current.chats.map((chat) =>
           chat.courseId === activeCourseId ? { ...chat, messages: [...chat.messages, modelMessage] } : chat
         )
       }));
-      setStatus("Yanıt hazir.");
+      setStatus(`Yanit hazir.${result.fallbackUsed ? ` Kullanilan model: ${result.usedModel}.` : ""}`);
     } catch (err) {
       setError(err.message);
       setStatus("");
@@ -465,7 +508,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
             <h2>{activeCourse ? activeCourse.title : "Bir ders sec"}</h2>
           </div>
           <div className="top-actions">
-            <div className="lang-pill">{state.settings.sourceLanguage} → {state.settings.targetLanguage}</div>
+            <div className="lang-pill">{state.settings.sourceLanguage} {"->"} {state.settings.targetLanguage}</div>
             <div className="tab-strip">
               {[
                 ["homework", "Odev Cozumu"],
@@ -520,6 +563,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
                       <span className="meta-date">{formatDate(entry.createdAt)}</span>
                     </div>
                     <span className="preview">{entry.sourceFiles.join(", ")}</span>
+                    <span className="preview">Model: {entry.usedModel || resolvedModel}</span>
                     <pre>{entry.output}</pre>
                   </article>
                 ))}
@@ -554,6 +598,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
                       <span className="meta-date">{formatDate(entry.createdAt)}</span>
                     </div>
                     <span className="preview">{entry.sourceFiles.join(", ")}</span>
+                    <span className="preview">Model: {entry.usedModel || resolvedModel}</span>
                     <pre>{entry.output}</pre>
                   </article>
                 ))}
@@ -579,9 +624,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
                       checked={selectedEntryIds.includes(entry.id)}
                       onChange={(event) =>
                         setSelectedEntryIds((current) =>
-                          event.target.checked
-                            ? [...current, entry.id]
-                            : current.filter((id) => id !== entry.id)
+                          event.target.checked ? [...current, entry.id] : current.filter((id) => id !== entry.id)
                         )
                       }
                     />
@@ -604,6 +647,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
                       <span className="meta-date">{formatDate(exam.createdAt)}</span>
                     </div>
                     <span className="preview">{exam.sourceFiles.join(", ") || "Onceden secilen icerikler"}</span>
+                    <span className="preview">Model: {exam.usedModel || resolvedModel}</span>
                     <pre>{exam.output}</pre>
                   </article>
                 ))}
@@ -623,7 +667,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
                 {(activeChat?.messages || []).length === 0 && <p className="empty">Bu ders icin henuz sohbet yok.</p>}
                 {(activeChat?.messages || []).map((message) => (
                   <div key={message.id} className={`chat-message ${message.role === "user" ? "user" : "model"}`}>
-                    <strong>{message.role === "user" ? "Sen" : "AI"}</strong>
+                    <strong>{message.role === "user" ? "Sen" : `AI (${message.usedModel || resolvedModel})`}</strong>
                     <p>{message.text}</p>
                   </div>
                 ))}
@@ -655,7 +699,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
             {state.settings.model === "custom" && (
               <>
                 <label>Ozel Model Kimligi</label>
-                <input value={state.settings.customModel} onChange={(event) => updateSettings({ customModel: event.target.value })} placeholder="Orn. gemini-3.1-flash-lite" />
+                <input value={state.settings.customModel} onChange={(event) => updateSettings({ customModel: event.target.value })} placeholder="API model kimligini buraya yaz" />
               </>
             )}
             <div className="field-grid">
