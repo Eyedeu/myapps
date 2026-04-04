@@ -6,7 +6,7 @@ Bu proje, gonderdigin Firebase tabanli React uygulamasinin GitHub Pages uzerinde
 
 - Firebase bagimliliklari kaldirildi.
 - Tum uygulama verileri `localStorage` icinde tutulur.
-- Gemini API anahtari kod icinde sabit olarak tanimlanir.
+- Gemini API anahtari arayuzden girilir ve sadece tarayicida saklanir.
 - GitHub Pages icin `Vite` tabanli statik derleme yapisi eklendi.
 
 ## Kurulum
@@ -38,15 +38,9 @@ npm run build:pages
 
 ## API anahtari
 
-API anahtarini su dosyada tanimla:
+Uygulamayi actiktan sonra `API Ayarlari` butonuna tiklayip Gemini API anahtarini gir.
 
-`src/App.jsx`
-
-Su satirdaki metni kendi anahtarinla degistir:
-
-```js
-const GEMINI_API_KEY = "BURAYA_API_ANAHTARINI_YAZ";
-```
+Anahtar sadece o tarayicinin `localStorage` alaninda tutulur ve repoya yazilmaz.
 
 ## Veri yapisi
 
