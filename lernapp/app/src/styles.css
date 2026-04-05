@@ -74,6 +74,7 @@ button { cursor: pointer; }
 .brand-card h1 span { color: var(--blue); }
 .eyebrow { margin: 0 0 14px; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.28em; font-size: 11px; }
 .muted, .preview, .meta-date, .empty { color: var(--muted); }
+.brand-actions { margin-top: 22px; display: flex; }
 
 .toolbar-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
 .wide { grid-column: 1 / -1; }
@@ -87,7 +88,15 @@ button { cursor: pointer; }
 .section-copy { margin: 0 0 16px; color: var(--muted); line-height: 1.72; max-width: 62ch; }
 
 .hero-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
+.hero-copy { display: flex; flex-direction: column; gap: 8px; max-width: 760px; }
 .hero-header h2 { margin: 0; font-size: 2.15rem; letter-spacing: -0.04em; }
+.hero-subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.7;
+  max-width: 62ch;
+}
 .top-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: flex-end; }
 .lang-pill, .badge, .source-pill {
   display: inline-flex; align-items: center; justify-content: center;
@@ -97,14 +106,21 @@ button { cursor: pointer; }
 }
 .badge { min-width: 34px; height: 34px; }
 
+.workspace-nav {
+  position: sticky;
+  top: 14px;
+  z-index: 12;
+}
 .tab-strip {
   display: flex;
   gap: 12px;
+  align-items: center;
   flex-wrap: wrap;
-  padding: 8px;
-  border-radius: 22px;
-  background: rgba(11, 22, 41, 0.52);
-  border: 1px solid rgba(109, 137, 184, 0.14);
+  padding: 10px;
+  border-radius: 24px;
+  background: rgba(9, 18, 34, 0.78);
+  border: 1px solid rgba(109, 137, 184, 0.16);
+  box-shadow: var(--glow);
 }
 .tab, .primary, .secondary, .ghost {
   border-radius: 18px; padding: 14px 18px; border: 1px solid transparent; transition: all 0.18s ease;
@@ -376,6 +392,7 @@ label { display: block; margin-bottom: 10px; color: #d8e6ff; }
 @media (max-width: 1120px) {
   .app-shell { grid-template-columns: 1fr; }
   .sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
+  .brand-card { margin-bottom: 0; }
   .workspace-grid { grid-template-columns: 1fr; }
 }
 
@@ -385,7 +402,19 @@ label { display: block; margin-bottom: 10px; color: #d8e6ff; }
   .panel { padding: 20px 18px; }
   .toolbar-grid, .field-grid { grid-template-columns: 1fr; }
   .hero-header, .top-actions, .viewer-top { flex-direction: column; align-items: flex-start; }
-  .tab-strip { width: 100%; padding: 6px; gap: 8px; }
+  .hero-subtitle { font-size: 0.92rem; line-height: 1.55; }
+  .workspace-nav { top: 8px; }
+  .tab-strip {
+    width: calc(100% + 4px);
+    margin-right: -4px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 6px;
+    gap: 8px;
+    scrollbar-width: none;
+  }
+  .tab-strip::-webkit-scrollbar { display: none; }
+  .tab { white-space: nowrap; flex: 0 0 auto; }
   .viewer-overlay { inset: 10px; right: 10px; bottom: 10px; width: auto; }
   .viewer-overlay.full { inset: 0; width: auto; max-height: none; }
   .viewer-card { border-radius: 18px; }
@@ -417,6 +446,7 @@ label { display: block; margin-bottom: 10px; color: #d8e6ff; }
 @media (max-width: 480px) {
   .content, .sidebar { padding: 14px; }
   .brand-card h1, .hero-header h2 { font-size: 1.5rem; }
+  .hero-subtitle { font-size: 0.84rem; }
   .viewer-top { padding: 10px 10px 8px; }
   .viewer-top h2 { font-size: 0.92rem; }
   .viewer-meta { font-size: 0.68rem; }

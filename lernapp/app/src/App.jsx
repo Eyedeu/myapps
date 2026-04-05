@@ -267,6 +267,24 @@ TALIMATLAR:
 5. Gorseldeki baglamdan kopma.`;
 }
 
+function buildTranslationPrompt(settings) {
+  return `GOREV: BIREBIR CEVIRI (Almanca -> Turkce)
+TALIMATLAR:
+1. Gorselleri veya PDF sayfalarini analiz et.
+2. ORIJINAL SAYFA YAPISI: Basliklari, alt basliklari, tablo akisini, soru siralarini, madde yapisini ve sayfa bolumlerini olabildigince ayni sirada koru.
+3. METINLERI DOGRUDAN CEVIR: Icerigi ozetleme, yorumlama, sadeleştirme veya yeniden yazma yapma.
+4. Tum Almanca icerigi Turkceye cevir.
+5. KULLANICIYA sureci aciklama, "bunu yaptim" gibi meta yorumlar, teknik notlar veya kontrol notlari yazma.
+6. Sadece nihai ceviri icerigini ver.
+
+CIKTI DUZENI:
+# Baslik
+## Sayfa 1
+[Sayfanin Turkce cevirisi]
+## Sayfa 2
+[Sayfanin Turkce cevirisi]`;
+}
+
 function buildExamPrompt(settings, contextText) {
   return `GOREV: SINAV HAZIRLIGI (Almanca sorular, Turkce tercume parantez icinde)
 KULLANILACAK MALZEME:
@@ -436,6 +454,7 @@ function App() {
   );
   const homeworkEntries = courseEntries.filter((entry) => entry.kind === "homework").map((entry) => ({ ...entry, kindLabel: "Ödev Çözümü" }));
   const topicEntries = courseEntries.filter((entry) => entry.kind === "topic").map((entry) => ({ ...entry, kindLabel: "Konu Anlatımı" }));
+  const translationEntries = courseEntries.filter((entry) => entry.kind === "translation").map((entry) => ({ ...entry, kindLabel: "Çeviri" }));
   const courseExams = useMemo(
     () => state.exams.filter((exam) => exam.courseId === activeCourseId).map((exam) => ({ ...exam, kindLabel: "Sınav Hazırlığı" })),
     [state.exams, activeCourseId]
@@ -465,20 +484,34 @@ function App() {
   async function createEntry(kind) {
     if (!activeCourseId || selectedFiles.length === 0) return;
     setBusy(true);
-    setStatus(kind === "homework" ? "Ödev çözümü hazırlanıyor..." : "Konu anlatımı hazırlanıyor...");
+    setStatus(
+      kind === "homework"
+        ? "Ödev çözümü hazırlanıyor..."
+        : kind === "topic"
+          ? "Konu anlatımı hazırlanıyor..."
+          : "Çeviri hazırlanıyor..."
+    );
     setError("");
     try {
       const result = await callGemini({
         apiKey: state.settings.geminiApiKey,
         model: resolvedModel,
-        prompt: kind === "homework" ? buildHomeworkPrompt(state.settings) : buildTopicPrompt(state.settings),
+        prompt:
+          kind === "homework"
+            ? buildHomeworkPrompt(state.settings)
+            : kind === "topic"
+              ? buildTopicPrompt(state.settings)
+              : buildTranslationPrompt(state.settings),
         files: selectedFiles
       });
       const entry = {
         id: uid(),
         courseId: activeCourseId,
         kind,
-        title: extractTitle(result.text, kind === "homework" ? "Çözümlü Ödev" : "Konu Anlatımı"),
+        title: extractTitle(
+          result.text,
+          kind === "homework" ? "Çözümlü Ödev" : kind === "topic" ? "Konu Anlatımı" : "Çeviri"
+        ),
         sourceFiles: selectedFiles.map((file) => file.name),
         output: result.text,
         usedModel: result.usedModel,
@@ -486,8 +519,13 @@ function App() {
       };
       setState((current) => ({ ...current, entries: [entry, ...current.entries] }));
       setSelectedFiles([]);
-      setViewerItem({ ...entry, kindLabel: kind === "homework" ? "Ödev Çözümü" : "Konu Anlatımı" });
-      setStatus(`${kind === "homework" ? "Çözümlü ödev" : "Konu anlatımı"} oluşturuldu.${result.fallbackUsed ? ` Kullanılan model: ${result.usedModel}.` : ""}`);
+      setViewerItem({
+        ...entry,
+        kindLabel: kind === "homework" ? "Ödev Çözümü" : kind === "topic" ? "Konu Anlatımı" : "Çeviri"
+      });
+      setStatus(
+        `${kind === "homework" ? "Çözümlü ödev" : kind === "topic" ? "Konu anlatımı" : "Çeviri"} oluşturuldu.${result.fallbackUsed ? ` Kullanılan model: ${result.usedModel}.` : ""}`
+      );
     } catch (err) {
       setError(err.message);
       setStatus("");
@@ -646,9 +684,10 @@ Kısa, açık ve pratik cevap ver. Gerekirse maddeler kullan.`
           <p className="eyebrow">Mesleki Öğrenme Alanı</p>
           <h1>Ausbildung<span>Pro</span></h1>
           <p className="muted">Her ders için konu anlatımı, ödev çözümü, sohbet ve sınav hazırlığı alanları.</p>
+          <div className="brand-actions">
+            <button className="secondary wide" onClick={() => setShowSettings(true)}>Ayarlar</button>
+          </div>
         </div>
-
-        <button className="primary wide" onClick={() => setShowSettings(true)}>Ayarlar</button>
 
         <div className="panel sidebar-panel">
           <div className="panel-title">Yeni Ders</div>
@@ -686,16 +725,27 @@ Kısa, açık ve pratik cevap ver. Gerekirse maddeler kullan.`
 
       <main className="content">
         <header className="hero-header">
-          <div>
+          <div className="hero-copy">
             <p className="eyebrow">Çalışma Alanı</p>
             <h2>{activeCourse ? activeCourse.title : "Bir ders seç"}</h2>
+            <p className="hero-subtitle">
+              {activeCourse
+                ? "Materyallerini tek yerde topla, içerik üret ve arşivden hızlıca geri aç."
+                : "Bir ders seçerek ödev, konu anlatımı, sınav ve sohbet alanlarını kullanmaya başla."}
+            </p>
           </div>
           <div className="top-actions">
             <div className="lang-pill">Almanca → Türkçe</div>
+          </div>
+        </header>
+
+        {activeCourse && (
+          <div className="workspace-nav">
             <div className="tab-strip">
               {[
                 ["homework", "Ödev Çözümü"],
                 ["topic", "Konu Anlatımı"],
+                ["translation", "Çeviri"],
                 ["exam", "Sınav Hazırlığı"],
                 ["chat", "Sohbet"]
               ].map((item) => (
@@ -705,7 +755,7 @@ Kısa, açık ve pratik cevap ver. Gerekirse maddeler kullan.`
               ))}
             </div>
           </div>
-        </header>
+        )}
 
         {!activeCourse && (
           <section className="welcome-card">
@@ -751,6 +801,25 @@ Kısa, açık ve pratik cevap ver. Gerekirse maddeler kullan.`
               </button>
             </div>
             <ArchiveList title="Anlatım Arşivi" items={topicEntries} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "entries" })} emptyText="Bu derste henüz konu anlatımı yok." />
+          </section>
+        )}
+
+        {activeCourse && activeTab === "translation" && (
+          <section className="workspace-grid">
+            <div className="panel emphasis">
+              <div className="panel-title">Çeviri</div>
+              <p className="section-copy">Yüklediğin PDF veya görselleri sayfa düzenini koruyarak birebir Türkçeye çevirir.</p>
+              <label>Dosya Yükle</label>
+              <input type="file" multiple accept=".pdf,image/*" onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))} />
+              <div className="file-list">
+                {selectedFiles.length === 0 && <p className="empty">Henüz dosya seçmedin.</p>}
+                {selectedFiles.map((file) => <div key={`${file.name}-${file.size}`} className="file-chip">{file.name}</div>)}
+              </div>
+              <button className="primary" disabled={busy} onClick={() => createEntry("translation")}>
+                {busy ? "Hazırlanıyor..." : "Çeviriyi Oluştur"}
+              </button>
+            </div>
+            <ArchiveList title="Çeviri Arşivi" items={translationEntries} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "entries" })} emptyText="Bu derste henüz çeviri yok." />
           </section>
         )}
 
