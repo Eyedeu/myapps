@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 const STORAGE_KEY = "ausbildung-webapp-v3";
 
 const MODEL_OPTIONS = [
+  ["gemini-3.1-flash-lite", "Gemini 3.1 Flash Lite"],
   ["gemini-3-flash-preview", "Gemini 3 Flash"],
   ["gemini-2.5-flash", "Gemini 2.5 Flash"],
   ["gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite"],
@@ -14,7 +15,7 @@ const defaultState = {
     geminiApiKey: "",
     sourceLanguage: "Almanca",
     targetLanguage: "Turkce",
-    model: "gemini-3-flash-preview",
+    model: "gemini-3.1-flash-lite",
     customModel: ""
   },
   courses: [],
@@ -42,6 +43,15 @@ function parseExamJson(text) {
   } catch {
     return null;
   }
+}
+
+function renderInlineMarkup(text) {
+  const parts = String(text || "").split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, partIndex) =>
+    part.startsWith("**") && part.endsWith("**")
+      ? <strong key={partIndex} className="rt-strong">{part.slice(2, -2)}</strong>
+      : <span key={partIndex}>{part}</span>
+  );
 }
 
 function loadState() {
@@ -119,7 +129,7 @@ async function callGemini({ apiKey, model, prompt, files = [] }) {
   if (!apiKey) throw new Error("Gemini API anahtari gerekli.");
   if (!model) throw new Error("Gecerli bir model secilmedi.");
 
-  const candidates = [model, "gemini-3-flash-preview", "gemini-2.5-flash"]
+  const candidates = [model, "gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-2.5-flash"]
     .filter((value, index, array) => value && array.indexOf(value) === index);
 
   let lastFailure = null;
@@ -169,21 +179,54 @@ function renderRichText(text) {
   if (!text) return null;
   return String(text).split("\n").map((line, index) => {
     const trimmed = line.trim();
+    const correctOptionMatch = trimmed.match(/^(?:\[(?:x|X)\]|[◉●⊙]|✅)\s*(.+)$/);
+    const wrongOptionMatch = trimmed.match(/^(?:\[\s\]|[○◌◯])\s*(.+)$/);
+    const reasonMatch = trimmed.match(/^(Dogru cevap neden dogru|Dogru cevap aciklamasi|Aciklama|Neden)\s*:\s*(.+)$/i);
+    const wrongReasonMatch = trimmed.match(/^(Diger siklar neden yanlis|Yanlis secenekler)\s*:\s*(.+)$/i);
+    const progressMatch = trimmed.match(/^\d+\s*\/\s*\d+$/);
+    const categoryMatch = trimmed.match(/^Kategori\s*:\s*(.+)$/i);
+
     if (!trimmed) return <div key={index} className="rt-space" />;
     if (trimmed.startsWith("# ")) return <h1 key={index} className="rt-h1">{trimmed.slice(2)}</h1>;
     if (trimmed.startsWith("## ")) return <h2 key={index} className="rt-h2">{trimmed.slice(3)}</h2>;
     if (trimmed.startsWith("### ")) return <h3 key={index} className="rt-h3">{trimmed.slice(4)}</h3>;
+    if (progressMatch) return <div key={index} className="rt-chip">{trimmed}</div>;
+    if (categoryMatch) return <div key={index} className="rt-meta-line"><strong>Kategori:</strong> {renderInlineMarkup(categoryMatch[1])}</div>;
+    if (correctOptionMatch) {
+      return (
+        <div key={index} className="rt-option rt-option-correct">
+          <span className="rt-option-indicator">Dogru</span>
+          <div className="rt-option-text">{renderInlineMarkup(correctOptionMatch[1])}</div>
+        </div>
+      );
+    }
+    if (wrongOptionMatch) {
+      return (
+        <div key={index} className="rt-option">
+          <span className="rt-option-indicator muted">Secenek</span>
+          <div className="rt-option-text">{renderInlineMarkup(wrongOptionMatch[1])}</div>
+        </div>
+      );
+    }
+    if (reasonMatch) {
+      return (
+        <div key={index} className="rt-note rt-note-correct">
+          <strong>{reasonMatch[1]}:</strong> {renderInlineMarkup(reasonMatch[2])}
+        </div>
+      );
+    }
+    if (wrongReasonMatch) {
+      return (
+        <div key={index} className="rt-note rt-note-wrong">
+          <strong>{wrongReasonMatch[1]}:</strong> {renderInlineMarkup(wrongReasonMatch[2])}
+        </div>
+      );
+    }
     if (/^\d+\.\s/.test(trimmed)) return <div key={index} className="rt-number">{trimmed}</div>;
     if (trimmed.startsWith("- ")) return <div key={index} className="rt-bullet">{trimmed.slice(2)}</div>;
-
-    const parts = trimmed.split(/(\*\*.*?\*\*)/g);
     return (
       <p key={index} className="rt-p">
-        {parts.map((part, partIndex) =>
-          part.startsWith("**") && part.endsWith("**")
-            ? <strong key={partIndex} className="rt-strong">{part.slice(2, -2)}</strong>
-            : <span key={partIndex}>{part}</span>
-        )}
+        {renderInlineMarkup(trimmed)}
       </p>
     );
   });
@@ -196,7 +239,9 @@ TALIMATLAR:
 2. BIREBIR SAYFA YAPISI: Orijinal sayfadaki basliklari, paragraflari ve duzeni koruyarak Markdown formatinda yeniden olustur.
 3. COZUM ENTEGRASYONU: Sorularin oldugu yerlere cozumleri dogru noktada yerlestir.
 4. KULLANICIYA sureci aciklama, "bunu yaptim" gibi meta yorumlar, markdown kisitlari, teknik notlar veya kontrol notlari yazma.
-5. Sadece cozumlu nihai icerigi ver.
+5. Coktan secmeli sorularda sadece dogru secenegi [x] ile, digerlerini [ ] ile isaretle.
+6. Her sorudan hemen sonra en fazla 1-2 cumleyle "Dogru cevap neden dogru:" ve gerekiyorsa "Diger siklar neden yanlis:" satirlarini ekle.
+7. Sadece cozumlu nihai icerigi ver.
 
 CIKTI DUZENI:
 # Baslik
@@ -233,6 +278,8 @@ TALIMATLAR:
 3. Sorular ve cevaplar ALMANCA olsun. Turkce tercumeleri parantez icinde ekle.
 4. Her soru icin neden dogru oldugunu kisa acikla. Yanlis secenekler varsa neden yanlis olduklarini da kisa not olarak ekle.
 5. CIKTIYI SADECE GECERLI JSON olarak ver.
+6. Coktan secmeli sorularda sadece 1 dogru cevap olsun.
+7. Aciklamalar kisa, net ve ogrenci dostu olsun.
 
 FORMAT:
 {
@@ -290,10 +337,19 @@ function ExamQuestion({ question, index }) {
       </div>
       <div className="exam-options">
         {(question.options || []).map((option, optionIndex) => (
-          <div key={optionIndex} className={`exam-option ${open && option.isCorrect ? "correct" : ""}`}>
-            <div>{option.de}</div>
+          <div key={optionIndex} className={`exam-option ${open && option.isCorrect ? "correct" : open ? "reviewed" : ""}`}>
+            <div className="exam-option-row">
+              <span className={`exam-choice-dot ${open && option.isCorrect ? "correct" : ""}`} />
+              <div className="exam-option-main">{option.de}</div>
+              {open && option.isCorrect && <span className="exam-correct-badge">Dogru</span>}
+            </div>
             <div className="exam-tr">({option.tr})</div>
-            {open && <div className="exam-reason">{option.reason}</div>}
+            {open && option.reason && (
+              <div className={`exam-reason ${option.isCorrect ? "correct" : "wrong"}`}>
+                {option.isCorrect ? "Neden dogru: " : "Neden degil: "}
+                {option.reason}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -302,7 +358,7 @@ function ExamQuestion({ question, index }) {
       </button>
       {open && (
         <div className="exam-answer">
-          <strong>Dogru Cevap:</strong> {question.answer_de} <span className="exam-tr">({question.answer_tr})</span>
+          <strong className="exam-answer-title">Dogru Cevap:</strong> {question.answer_de} <span className="exam-tr">({question.answer_tr})</span>
           <div className="exam-reason">{question.explanation}</div>
         </div>
       )}
@@ -778,7 +834,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
               {MODEL_OPTIONS.map((item) => <option key={item[0]} value={item[0]}>{item[1]}</option>)}
             </select>
             <p className="muted">
-              `Gemini 3.1 Flash Lite` AI Studio'da gorunuyorsa, resmi API model kodu garanti olmadigi icin `Ozel Model Kimligi` secip tam adini buraya yapistirabilirsin.
+              Varsayilan model `Gemini 3.1 Flash Lite` olarak ayarlandi. Istersen buradan diger modellere de gecebilirsin.
             </p>
             {state.settings.model === "custom" && (
               <>
