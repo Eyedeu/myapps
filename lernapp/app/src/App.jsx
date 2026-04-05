@@ -129,8 +129,13 @@ async function callGemini({ apiKey, model, prompt, files = [] }) {
   if (!apiKey) throw new Error("Gemini API anahtarı gerekli.");
   if (!model) throw new Error("Geçerli bir model seçilmedi.");
 
-  const candidates = [model, "gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-2.5-flash"]
-    .filter((value, index, array) => value && array.indexOf(value) === index);
+  const shouldStayOnSelectedModel =
+    model === "gemini-3.1-flash-lite" || model === "custom";
+
+  const candidates = shouldStayOnSelectedModel
+    ? [model]
+    : [model, "gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-2.5-flash"]
+        .filter((value, index, array) => value && array.indexOf(value) === index);
 
   let lastFailure = null;
   for (const candidate of candidates) {
@@ -904,7 +909,7 @@ Kısa, açık ve pratik cevap ver. Gerekirse maddeler kullan.`
               {MODEL_OPTIONS.map((item) => <option key={item[0]} value={item[0]}>{item[1]}</option>)}
             </select>
             <p className="muted">
-              Varsayılan model `Gemini 3.1 Flash Lite` olarak ayarlandı. İstersen buradan diğer modellere de geçebilirsin.
+              Varsayılan model `Gemini 3.1 Flash Lite` olarak ayarlandı. Bu model seçiliyken uygulama sessizce başka modele geçmez; başarısız olursa doğrudan hata gösterir.
             </p>
             {state.settings.model === "custom" && (
               <>
