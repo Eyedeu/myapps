@@ -34,6 +34,13 @@ function extractTitle(text, fallback) {
   return firstHeading ? firstHeading.replace(/^#\s+/, "").trim() : fallback;
 }
 
+function createChatTitle(text, count = 1) {
+  const cleaned = String(text || "").replace(/\s+/g, " ").trim();
+  if (!cleaned) return `Sohbet ${count}`;
+  const words = cleaned.split(" ").slice(0, 6).join(" ");
+  return words.length > 42 ? `${words.slice(0, 42)}...` : words;
+}
+
 function parseExamJson(text) {
   try {
     const clean = String(text).replace(/```json/g, "").replace(/```/g, "").trim();
@@ -329,14 +336,14 @@ FORMAT:
 }`;
 }
 
-function ArchiveList({ title, items, onOpen, onDelete, emptyText }) {
+function ArchiveList({ title, items, onOpen, onDelete, emptyText, activeId = null }) {
   return (
     <div className="panel archive-panel">
       <div className="panel-title">{title}</div>
       <div className="archive-list">
         {items.length === 0 && <p className="empty">{emptyText}</p>}
         {items.map((item) => (
-          <button key={item.id} className="archive-item" onClick={() => onOpen(item)}>
+          <button key={item.id} className={`archive-item ${activeId === item.id ? "active" : ""}`} onClick={() => onOpen(item)}>
             <strong>{item.title}</strong>
             <div className="archive-meta">
               <span>{formatDate(item.createdAt)}</span>
@@ -435,6 +442,7 @@ function App() {
   const [courseTitle, setCourseTitle] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [selectedEntryIds, setSelectedEntryIds] = useState([]);
+  const [activeChatId, setActiveChatId] = useState(null);
   const [chatInput, setChatInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
@@ -464,10 +472,37 @@ function App() {
     () => state.exams.filter((exam) => exam.courseId === activeCourseId).map((exam) => ({ ...exam, kindLabel: "Sınav Hazırlığı" })),
     [state.exams, activeCourseId]
   );
+  const courseChats = useMemo(
+    () =>
+      state.chats
+        .filter((chat) => chat.courseId === activeCourseId)
+        .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0))
+        .map((chat) => ({
+          ...chat,
+          title: chat.title || "İsimsiz Sohbet",
+          usedModel: chat.lastUsedModel || "-",
+          createdAt: chat.updatedAt || chat.createdAt
+        })),
+    [state.chats, activeCourseId]
+  );
   const activeChat = useMemo(() => {
     if (!activeCourseId) return null;
-    return state.chats.find((chat) => chat.courseId === activeCourseId) || { id: null, courseId: activeCourseId, messages: [] };
-  }, [state.chats, activeCourseId]);
+    return courseChats.find((chat) => chat.id === activeChatId) || courseChats[0] || null;
+  }, [courseChats, activeChatId, activeCourseId]);
+
+  useEffect(() => {
+    if (!activeCourseId) {
+      setActiveChatId(null);
+      return;
+    }
+    if (courseChats.length === 0) {
+      setActiveChatId(null);
+      return;
+    }
+    if (!courseChats.some((chat) => chat.id === activeChatId)) {
+      setActiveChatId(courseChats[0].id);
+    }
+  }, [activeCourseId, courseChats, activeChatId]);
 
   function updateSettings(patch) {
     setState((current) => ({ ...current, settings: { ...current.settings, ...patch } }));
@@ -484,6 +519,22 @@ function App() {
 
   function removeCourse(courseId) {
     setDeleteTarget({ id: courseId, collection: "courses" });
+  }
+
+  function startNewChat() {
+    if (!activeCourseId) return;
+    const newChat = {
+      id: uid(),
+      courseId: activeCourseId,
+      title: `Sohbet ${courseChats.length + 1}`,
+      messages: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      lastUsedModel: ""
+    };
+    setState((current) => ({ ...current, chats: [newChat, ...current.chats] }));
+    setActiveChatId(newChat.id);
+    setChatInput("");
   }
 
   async function createEntry(kind) {
@@ -582,13 +633,32 @@ function App() {
     if (!text || !activeCourseId) return;
     const userMessage = { id: uid(), role: "user", text, createdAt: new Date().toISOString() };
     const context = courseEntries.slice(0, 6).map((entry) => `${entry.title}\n${entry.output}`).join("\n\n---\n\n");
-    const nextMessages = [...(activeChat?.messages || []), userMessage];
+    const targetChatId = activeChat?.id || uid();
+    const isNewChat = !activeChat?.id;
+    const baseChat = activeChat || {
+      id: targetChatId,
+      courseId: activeCourseId,
+      title: createChatTitle(text, courseChats.length + 1),
+      messages: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      lastUsedModel: ""
+    };
+    const nextMessages = [...(baseChat.messages || []), userMessage];
 
     setState((current) => {
-      const existing = current.chats.find((chat) => chat.courseId === activeCourseId);
-      const updated = existing ? { ...existing, messages: nextMessages } : { id: uid(), courseId: activeCourseId, messages: nextMessages };
-      return { ...current, chats: existing ? current.chats.map((chat) => (chat.courseId === activeCourseId ? updated : chat)) : [updated, ...current.chats] };
+      const existing = current.chats.find((chat) => chat.id === targetChatId);
+      const updated = existing
+        ? { ...existing, messages: nextMessages, updatedAt: new Date().toISOString() }
+        : { ...baseChat, messages: nextMessages, updatedAt: new Date().toISOString() };
+      return {
+        ...current,
+        chats: existing
+          ? current.chats.map((chat) => (chat.id === targetChatId ? updated : chat))
+          : [updated, ...current.chats]
+      };
     });
+    if (isNewChat) setActiveChatId(targetChatId);
 
     setChatInput("");
     setBusy(true);
@@ -621,10 +691,18 @@ Kısa, açık ve pratik cevap ver. Gerekirse maddeler kullan.`
       setState((current) => ({
         ...current,
         chats: current.chats.map((chat) =>
-          chat.courseId === activeCourseId ? { ...chat, messages: [...chat.messages, modelMessage] } : chat
+          chat.id === targetChatId
+            ? {
+                ...chat,
+                title: chat.title || createChatTitle(text, courseChats.length + 1),
+                messages: [...chat.messages, modelMessage],
+                updatedAt: new Date().toISOString(),
+                lastUsedModel: result.usedModel
+              }
+            : chat
         )
       }));
-      setStatus(`Yanit hazir.${result.fallbackUsed ? ` Kullanilan model: ${result.usedModel}.` : ""}`);
+      setStatus(`Yanıt hazır.${result.fallbackUsed ? ` Kullanılan model: ${result.usedModel}.` : ""}`);
     } catch (err) {
       setError(err.message);
       setStatus("");
@@ -674,6 +752,15 @@ Kısa, açık ve pratik cevap ver. Gerekirse maddeler kullan.`
         ...current,
         exams: current.exams.filter((exam) => exam.id !== deleteTarget.id)
       }));
+    }
+    if (deleteTarget.collection === "chats") {
+      setState((current) => ({
+        ...current,
+        chats: current.chats.filter((chat) => chat.id !== deleteTarget.id)
+      }));
+      if (activeChatId === deleteTarget.id) {
+        setActiveChatId(null);
+      }
     }
     if (viewerItem?.id === deleteTarget.id) {
       setViewerItem(null);
@@ -866,10 +953,15 @@ Kısa, açık ve pratik cevap ver. Gerekirse maddeler kullan.`
             <div className="panel full emphasis">
               <div className="row between">
                 <div className="panel-title">Ders Sohbeti</div>
-                <span className="source-pill">{resolvedModel || "Model seç"}</span>
+                <div className="row">
+                  <span className="source-pill">{resolvedModel || "Model seç"}</span>
+                  <button className="secondary" onClick={startNewChat}>Yeni Sohbet</button>
+                </div>
               </div>
+              <p className="section-copy">Her sohbet ayrı bir oturum olarak kaydedilir. İstediğin zaman eski sohbetleri yeniden açabilirsin.</p>
               <div className="chat-box">
-                {(activeChat?.messages || []).length === 0 && <p className="empty">Bu ders için henüz sohbet yok.</p>}
+                {!activeChat && <p className="empty">Henüz sohbet yok. Yeni sohbet başlatarak başlayabilirsin.</p>}
+                {activeChat && (activeChat.messages || []).length === 0 && <p className="empty">Bu sohbet henüz boş. İlk mesajını göndererek başlayabilirsin.</p>}
                 {(activeChat?.messages || []).map((message) => (
                   <div key={message.id} className={`chat-message ${message.role === "user" ? "user" : "model"}`}>
                     <strong>{message.role === "user" ? "Sen" : `AI (${message.usedModel || resolvedModel})`}</strong>
@@ -882,6 +974,14 @@ Kısa, açık ve pratik cevap ver. Gerekirse maddeler kullan.`
                 {busy ? "Gönderiliyor..." : "Mesajı Gönder"}
               </button>
             </div>
+            <ArchiveList
+              title="Sohbet Listesi"
+              items={courseChats}
+              onOpen={(item) => setActiveChatId(item.id)}
+              onDelete={(item) => setDeleteTarget({ id: item.id, collection: "chats" })}
+              emptyText="Bu derste henüz kayıtlı sohbet yok."
+              activeId={activeChat?.id || null}
+            />
           </section>
         )}
 
