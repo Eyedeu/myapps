@@ -126,7 +126,7 @@ Alternatif isimler birbirini tekrar etmesin.
 
   return callGemini({
     apiKey,
-    model: "gemini-2.0-flash",
+    model: "gemini-3.1-flash-lite-preview",
     payload: {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: { responseMimeType: "application/json" },
@@ -155,7 +155,7 @@ Yalnızca JSON dön:
 
   return callGemini({
     apiKey,
-    model: "gemini-2.0-flash",
+    model: "gemini-3.1-flash-lite-preview",
     payload: {
       contents: [
         {
