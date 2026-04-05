@@ -88,18 +88,18 @@ function normalizeError(message, model) {
   const text = String(message || "");
   const lowered = text.toLowerCase();
   if (lowered.includes("high demand") || lowered.includes("overloaded")) {
-    return `${model} modeli su anda yogun. Uygulama otomatik olarak yedek modele gecmeyi dener.`;
+    return `${model} modeli şu anda yoğun. Uygulama otomatik olarak yedek modele geçmeyi dener.`;
   }
   if (lowered.includes("quota")) {
-    return `${model} icin kota dolu veya bu key ile erisim yok.`;
+    return `${model} için kota dolu veya bu anahtarla erişim yok.`;
   }
   if (lowered.includes("not found") || lowered.includes("not supported")) {
-    return `${model} modeli bulunamadi. Ozel model kimligini kontrol et.`;
+    return `${model} modeli bulunamadı. Özel model kimliğini kontrol et.`;
   }
   if (lowered.includes("api key")) {
-    return "API anahtari gecersiz veya eksik.";
+    return "API anahtarı geçersiz veya eksik.";
   }
-  return text || "Gemini istegi sirasinda bir hata olustu.";
+  return text || "Gemini isteği sırasında bir hata oluştu.";
 }
 
 async function tryGeminiCall({ apiKey, model, prompt, files = [] }) {
@@ -126,8 +126,8 @@ async function tryGeminiCall({ apiKey, model, prompt, files = [] }) {
 }
 
 async function callGemini({ apiKey, model, prompt, files = [] }) {
-  if (!apiKey) throw new Error("Gemini API anahtari gerekli.");
-  if (!model) throw new Error("Gecerli bir model secilmedi.");
+  if (!apiKey) throw new Error("Gemini API anahtarı gerekli.");
+  if (!model) throw new Error("Geçerli bir model seçilmedi.");
 
   const candidates = [model, "gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-2.5-flash"]
     .filter((value, index, array) => value && array.indexOf(value) === index);
@@ -354,7 +354,7 @@ function ExamQuestion({ question, index }) {
         ))}
       </div>
       <button className="ghost" onClick={() => setOpen((current) => !current)}>
-        {open ? "Cevabi Gizle" : "Cevabi Goster"}
+        {open ? "Cevabı Gizle" : "Cevabı Göster"}
       </button>
       {open && (
         <div className="exam-answer">
@@ -378,12 +378,12 @@ function ContentViewer({ item, onClose, fullScreen, onToggleFullScreen }) {
             <div className="viewer-meta">
               <span>{formatDate(item.createdAt)}</span>
               <span>{item.usedModel || "-"}</span>
-              <span>{item.kindLabel || item.typeLabel || "Icerik"}</span>
+              <span>{item.kindLabel || item.typeLabel || "İçerik"}</span>
             </div>
           </div>
           <div className="viewer-actions">
             <button className="ghost" onClick={onToggleFullScreen}>
-              {fullScreen ? "Kucult" : "Buyut"}
+              {fullScreen ? "Küçült" : "Büyüt"}
             </button>
             <button className="ghost" onClick={onClose}>Kapat</button>
           </div>
@@ -434,10 +434,10 @@ function App() {
     () => state.entries.filter((entry) => entry.courseId === activeCourseId),
     [state.entries, activeCourseId]
   );
-  const homeworkEntries = courseEntries.filter((entry) => entry.kind === "homework").map((entry) => ({ ...entry, kindLabel: "Odev Cozumu" }));
-  const topicEntries = courseEntries.filter((entry) => entry.kind === "topic").map((entry) => ({ ...entry, kindLabel: "Konu Anlatimi" }));
+  const homeworkEntries = courseEntries.filter((entry) => entry.kind === "homework").map((entry) => ({ ...entry, kindLabel: "Ödev Çözümü" }));
+  const topicEntries = courseEntries.filter((entry) => entry.kind === "topic").map((entry) => ({ ...entry, kindLabel: "Konu Anlatımı" }));
   const courseExams = useMemo(
-    () => state.exams.filter((exam) => exam.courseId === activeCourseId).map((exam) => ({ ...exam, kindLabel: "Sinav Hazirligi" })),
+    () => state.exams.filter((exam) => exam.courseId === activeCourseId).map((exam) => ({ ...exam, kindLabel: "Sınav Hazırlığı" })),
     [state.exams, activeCourseId]
   );
   const activeChat = useMemo(() => {
@@ -459,20 +459,13 @@ function App() {
   }
 
   function removeCourse(courseId) {
-    setState((current) => ({
-      ...current,
-      courses: current.courses.filter((course) => course.id !== courseId),
-      entries: current.entries.filter((entry) => entry.courseId !== courseId),
-      exams: current.exams.filter((exam) => exam.courseId !== courseId),
-      chats: current.chats.filter((chat) => chat.courseId !== courseId)
-    }));
-    if (activeCourseId === courseId) setActiveCourseId(null);
+    setDeleteTarget({ id: courseId, collection: "courses" });
   }
 
   async function createEntry(kind) {
     if (!activeCourseId || selectedFiles.length === 0) return;
     setBusy(true);
-    setStatus(kind === "homework" ? "Odev cozumu hazirlaniyor..." : "Konu anlatimi hazirlaniyor...");
+    setStatus(kind === "homework" ? "Ödev çözümü hazırlanıyor..." : "Konu anlatımı hazırlanıyor...");
     setError("");
     try {
       const result = await callGemini({
@@ -485,7 +478,7 @@ function App() {
         id: uid(),
         courseId: activeCourseId,
         kind,
-        title: extractTitle(result.text, kind === "homework" ? "Cozumlu Odev" : "Konu Anlatimi"),
+        title: extractTitle(result.text, kind === "homework" ? "Çözümlü Ödev" : "Konu Anlatımı"),
         sourceFiles: selectedFiles.map((file) => file.name),
         output: result.text,
         usedModel: result.usedModel,
@@ -493,8 +486,8 @@ function App() {
       };
       setState((current) => ({ ...current, entries: [entry, ...current.entries] }));
       setSelectedFiles([]);
-      setViewerItem({ ...entry, kindLabel: kind === "homework" ? "Odev Cozumu" : "Konu Anlatimi" });
-      setStatus(`${kind === "homework" ? "Cozumlu odev" : "Konu anlatimi"} olusturuldu.${result.fallbackUsed ? ` Kullanilan model: ${result.usedModel}.` : ""}`);
+      setViewerItem({ ...entry, kindLabel: kind === "homework" ? "Ödev Çözümü" : "Konu Anlatımı" });
+      setStatus(`${kind === "homework" ? "Çözümlü ödev" : "Konu anlatımı"} oluşturuldu.${result.fallbackUsed ? ` Kullanılan model: ${result.usedModel}.` : ""}`);
     } catch (err) {
       setError(err.message);
       setStatus("");
@@ -506,11 +499,11 @@ function App() {
   async function createExam() {
     if (!activeCourseId || (selectedFiles.length === 0 && selectedEntryIds.length === 0)) return;
     setBusy(true);
-    setStatus("Sinav seti olusturuluyor...");
+    setStatus("Sınav seti oluşturuluyor...");
     setError("");
     try {
       const pickedEntries = courseEntries.filter((entry) => selectedEntryIds.includes(entry.id));
-      const contextText = pickedEntries.map((entry) => `Baslik: ${entry.title}\n${entry.output}`).join("\n\n---\n\n");
+      const contextText = pickedEntries.map((entry) => `Başlık: ${entry.title}\n${entry.output}`).join("\n\n---\n\n");
       const result = await callGemini({
         apiKey: state.settings.geminiApiKey,
         model: resolvedModel,
@@ -520,7 +513,7 @@ function App() {
       const exam = {
         id: uid(),
         courseId: activeCourseId,
-        title: parseExamJson(result.text)?.title || `Sinav Seti ${courseExams.length + 1}`,
+        title: parseExamJson(result.text)?.title || `Sınav Seti ${courseExams.length + 1}`,
         output: result.text,
         questions: parseExamJson(result.text)?.questions || null,
         usedModel: result.usedModel,
@@ -531,8 +524,8 @@ function App() {
       setState((current) => ({ ...current, exams: [exam, ...current.exams] }));
       setSelectedFiles([]);
       setSelectedEntryIds([]);
-      setViewerItem({ ...exam, kindLabel: "Sinav Hazirligi" });
-      setStatus(`Sinav seti hazir.${result.fallbackUsed ? ` Kullanilan model: ${result.usedModel}.` : ""}`);
+      setViewerItem({ ...exam, kindLabel: "Sınav Hazırlığı" });
+      setStatus(`Sınav seti hazır.${result.fallbackUsed ? ` Kullanılan model: ${result.usedModel}.` : ""}`);
     } catch (err) {
       setError(err.message);
       setStatus("");
@@ -556,24 +549,24 @@ function App() {
 
     setChatInput("");
     setBusy(true);
-    setStatus("Sohbet yaniti hazirlaniyor...");
+    setStatus("Sohbet yanıtı hazırlanıyor...");
     setError("");
 
     try {
       const result = await callGemini({
         apiKey: state.settings.geminiApiKey,
         model: resolvedModel,
-        prompt: `Sen destekleyici bir Ausbildung asistanisin.
+        prompt: `Sen destekleyici bir Ausbildung asistanısın.
 Mevcut ders: ${activeCourse?.title || ""}
 Kaynak dil: ${state.settings.sourceLanguage}
 Hedef dil: ${state.settings.targetLanguage}
 Baglam:
-${context || "Henuz analiz edilmis materyal yok."}
+${context || "Henüz analiz edilmiş materyal yok."}
 
 Kullanici sorusu:
 ${text}
 
-Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
+Kısa, açık ve pratik cevap ver. Gerekirse maddeler kullan.`
       });
       const modelMessage = {
         id: uid(),
@@ -606,7 +599,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
         const parsed = JSON.parse(String(reader.result));
         setState({ ...defaultState, ...parsed, settings: { ...defaultState.settings, ...(parsed.settings || {}) } });
       } catch {
-        setError("Ice aktarma dosyasi gecersiz.");
+        setError("İçe aktarma dosyası geçersiz.");
       }
     };
     reader.readAsText(file);
@@ -615,6 +608,18 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
 
   function confirmDelete() {
     if (!deleteTarget) return;
+    if (deleteTarget.collection === "courses") {
+      setState((current) => ({
+        ...current,
+        courses: current.courses.filter((course) => course.id !== deleteTarget.id),
+        entries: current.entries.filter((entry) => entry.courseId !== deleteTarget.id),
+        exams: current.exams.filter((exam) => exam.courseId !== deleteTarget.id),
+        chats: current.chats.filter((chat) => chat.courseId !== deleteTarget.id)
+      }));
+      if (activeCourseId === deleteTarget.id) {
+        setActiveCourseId(null);
+      }
+    }
     if (deleteTarget.collection === "entries") {
       setState((current) => ({
         ...current,
@@ -638,20 +643,16 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-card">
-          <p className="eyebrow">Mesleki Ogrenme Alani</p>
+          <p className="eyebrow">Mesleki Öğrenme Alanı</p>
           <h1>Ausbildung<span>Pro</span></h1>
-          <p className="muted">Her ders icin konu anlatimi, odev cozumu, sohbet ve sinav hazirligi alanlari.</p>
+          <p className="muted">Her ders için konu anlatımı, ödev çözümü, sohbet ve sınav hazırlığı alanları.</p>
         </div>
 
-        <div className="toolbar-grid">
-          <button className="primary wide" onClick={() => setShowSettings(true)}>API ve Dil Ayarlari</button>
-          <button className="secondary" onClick={() => downloadJson("ausbildung-backup.json", state)}>Disa Aktar</button>
-          <label className="secondary file-button">Ice Aktar<input type="file" accept=".json" onChange={importData} /></label>
-        </div>
+        <button className="primary wide" onClick={() => setShowSettings(true)}>Ayarlar</button>
 
         <div className="panel sidebar-panel">
           <div className="panel-title">Yeni Ders</div>
-          <input value={courseTitle} onChange={(event) => setCourseTitle(event.target.value)} placeholder="Orn. WiSo" />
+          <input value={courseTitle} onChange={(event) => setCourseTitle(event.target.value)} placeholder="Örn. WiSo" />
           <button className="primary compact" onClick={addCourse}>Dersi Ekle</button>
         </div>
 
@@ -661,7 +662,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
             <span className="badge">{state.courses.length}</span>
           </div>
           <div className="archive-list">
-            {state.courses.length === 0 && <p className="empty">Baslamak icin soldan yeni bir ders ac.</p>}
+            {state.courses.length === 0 && <p className="empty">Başlamak için soldan yeni bir ders aç.</p>}
             {state.courses.map((course) => (
               <button
                 key={course.id}
@@ -674,9 +675,9 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
                 <strong>{course.title}</strong>
                 <div className="archive-meta">
                   <span>{formatDate(course.createdAt)}</span>
-                  <span>{state.entries.filter((entry) => entry.courseId === course.id).length} icerik</span>
+                  <span>{state.entries.filter((entry) => entry.courseId === course.id).length} içerik</span>
                 </div>
-                <span className="delete-link" onClick={(event) => { event.stopPropagation(); removeCourse(course.id); }}>Dersi sil</span>
+                <span className="icon-delete" onClick={(event) => { event.stopPropagation(); removeCourse(course.id); }} title="Dersi sil" aria-label="Dersi sil">🗑</span>
               </button>
             ))}
           </div>
@@ -686,16 +687,16 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
       <main className="content">
         <header className="hero-header">
           <div>
-            <p className="eyebrow">Calisma Alani</p>
-            <h2>{activeCourse ? activeCourse.title : "Bir ders sec"}</h2>
+            <p className="eyebrow">Çalışma Alanı</p>
+            <h2>{activeCourse ? activeCourse.title : "Bir ders seç"}</h2>
           </div>
           <div className="top-actions">
-            <div className="lang-pill">Almanca {"->"} Turkce</div>
+            <div className="lang-pill">Almanca → Türkçe</div>
             <div className="tab-strip">
               {[
-                ["homework", "Odev Cozumu"],
-                ["topic", "Konu Anlatimi"],
-                ["exam", "Sinav Hazirligi"],
+                ["homework", "Ödev Çözümü"],
+                ["topic", "Konu Anlatımı"],
+                ["exam", "Sınav Hazırlığı"],
                 ["chat", "Sohbet"]
               ].map((item) => (
                 <button key={item[0]} className={activeTab === item[0] ? "tab active" : "tab"} onClick={() => setActiveTab(item[0])}>
@@ -709,8 +710,8 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
         {!activeCourse && (
           <section className="welcome-card">
             <div className="welcome-copy">
-              <div className="panel-title">Yeni Ders Olustur</div>
-              <p>Her ders acildiginda odev cozumu, konu anlatimi, sohbet ve sinav hazirligi alanlari otomatik hazir olur.</p>
+              <div className="panel-title">Yeni Ders Oluştur</div>
+              <p>Her ders açıldığında ödev çözümü, konu anlatımı, sohbet ve sınav hazırlığı alanları otomatik hazır olur.</p>
             </div>
           </section>
         )}
@@ -718,51 +719,51 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
         {activeCourse && activeTab === "homework" && (
           <section className="workspace-grid">
             <div className="panel emphasis">
-              <div className="panel-title">Odev Cozumu</div>
-              <p className="section-copy">Yukledigin sayfalari ayni akisla, cozumleri dogru yerde olacak sekilde hazirlar.</p>
-              <label>Dosya Yukle</label>
+              <div className="panel-title">Ödev Çözümü</div>
+              <p className="section-copy">Yüklediğin sayfaları aynı akışla, çözümleri doğru yerde olacak şekilde hazırlar.</p>
+              <label>Dosya Yükle</label>
               <input type="file" multiple accept=".pdf,image/*" onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))} />
               <div className="file-list">
-                {selectedFiles.length === 0 && <p className="empty">Henuz dosya secmedin.</p>}
+                {selectedFiles.length === 0 && <p className="empty">Henüz dosya seçmedin.</p>}
                 {selectedFiles.map((file) => <div key={`${file.name}-${file.size}`} className="file-chip">{file.name}</div>)}
               </div>
               <button className="primary" disabled={busy} onClick={() => createEntry("homework")}>
-                {busy ? "Hazirlaniyor..." : "Cozumlu Odev Olustur"}
+                {busy ? "Hazırlanıyor..." : "Çözümlü Ödev Oluştur"}
               </button>
             </div>
-            <ArchiveList title="Odev Arsivi" items={homeworkEntries} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "entries" })} emptyText="Bu derste henuz cozumlu odev yok." />
+            <ArchiveList title="Ödev Arşivi" items={homeworkEntries} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "entries" })} emptyText="Bu derste henüz çözümlü ödev yok." />
           </section>
         )}
 
         {activeCourse && activeTab === "topic" && (
           <section className="workspace-grid">
             <div className="panel emphasis">
-              <div className="panel-title">Konu Anlatimi</div>
-              <p className="section-copy">Baslikli, ozetli ve daha okunabilir bolumlere ayrilmis anlatim olusturur.</p>
-              <label>Dosya Yukle</label>
+              <div className="panel-title">Konu Anlatımı</div>
+              <p className="section-copy">Başlıklı, özetli ve daha okunabilir bölümlere ayrılmış anlatım oluşturur.</p>
+              <label>Dosya Yükle</label>
               <input type="file" multiple accept=".pdf,image/*" onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))} />
               <div className="file-list">
-                {selectedFiles.length === 0 && <p className="empty">Henuz dosya secmedin.</p>}
+                {selectedFiles.length === 0 && <p className="empty">Henüz dosya seçmedin.</p>}
                 {selectedFiles.map((file) => <div key={`${file.name}-${file.size}`} className="file-chip">{file.name}</div>)}
               </div>
               <button className="primary" disabled={busy} onClick={() => createEntry("topic")}>
-                {busy ? "Hazirlaniyor..." : "Konu Anlatimi Uret"}
+                {busy ? "Hazırlanıyor..." : "Konu Anlatımı Üret"}
               </button>
             </div>
-            <ArchiveList title="Anlatim Arsivi" items={topicEntries} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "entries" })} emptyText="Bu derste henuz konu anlatimi yok." />
+            <ArchiveList title="Anlatım Arşivi" items={topicEntries} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "entries" })} emptyText="Bu derste henüz konu anlatımı yok." />
           </section>
         )}
 
         {activeCourse && activeTab === "exam" && (
           <section className="workspace-grid">
             <div className="panel emphasis">
-              <div className="panel-title">Sinav Hazirligi</div>
-              <p className="section-copy">Yeni dosya yukleyebilir veya onceki icerikleri secip sinav seti olusturabilirsin.</p>
-              <label>Yeni Dosya Yukle</label>
+              <div className="panel-title">Sınav Hazırlığı</div>
+              <p className="section-copy">Yeni dosya yükleyebilir veya önceki içerikleri seçip sınav seti oluşturabilirsin.</p>
+              <label>Yeni Dosya Yükle</label>
               <input type="file" multiple accept=".pdf,image/*" onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))} />
-              <label>Onceden Uretilen Icerikler</label>
+              <label>Önceden Üretilen İçerikler</label>
               <div className="selection-list">
-                {courseEntries.length === 0 && <p className="empty">Secilebilir onceki icerik yok.</p>}
+                {courseEntries.length === 0 && <p className="empty">Seçilebilir önceki içerik yok.</p>}
                 {courseEntries.map((entry) => (
                   <label key={entry.id} className="selection-item">
                     <input
@@ -779,10 +780,10 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
                 ))}
               </div>
               <button className="primary" disabled={busy} onClick={createExam}>
-                {busy ? "Hazirlaniyor..." : "Sinav Seti Olustur"}
+                {busy ? "Hazırlanıyor..." : "Sınav Seti Oluştur"}
               </button>
             </div>
-            <ArchiveList title="Sinav Arsivi" items={courseExams} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "exams" })} emptyText="Bu derste henuz sinav seti yok." />
+            <ArchiveList title="Sınav Arşivi" items={courseExams} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "exams" })} emptyText="Bu derste henüz sınav seti yok." />
           </section>
         )}
 
@@ -791,10 +792,10 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
             <div className="panel full emphasis">
               <div className="row between">
                 <div className="panel-title">Ders Sohbeti</div>
-                <span className="source-pill">{resolvedModel || "Model sec"}</span>
+                <span className="source-pill">{resolvedModel || "Model seç"}</span>
               </div>
               <div className="chat-box">
-                {(activeChat?.messages || []).length === 0 && <p className="empty">Bu ders icin henuz sohbet yok.</p>}
+                {(activeChat?.messages || []).length === 0 && <p className="empty">Bu ders için henüz sohbet yok.</p>}
                 {(activeChat?.messages || []).map((message) => (
                   <div key={message.id} className={`chat-message ${message.role === "user" ? "user" : "model"}`}>
                     <strong>{message.role === "user" ? "Sen" : `AI (${message.usedModel || resolvedModel})`}</strong>
@@ -804,7 +805,7 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
               </div>
               <textarea rows="5" value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Dersle ilgili soru sor..." />
               <button className="primary" disabled={busy} onClick={sendChatMessage}>
-                {busy ? "Gonderiliyor..." : "Mesaji Gonder"}
+                {busy ? "Gönderiliyor..." : "Mesajı Gönder"}
               </button>
             </div>
           </section>
@@ -827,26 +828,30 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
               <h3>Ayarlar</h3>
               <button className="ghost" onClick={() => setShowSettings(false)}>Kapat</button>
             </div>
-            <label>Gemini API Anahtari</label>
-            <input type="password" value={state.settings.geminiApiKey} onChange={(event) => updateSettings({ geminiApiKey: event.target.value.trim() })} placeholder="API key gir" />
+            <label>Gemini API Anahtarı</label>
+            <input type="password" value={state.settings.geminiApiKey} onChange={(event) => updateSettings({ geminiApiKey: event.target.value.trim() })} placeholder="API anahtarını gir" />
             <label>Model</label>
             <select value={state.settings.model} onChange={(event) => updateSettings({ model: event.target.value })}>
               {MODEL_OPTIONS.map((item) => <option key={item[0]} value={item[0]}>{item[1]}</option>)}
             </select>
             <p className="muted">
-              Varsayilan model `Gemini 3.1 Flash Lite` olarak ayarlandi. Istersen buradan diger modellere de gecebilirsin.
+              Varsayılan model `Gemini 3.1 Flash Lite` olarak ayarlandı. İstersen buradan diğer modellere de geçebilirsin.
             </p>
             {state.settings.model === "custom" && (
               <>
-                <label>Ozel Model Kimligi</label>
-                <input value={state.settings.customModel} onChange={(event) => updateSettings({ customModel: event.target.value })} placeholder="API model kimligini buraya yaz" />
+                <label>Özel Model Kimliği</label>
+                <input value={state.settings.customModel} onChange={(event) => updateSettings({ customModel: event.target.value })} placeholder="API model kimliğini buraya yaz" />
                 <div className="field-grid">
                   <button className="ghost" onClick={() => updateSettings({ customModel: "gemini-3.1-flash-lite" })}>3.1 Flash Lite Dene</button>
                   <button className="ghost" onClick={() => updateSettings({ customModel: "gemini-2.5-flash-lite" })}>2.5 Flash Lite Dene</button>
                 </div>
               </>
             )}
-            <p className="muted">Bu uygulama Almanca materyalleri Turkce anlatim uzerine optimize edildi.</p>
+            <div className="settings-tools">
+              <button className="secondary" onClick={() => downloadJson("ausbildung-backup.json", state)}>Dışa Aktar</button>
+              <label className="secondary file-button">İçe Aktar<input type="file" accept=".json" onChange={importData} /></label>
+            </div>
+            <p className="muted">Bu uygulama Almanca materyalleri Türkçe anlatım üzerine optimize edildi.</p>
           </div>
         </div>
       )}
@@ -854,10 +859,10 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
       {deleteTarget && (
         <div className="modal-backdrop" onClick={() => setDeleteTarget(null)}>
           <div className="modal" onClick={(event) => event.stopPropagation()}>
-            <h3>Silmek istiyor musun?</h3>
-            <p className="muted">Bu islem geri alinamaz.</p>
+            <h3>Silmek istediğine emin misin?</h3>
+            <p className="muted">Bu işlem geri alınamaz.</p>
             <div className="row">
-              <button className="ghost" onClick={() => setDeleteTarget(null)}>Vazgec</button>
+              <button className="ghost" onClick={() => setDeleteTarget(null)}>Vazgeç</button>
               <button className="primary" onClick={confirmDelete}>Sil</button>
             </div>
           </div>
