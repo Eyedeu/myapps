@@ -113,7 +113,8 @@ button {
 .result-header p,
 .empty-state p,
 .preview-caption,
-.alert-card span {
+.alert-card span,
+.settings-note {
   margin: 0;
   color: var(--muted);
   line-height: 1.55;
