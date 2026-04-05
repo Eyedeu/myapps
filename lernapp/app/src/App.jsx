@@ -41,6 +41,23 @@ function createChatTitle(text, count = 1) {
   return words.length > 42 ? `${words.slice(0, 42)}...` : words;
 }
 
+function parseChatPayload(text, fallbackTitle) {
+  try {
+    const clean = String(text).replace(/```json/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(clean);
+    if (parsed && typeof parsed.answer === "string") {
+      return {
+        title: String(parsed.title || fallbackTitle || "Sohbet").trim(),
+        answer: parsed.answer.trim()
+      };
+    }
+  } catch {}
+  return {
+    title: fallbackTitle || createChatTitle(text),
+    answer: String(text || "").trim()
+  };
+}
+
 function parseExamJson(text) {
   try {
     const clean = String(text).replace(/```json/g, "").replace(/```/g, "").trim();
@@ -282,6 +299,7 @@ TALIMATLAR:
 function buildTranslationPrompt(settings) {
   return `GOREV: BIREBIR CEVIRI (Almanca -> Turkce)
 TALIMATLAR:
+0. Ilk satirda, cevirinin ana fikrini yansitan kisa ve anlamli bir # Baslik yaz.
 1. Gorselleri veya PDF sayfalarini analiz et.
 2. ORIJINAL SAYFA YAPISI: Basliklari, alt basliklari, tablo akisini, soru siralarini, madde yapisini ve sayfa bolumlerini olabildigince ayni sirada koru.
 3. METINLERI DOGRUDAN CEVIR: Icerigi ozetleme, yorumlama, sadeleştirme veya yeniden yazma yapma.
@@ -444,6 +462,7 @@ function App() {
   const [selectedEntryIds, setSelectedEntryIds] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
   const [chatInput, setChatInput] = useState("");
+  const [chatFullScreen, setChatFullScreen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -679,12 +698,24 @@ ${context || "Henüz analiz edilmiş materyal yok."}
 Kullanici sorusu:
 ${text}
 
-Kısa, açık ve pratik cevap ver. Gerekirse maddeler kullan.`
+GOREV:
+1. Kullanıcıya kısa, açık, pratik ve düzenli bir cevap ver.
+2. Gerekirse kısa başlıklar, maddeler ve **kalın** vurgular kullan.
+3. Önemli terimleri **kalın** yazarak öne çıkar.
+4. Sohbetin ana fikrini yansıtan kısa bir başlık üret.
+5. CIKTIYI SADECE GECERLI JSON olarak ver.
+
+FORMAT:
+{
+  "title": "Sohbetin ana fikrini yansitan kisa baslik",
+  "answer": "Kullaniciya verilecek markdown destekli cevap"
+}`
       });
+      const chatPayload = parseChatPayload(result.text, baseChat.title || createChatTitle(text, courseChats.length + 1));
       const modelMessage = {
         id: uid(),
         role: "model",
-        text: result.text,
+        text: chatPayload.answer,
         usedModel: result.usedModel,
         createdAt: new Date().toISOString()
       };
@@ -694,7 +725,7 @@ Kısa, açık ve pratik cevap ver. Gerekirse maddeler kullan.`
           chat.id === targetChatId
             ? {
                 ...chat,
-                title: chat.title || createChatTitle(text, courseChats.length + 1),
+                title: chatPayload.title || chat.title || createChatTitle(text, courseChats.length + 1),
                 messages: [...chat.messages, modelMessage],
                 updatedAt: new Date().toISOString(),
                 lastUsedModel: result.usedModel
@@ -950,12 +981,15 @@ Kısa, açık ve pratik cevap ver. Gerekirse maddeler kullan.`
 
         {activeCourse && activeTab === "chat" && (
           <section className="workspace-grid">
-            <div className="panel full emphasis">
+            <div className={`panel full emphasis ${chatFullScreen ? "chat-panel-full" : ""}`}>
               <div className="row between">
                 <div className="panel-title">Ders Sohbeti</div>
                 <div className="row">
                   <span className="source-pill">{resolvedModel || "Model seç"}</span>
                   <button className="secondary" onClick={startNewChat}>Yeni Sohbet</button>
+                  <button className="ghost" onClick={() => setChatFullScreen((current) => !current)}>
+                    {chatFullScreen ? "Küçült" : "Büyüt"}
+                  </button>
                 </div>
               </div>
               <p className="section-copy">Her sohbet ayrı bir oturum olarak kaydedilir. İstediğin zaman eski sohbetleri yeniden açabilirsin.</p>
@@ -965,7 +999,9 @@ Kısa, açık ve pratik cevap ver. Gerekirse maddeler kullan.`
                 {(activeChat?.messages || []).map((message) => (
                   <div key={message.id} className={`chat-message ${message.role === "user" ? "user" : "model"}`}>
                     <strong>{message.role === "user" ? "Sen" : `AI (${message.usedModel || resolvedModel})`}</strong>
-                    <p>{message.text}</p>
+                    <div className="chat-message-body">
+                      {message.role === "user" ? <p>{message.text}</p> : renderRichText(message.text)}
+                    </div>
                   </div>
                 ))}
               </div>
