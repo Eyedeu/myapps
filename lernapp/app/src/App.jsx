@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 const STORAGE_KEY = "ausbildung-webapp-v3";
 
 const MODEL_OPTIONS = [
-  ["gemini-3.1-flash-lite", "Gemini 3.1 Flash Lite"],
+  ["gemini-3.1-flash-lite-preview", "Gemini 3.1 Flash Lite"],
   ["gemini-3-flash-preview", "Gemini 3 Flash"],
   ["gemini-2.5-flash", "Gemini 2.5 Flash"],
   ["gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite"],
@@ -15,7 +15,7 @@ const defaultState = {
     geminiApiKey: "",
     sourceLanguage: "Almanca",
     targetLanguage: "Turkce",
-    model: "gemini-3.1-flash-lite",
+    model: "gemini-3.1-flash-lite-preview",
     customModel: ""
   },
   courses: [],
@@ -130,11 +130,11 @@ async function callGemini({ apiKey, model, prompt, files = [] }) {
   if (!model) throw new Error("Geçerli bir model seçilmedi.");
 
   const shouldStayOnSelectedModel =
-    model === "gemini-3.1-flash-lite" || model === "custom";
+    model === "gemini-3.1-flash-lite-preview" || model === "custom";
 
   const candidates = shouldStayOnSelectedModel
     ? [model]
-    : [model, "gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-2.5-flash"]
+    : [model, "gemini-3.1-flash-lite-preview", "gemini-3-flash-preview", "gemini-2.5-flash"]
         .filter((value, index, array) => value && array.indexOf(value) === index);
 
   let lastFailure = null;
@@ -916,7 +916,7 @@ Kısa, açık ve pratik cevap ver. Gerekirse maddeler kullan.`
                 <label>Özel Model Kimliği</label>
                 <input value={state.settings.customModel} onChange={(event) => updateSettings({ customModel: event.target.value })} placeholder="API model kimliğini buraya yaz" />
                 <div className="field-grid">
-                  <button className="ghost" onClick={() => updateSettings({ customModel: "gemini-3.1-flash-lite" })}>3.1 Flash Lite Dene</button>
+                  <button className="ghost" onClick={() => updateSettings({ customModel: "gemini-3.1-flash-lite-preview" })}>3.1 Flash Lite Dene</button>
                   <button className="ghost" onClick={() => updateSettings({ customModel: "gemini-2.5-flash-lite" })}>2.5 Flash Lite Dene</button>
                 </div>
               </>
