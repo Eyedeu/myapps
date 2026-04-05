@@ -1000,7 +1000,15 @@ FORMAT:
                 {activeChat && (activeChat.messages || []).length === 0 && <p className="empty">Bu sohbet henüz boş. İlk mesajını göndererek başlayabilirsin.</p>}
                 {(activeChat?.messages || []).map((message) => (
                   <div key={message.id} className={`chat-message ${message.role === "user" ? "user" : "model"}`}>
-                    <strong>{message.role === "user" ? "Sen" : `AI (${message.usedModel || resolvedModel})`}</strong>
+                    <div className="chat-message-head">
+                      <div className="chat-message-author">
+                        <span className={`chat-avatar ${message.role === "user" ? "user" : "model"}`}>
+                          {message.role === "user" ? "S" : "AI"}
+                        </span>
+                        <strong>{message.role === "user" ? "Sen" : `AI (${message.usedModel || resolvedModel})`}</strong>
+                      </div>
+                      <span className="chat-time">{formatDate(message.createdAt)}</span>
+                    </div>
                     <div className="chat-message-body">
                       {message.role === "user" ? <p>{message.text}</p> : renderRichText(message.text)}
                     </div>
