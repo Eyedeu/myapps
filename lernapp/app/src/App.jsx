@@ -5,6 +5,7 @@ const STORAGE_KEY = "ausbildung-webapp-v3";
 const MODEL_OPTIONS = [
   ["gemini-3-flash-preview", "Gemini 3 Flash"],
   ["gemini-2.5-flash", "Gemini 2.5 Flash"],
+  ["gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite"],
   ["custom", "Ozel Model Kimligi"]
 ];
 
@@ -776,10 +777,17 @@ Kisa, acik ve pratik cevap ver. Gerekirse maddeler kullan.`
             <select value={state.settings.model} onChange={(event) => updateSettings({ model: event.target.value })}>
               {MODEL_OPTIONS.map((item) => <option key={item[0]} value={item[0]}>{item[1]}</option>)}
             </select>
+            <p className="muted">
+              `Gemini 3.1 Flash Lite` AI Studio'da gorunuyorsa, resmi API model kodu garanti olmadigi icin `Ozel Model Kimligi` secip tam adini buraya yapistirabilirsin.
+            </p>
             {state.settings.model === "custom" && (
               <>
                 <label>Ozel Model Kimligi</label>
                 <input value={state.settings.customModel} onChange={(event) => updateSettings({ customModel: event.target.value })} placeholder="API model kimligini buraya yaz" />
+                <div className="field-grid">
+                  <button className="ghost" onClick={() => updateSettings({ customModel: "gemini-3.1-flash-lite" })}>3.1 Flash Lite Dene</button>
+                  <button className="ghost" onClick={() => updateSettings({ customModel: "gemini-2.5-flash-lite" })}>2.5 Flash Lite Dene</button>
+                </div>
               </>
             )}
             <p className="muted">Bu uygulama Almanca materyalleri Turkce anlatim uzerine optimize edildi.</p>
