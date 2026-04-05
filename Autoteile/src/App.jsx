@@ -25,6 +25,10 @@ import {
   X,
 } from "lucide-react";
 
+const GEMINI_MODEL = "gemini-3.1-flash-lite-preview";
+const MAX_IMAGE_SIZE_MB = 8;
+const DEFAULT_SELLER = "baytemuer";
+
 const STORAGE_KEYS = {
   apiKey: "autoteile.apiKey",
   dictionary: "autoteile.dictionary",
@@ -32,29 +36,34 @@ const STORAGE_KEYS = {
 };
 
 const TABS = [
-  { id: "studio", label: "Stüdyo", icon: BrainCircuit },
+  { id: "studio", label: "Studyo", icon: BrainCircuit },
   { id: "camera", label: "Kamera", icon: Camera },
-  { id: "dictionary", label: "Sözlük", icon: BookOpen },
+  { id: "dictionary", label: "Sozluk", icon: BookOpen },
   { id: "settings", label: "Ayarlar", icon: Settings },
 ];
 
 const PART_SYSTEMS = [
   "Motor",
   "Elektrik",
-  "Soğutma",
-  "Şanzıman",
-  "Süspansiyon",
+  "Sogutma",
+  "Sanziman",
+  "Suspansiyon",
   "Fren",
   "Direksiyon",
   "Kaporta",
-  "İç Mekan",
+  "Ic Mekan",
   "Egzoz",
 ];
 
-const DEFAULT_SELLER = "baytemuer";
-
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizeText(value) {
+  return String(value || "")
+    .toLocaleLowerCase("tr")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function readLocalStorage(key, fallback) {
@@ -79,6 +88,24 @@ function toDataUrl(file) {
   });
 }
 
+function parseGeminiError(detail) {
+  const raw = String(detail || "");
+
+  if (raw.includes("RESOURCE_EXHAUSTED") || raw.includes('"code": 429')) {
+    return "Gemini kotasi dolu veya bu API key icin limit asildi. Biraz bekleyip tekrar dene ya da farkli bir API key kullan.";
+  }
+
+  if (raw.includes("API key not valid") || raw.includes("API_KEY_INVALID")) {
+    return "Gemini API key gecersiz gorunuyor. Ayarlar sekmesinden key bilgisini kontrol et.";
+  }
+
+  if (raw.includes("model")) {
+    return `Gemini modeli kullanilamadi. Hedef model: ${GEMINI_MODEL}.`;
+  }
+
+  return raw || "Gemini istegi basarisiz oldu.";
+}
+
 async function callGemini({ apiKey, model, payload }) {
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -91,13 +118,13 @@ async function callGemini({ apiKey, model, payload }) {
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(detail || "Gemini isteği başarısız oldu.");
+    throw new Error(parseGeminiError(detail));
   }
 
   const data = await response.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
   if (!text) {
-    throw new Error("Gemini yanıtı boş döndü.");
+    throw new Error("Gemini yaniti bos dondu.");
   }
 
   return JSON.parse(text.replace(/```json|```/g, "").trim());
@@ -105,28 +132,28 @@ async function callGemini({ apiKey, model, payload }) {
 
 async function analyzePartByName({ apiKey, query, context, count = 5 }) {
   const prompt = `
-Sen deneyimli bir Alman oto yedek parça uzmanısın.
-Kullanıcı girdisi: "${query}"
-Ek bağlam: "${context || "Yok"}"
+Sen deneyimli bir Alman oto yedek parca uzmanisin.
+Kullanici girdisi: "${query}"
+Ek baglam: "${context || "Yok"}"
 
-Sadece geçerli JSON dön. Markdown kullanma.
+Sadece gecerli JSON don. Markdown kullanma.
 {
-  "standardName": "Parçanın en doğru Almanca teknik adı",
+  "standardName": "Parcanin en dogru Almanca teknik adi",
   "alternativeNames": ["Toplam ${count} adet Almanca alternatif isim"],
-  "category": "Türkçe kategori",
-  "summary": "Türkçe kısa özet",
-  "function": "Türkçe detaylı işlev açıklaması",
-  "worksWith": ["Birlikte çalışan parçalar"],
-  "failureSymptoms": ["Arıza belirtileri"],
-  "searchKeywords": ["Arama için Almanca kelimeler"],
-  "confidenceNote": "Tespitin neden bu yönde olduğu"
+  "category": "Turkce kategori",
+  "summary": "Turkce kisa ozet",
+  "function": "Turkce detayli islev aciklamasi",
+  "worksWith": ["Birlikte calisan parcalar"],
+  "failureSymptoms": ["Ariza belirtileri"],
+  "searchKeywords": ["Arama icin Almanca kelimeler"],
+  "confidenceNote": "Tespitin neden bu yonde oldugu"
 }
 Alternatif isimler birbirini tekrar etmesin.
 `;
 
   return callGemini({
     apiKey,
-    model: "gemini-3.1-flash-lite-preview",
+    model: GEMINI_MODEL,
     payload: {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: { responseMimeType: "application/json" },
@@ -137,37 +164,32 @@ Alternatif isimler birbirini tekrar etmesin.
 async function analyzePartByImage({ apiKey, imageDataUrl, mimeType }) {
   const base64Data = imageDataUrl.split(",")[1];
   const prompt = `
-Bu görseldeki otomotiv parçasını analiz et.
-Yalnızca JSON dön:
+Bu gorseldeki otomotiv parcasini analiz et.
+Yalnizca JSON don:
 {
-  "standardName": "En olası Almanca teknik isim",
+  "standardName": "En olasi Almanca teknik isim",
   "alternativeNames": ["5 Almanca alternatif isim"],
-  "category": "Türkçe kategori",
-  "summary": "Türkçe kısa açıklama",
-  "function": "Türkçe detaylı işlev açıklaması",
-  "worksWith": ["Birlikte çalışan parçalar"],
-  "failureSymptoms": ["Bozulduğunda görülen belirtiler"],
+  "category": "Turkce kategori",
+  "summary": "Turkce kisa aciklama",
+  "function": "Turkce detayli islev aciklamasi",
+  "worksWith": ["Birlikte calisan parcalar"],
+  "failureSymptoms": ["Bozuldugunda gorulen belirtiler"],
   "searchKeywords": ["Arama anahtar kelimeleri"],
-  "confidenceNote": "Neden bu parçaya benzettiğin",
-  "visibleClues": ["Görselde ayırt etmene yardımcı olan ipuçları"]
+  "confidenceNote": "Neden bu parcaya benzettigin",
+  "visibleClues": ["Gorselde ayirt etmene yardimci olan ipuclari"]
 }
 `;
 
   return callGemini({
     apiKey,
-    model: "gemini-3.1-flash-lite-preview",
+    model: GEMINI_MODEL,
     payload: {
       contents: [
         {
           role: "user",
           parts: [
             { text: prompt },
-            {
-              inlineData: {
-                mimeType,
-                data: base64Data,
-              },
-            },
+            { inlineData: { mimeType, data: base64Data } },
           ],
         },
       ],
@@ -222,6 +244,35 @@ function exportDictionary(records) {
   URL.revokeObjectURL(url);
 }
 
+function mergeRecordLists(current, incoming) {
+  const merged = [...current];
+
+  incoming.forEach((record) => {
+    const existingIndex = merged.findIndex(
+      (item) => normalizeText(item.preferredName) === normalizeText(record.preferredName),
+    );
+
+    if (existingIndex >= 0) {
+      merged[existingIndex] = {
+        ...merged[existingIndex],
+        ...record,
+        id: merged[existingIndex].id,
+        createdAt: merged[existingIndex].createdAt,
+        updatedAt: new Date().toISOString(),
+      };
+    } else {
+      merged.unshift({
+        ...record,
+        id: record.id || uid(),
+        createdAt: record.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  });
+
+  return merged;
+}
+
 function StatCard({ value, label }) {
   return (
     <div className="stat-card">
@@ -262,14 +313,14 @@ function ResultCard({ result, onSave, onClear }) {
       ) : null}
 
       <div className="detail-grid">
-        <InfoBlock title="İşlevi" icon={Info} content={result.function} />
-        <InfoBlock title="Birlikte Çalıştığı Parçalar" icon={Wrench} content={result.worksWith.join(", ")} />
-        <InfoBlock title="Arıza Belirtileri" icon={AlertCircle} content={result.failureSymptoms.join(", ")} danger />
+        <InfoBlock title="Islevi" icon={Info} content={result.function} />
+        <InfoBlock title="Birlikte Calistigi Parcalar" icon={Wrench} content={result.worksWith.join(", ")} />
+        <InfoBlock title="Ariza Belirtileri" icon={AlertCircle} content={result.failureSymptoms.join(", ")} danger />
       </div>
 
       {result.alternativeNames.length ? (
         <div className="chip-section">
-          <h3>Alternatif Almanca İsimler</h3>
+          <h3>Alternatif Almanca Isimler</h3>
           <div className="chip-wrap">
             {result.alternativeNames.map((item) => (
               <span key={item} className="chip">{item}</span>
@@ -289,6 +340,17 @@ function ResultCard({ result, onSave, onClear }) {
         </div>
       ) : null}
 
+      {result.visibleClues?.length ? (
+        <div className="chip-section">
+          <h3>Gorselde Farkedilen Ipuclari</h3>
+          <div className="chip-wrap">
+            {result.visibleClues.map((item) => (
+              <span key={item} className="chip soft">{item}</span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div className="confidence-note">
         <Sparkles size={16} />
         <span>{result.confidenceNote}</span>
@@ -297,7 +359,7 @@ function ResultCard({ result, onSave, onClear }) {
       <div className="action-row">
         <button className="primary-button" onClick={onSave}>
           <Save size={16} />
-          Sözlüğe Kaydet
+          Sozluge Kaydet
         </button>
         <button className="secondary-button" onClick={onClear}>
           <Eraser size={16} />
@@ -326,13 +388,13 @@ function StudioTab({
             <span className="panel-kicker">Manuel analiz</span>
             <BrainCircuit size={18} />
           </div>
-          <h2>Parça adını yaz, AI teknik Almanca adını çıkarsın</h2>
-          <p>Türkçe, İngilizce ya da hatalı yazılmış isimden doğru Alman terminolojisine yaklaşsın.</p>
+          <h2>Parca adini yaz, AI teknik Almanca adini cikarsin</h2>
+          <p>Turkce, Ingilizce ya da hatali yazilmis isimden dogru Alman terminolojisine yaklassin.</p>
           <div className="query-box">
             <input
               value={draftQuery}
               onChange={(event) => setDraftQuery(event.target.value)}
-              placeholder="Örn: alternatör, aks kafası, direksiyon sargısı"
+              placeholder="Orn: alternator, aks kafasi, direksiyon sargisi"
             />
             <button className="primary-button" disabled={loadingMode === "name"} onClick={() => onAnalyze(draftQuery)}>
               {loadingMode === "name" ? <Loader2 className="spin" size={18} /> : "Analiz Et"}
@@ -342,13 +404,13 @@ function StudioTab({
 
         <article className="panel panel-dark">
           <div className="panel-head">
-            <span className="panel-kicker">Görselle başla</span>
+            <span className="panel-kicker">Gorselle basla</span>
             <Camera size={18} />
           </div>
-          <h2>Fotoğraf çek veya yükle</h2>
-          <p>Kamera sekmesinde parçanın fotoğrafını gönder, AI adı ve işleviyle birlikte yorumlasın.</p>
+          <h2>Fotograf cek veya yukle</h2>
+          <p>Kamera sekmesinde parcanin fotografini gonder, AI adi ve isleviyle birlikte yorumlasin.</p>
           <button className="secondary-button" onClick={() => onSwitchTab("camera")}>
-            Kamera akışına git
+            Kamera akisina git
             <ChevronRight size={16} />
           </button>
         </article>
@@ -360,8 +422,8 @@ function StudioTab({
         <div className="empty-state">
           <Sparkles size={28} />
           <div>
-            <h3>Henüz analiz yok</h3>
-            <p>Bir parça adı gir veya kamera sekmesinden görsel yükle.</p>
+            <h3>Henuz analiz yok</h3>
+            <p>Bir parca adi gir veya kamera sekmesinden gorsel yukle.</p>
           </div>
         </div>
       )}
@@ -369,7 +431,7 @@ function StudioTab({
   );
 }
 
-function CameraTab({ loadingMode, onAnalyzeImage, onAnalyzeByName }) {
+function CameraTab({ loadingMode, onAnalyzeImage, onAnalyzeByName, onShowError }) {
   const fileUploadRef = useRef(null);
   const cameraRef = useRef(null);
   const [manualFallback, setManualFallback] = useState("");
@@ -380,6 +442,13 @@ function CameraTab({ loadingMode, onAnalyzeImage, onAnalyzeByName }) {
     if (!file) {
       return;
     }
+
+    if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+      onShowError(`Gorsel cok buyuk. Lutfen ${MAX_IMAGE_SIZE_MB} MB altinda bir dosya sec.`);
+      event.target.value = "";
+      return;
+    }
+
     setPreview(await toDataUrl(file));
     onAnalyzeImage({ file, captureMode });
     event.target.value = "";
@@ -390,30 +459,30 @@ function CameraTab({ loadingMode, onAnalyzeImage, onAnalyzeByName }) {
       <div className="capture-grid">
         <button className="capture-card" onClick={() => cameraRef.current?.click()}>
           <Camera size={22} />
-          <strong>Fotoğraf Çek</strong>
-          <span>Telefon kamerasını aç ve parçayı canlı çek.</span>
+          <strong>Fotograf Cek</strong>
+          <span>Telefon kamerasini ac ve parcayi canli cek.</span>
           <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={(event) => handleSelection(event, true)} />
         </button>
 
         <button className="capture-card" onClick={() => fileUploadRef.current?.click()}>
           <ImagePlus size={22} />
-          <strong>Galeriden Yükle</strong>
-          <span>Önceden çekilmiş parça fotoğrafını seç.</span>
+          <strong>Galeriden Yukle</strong>
+          <span>Onceden cekilmis parca fotografini sec.</span>
           <input ref={fileUploadRef} type="file" accept="image/*" hidden onChange={(event) => handleSelection(event, false)} />
         </button>
       </div>
 
       {preview ? (
         <div className="preview-panel">
-          <img src={preview} alt="Parça önizleme" />
+          <img src={preview} alt="Parca onizleme" />
           <div className="preview-caption">
             {loadingMode === "camera" || loadingMode === "upload" ? (
               <>
                 <Loader2 className="spin" size={16} />
-                <span>Görsel AI tarafından inceleniyor...</span>
+                <span>Gorsel AI tarafindan inceleniyor...</span>
               </>
             ) : (
-              <span>Önizleme hazır.</span>
+              <span>Onizleme hazir.</span>
             )}
           </div>
         </div>
@@ -424,10 +493,10 @@ function CameraTab({ loadingMode, onAnalyzeImage, onAnalyzeByName }) {
           <span className="panel-kicker">Yedek yol</span>
           <RefreshCw size={18} />
         </div>
-        <h2>Parça adı belirsizse tarif yaz</h2>
-        <p>Örneğin “motor üstünde yuvarlak sensör” gibi serbest tarif de girebilirsin.</p>
+        <h2>Parca adi belirsizse tarif yaz</h2>
+        <p>Ornegin "motor ustunde yuvarlak sensor" gibi serbest tarif de girebilirsin.</p>
         <div className="query-box">
-          <input value={manualFallback} onChange={(event) => setManualFallback(event.target.value)} placeholder="Örn: turbo girişindeki plastik boru" />
+          <input value={manualFallback} onChange={(event) => setManualFallback(event.target.value)} placeholder="Orn: turbo girisindeki plastik boru" />
           <button className="primary-button" onClick={() => onAnalyzeByName(manualFallback)}>
             AI ile yorumla
           </button>
@@ -474,7 +543,7 @@ function DictionaryItem({ record, sellerId, apiKey, expanded, onToggle, onUpdate
     <article className="dictionary-card">
       <button className="dictionary-head" onClick={onToggle}>
         <div className="dictionary-head-copy">
-          <span className="panel-kicker">{record.category || "Parça"}</span>
+          <span className="panel-kicker">{record.category || "Parca"}</span>
           <h3>{record.preferredName}</h3>
           <p>{record.summary}</p>
         </div>
@@ -508,7 +577,7 @@ function DictionaryItem({ record, sellerId, apiKey, expanded, onToggle, onUpdate
               <>
                 <button className="mini-button" onClick={() => setEditing(true)}>
                   <PencilLine size={14} />
-                  İsmi Düzenle
+                  Ismi Duzenle
                 </button>
                 <button className="mini-button danger" onClick={() => onDelete(record.id)}>
                   <Trash2 size={14} />
@@ -519,18 +588,29 @@ function DictionaryItem({ record, sellerId, apiKey, expanded, onToggle, onUpdate
           </div>
 
           <div className="detail-grid">
-            <InfoBlock title="İşlevi" icon={Info} content={record.function} />
-            <InfoBlock title="Birlikte Çalıştığı Parçalar" icon={Wrench} content={(record.worksWith || []).join(", ")} />
-            <InfoBlock title="Arıza Belirtileri" icon={AlertCircle} content={(record.failureSymptoms || []).join(", ")} danger />
+            <InfoBlock title="Islevi" icon={Info} content={record.function} />
+            <InfoBlock title="Birlikte Calistigi Parcalar" icon={Wrench} content={(record.worksWith || []).join(", ")} />
+            <InfoBlock title="Ariza Belirtileri" icon={AlertCircle} content={(record.failureSymptoms || []).join(", ")} danger />
           </div>
+
+          {record.visibleClues?.length ? (
+            <div className="chip-section">
+              <h3>Gorsel Ipuclari</h3>
+              <div className="chip-wrap">
+                {record.visibleClues.map((item) => (
+                  <span key={item} className="chip soft">{item}</span>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div className="panel subtle-panel">
             <div className="panel-head">
-              <span className="panel-kicker">İsim yardımcısı</span>
+              <span className="panel-kicker">Isim yardimcisi</span>
               <BadgePlus size={18} />
             </div>
-            <h2>AI alternatif isim önerileri</h2>
-            <p>Doğru adı bulmak için önerilerden birini seçip kayıt adını güncelleyebilirsin.</p>
+            <h2>AI alternatif isim onerileri</h2>
+            <p>Dogru adi bulmak icin onerilerden birini secip kayit adini guncelleyebilirsin.</p>
             <div className="chip-wrap">
               {aiSuggestions.map((item) => (
                 <button
@@ -555,7 +635,7 @@ function DictionaryItem({ record, sellerId, apiKey, expanded, onToggle, onUpdate
                 }}
               >
                 {loadingSuggestions ? <Loader2 className="spin" size={14} /> : <Sparkles size={14} />}
-                5 öneri getir
+                5 oneri getir
               </button>
               <button
                 className="mini-button"
@@ -585,7 +665,7 @@ function DictionaryItem({ record, sellerId, apiKey, expanded, onToggle, onUpdate
 
           <a className="primary-button full-width" href={ebayUrl} target="_blank" rel="noreferrer">
             <ExternalLink size={16} />
-            eBay mağazada ara
+            eBay magazada ara
           </a>
         </div>
       ) : null}
@@ -598,15 +678,21 @@ function DictionaryTab({ dictionary, sellerId, apiKey, onUpdate, onDelete }) {
   const [expandedId, setExpandedId] = useState("");
 
   const filtered = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
+    const normalized = normalizeText(query);
     if (!normalized) {
       return dictionary;
     }
+
     return dictionary.filter((item) => {
-      const haystack = [item.preferredName, item.detectedName, ...(item.alternativeNames || []), ...(item.searchKeywords || [])]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(normalized);
+      const haystack = [
+        item.preferredName,
+        item.detectedName,
+        ...(item.alternativeNames || []),
+        ...(item.searchKeywords || []),
+      ]
+        .join(" ");
+
+      return normalizeText(haystack).includes(normalized);
     });
   }, [dictionary, query]);
 
@@ -615,7 +701,7 @@ function DictionaryTab({ dictionary, sellerId, apiKey, onUpdate, onDelete }) {
       <div className="panel">
         <div className="search-inline">
           <Search size={18} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Sözlükte isim, alternatif isim veya anahtar kelime ara" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Sozlukte isim, alternatif isim veya anahtar kelime ara" />
         </div>
       </div>
 
@@ -638,8 +724,8 @@ function DictionaryTab({ dictionary, sellerId, apiKey, onUpdate, onDelete }) {
         <div className="empty-state">
           <BookOpen size={28} />
           <div>
-            <h3>Sözlük boş</h3>
-            <p>Kaydedilen parçalar burada tutulur. Veriler cihazında localStorage içinde kalır.</p>
+            <h3>Sozluk bos</h3>
+            <p>Kaydedilen parcalar burada tutulur. Veriler cihazinda localStorage icinde kalir.</p>
           </div>
         </div>
       )}
@@ -654,20 +740,21 @@ function SettingsTab({ apiKey, sellerId, onApiKeyChange, onSellerIdChange, onExp
     <section className="stack-lg">
       <div className="panel">
         <div className="panel-head">
-          <span className="panel-kicker">AI bağlantısı</span>
+          <span className="panel-kicker">AI baglantisi</span>
           <Settings size={18} />
         </div>
-        <h2>Gemini API anahtarı</h2>
-        <p>GitHub Pages üzerinde çalışan statik uygulama olduğu için anahtar bu cihazın localStorage alanında tutulur.</p>
+        <h2>Gemini API anahtari</h2>
+        <p>GitHub Pages uzerinde calisan statik uygulama oldugu icin anahtar bu cihazin localStorage alaninda tutulur.</p>
         <input className="settings-input" type="password" value={apiKey} onChange={(event) => onApiKeyChange(event.target.value)} placeholder="AIza..." />
+        <p className="settings-note">Aktif model: {GEMINI_MODEL}</p>
       </div>
 
       <div className="panel">
         <div className="panel-head">
-          <span className="panel-kicker">Mağaza bağlantısı</span>
+          <span className="panel-kicker">Magaza baglantisi</span>
           <ExternalLink size={18} />
         </div>
-        <h2>Varsayılan eBay seller ID</h2>
+        <h2>Varsayilan eBay seller ID</h2>
         <input className="settings-input" value={sellerId} onChange={(event) => onSellerIdChange(event.target.value)} placeholder={DEFAULT_SELLER} />
       </div>
 
@@ -676,7 +763,7 @@ function SettingsTab({ apiKey, sellerId, onApiKeyChange, onSellerIdChange, onExp
           <span className="panel-kicker">Yedekleme</span>
           <Download size={18} />
         </div>
-        <h2>Sözlük verisini dışa aktar veya içe al</h2>
+        <h2>Sozluk verisini disa aktar veya ice al</h2>
         <div className="action-row">
           <button className="secondary-button" onClick={onExport}>
             <Download size={16} />
@@ -684,7 +771,7 @@ function SettingsTab({ apiKey, sellerId, onApiKeyChange, onSellerIdChange, onExp
           </button>
           <button className="secondary-button" onClick={() => importRef.current?.click()}>
             <Upload size={16} />
-            JSON yükle
+            JSON yukle
           </button>
           <input
             ref={importRef}
@@ -704,10 +791,10 @@ function SettingsTab({ apiKey, sellerId, onApiKeyChange, onSellerIdChange, onExp
 
       <div className="panel">
         <div className="panel-head">
-          <span className="panel-kicker">Kategori sözlüğü</span>
+          <span className="panel-kicker">Kategori sozlugu</span>
           <BookOpen size={18} />
         </div>
-        <h2>Kapsanan sistem alanları</h2>
+        <h2>Kapsanan sistem alanlari</h2>
         <div className="chip-wrap">
           {PART_SYSTEMS.map((item) => (
             <span key={item} className="chip">{item}</span>
@@ -751,23 +838,25 @@ function App() {
 
   const handleNameAnalysis = async (query, context = "") => {
     if (!apiKey) {
-      setError("Önce Ayarlar sekmesinden Gemini API anahtarını girmen gerekiyor.");
+      setError("Once Ayarlar sekmesinden Gemini API anahtarini girmen gerekiyor.");
       setActiveTab("settings");
       return;
     }
+
     if (!query.trim()) {
-      setError("Önce bir parça adı gir.");
+      setError("Once bir parca adi gir.");
       return;
     }
 
     setLoadingMode("name");
     setError("");
+
     try {
       const analysis = await analyzePartByName({ apiKey, query, context });
       setLatestResult(normalizeRecord({ source: "manual", manualQuery: query, analysis }));
       setActiveTab("studio");
     } catch (err) {
-      setError(err.message || "Analiz sırasında hata oluştu.");
+      setError(parseGeminiError(err?.message || err));
     } finally {
       setLoadingMode("");
     }
@@ -775,12 +864,14 @@ function App() {
 
   const handleImageAnalysis = async ({ file, captureMode = false }) => {
     if (!apiKey) {
-      setError("Önce Ayarlar sekmesinden Gemini API anahtarını girmen gerekiyor.");
+      setError("Once Ayarlar sekmesinden Gemini API anahtarini girmen gerekiyor.");
       setActiveTab("settings");
       return;
     }
+
     setLoadingMode(captureMode ? "camera" : "upload");
     setError("");
+
     try {
       const imageDataUrl = await toDataUrl(file);
       const analysis = await analyzePartByImage({
@@ -788,10 +879,17 @@ function App() {
         imageDataUrl,
         mimeType: file.type || "image/jpeg",
       });
-      setLatestResult(normalizeRecord({ source: captureMode ? "camera" : "upload", imageDataUrl, mimeType: file.type || "image/jpeg", analysis }));
+      setLatestResult(
+        normalizeRecord({
+          source: captureMode ? "camera" : "upload",
+          imageDataUrl,
+          mimeType: file.type || "image/jpeg",
+          analysis,
+        }),
+      );
       setActiveTab("studio");
     } catch (err) {
-      setError(err.message || "Görsel analizi sırasında hata oluştu.");
+      setError(parseGeminiError(err?.message || err));
     } finally {
       setLoadingMode("");
     }
@@ -801,7 +899,8 @@ function App() {
     if (!latestResult) {
       return;
     }
-    setDictionary((current) => [{ ...latestResult, updatedAt: new Date().toISOString() }, ...current]);
+
+    setDictionary((current) => mergeRecordLists(current, [latestResult]));
     setLatestResult(null);
     setDraftQuery("");
     setActiveTab("dictionary");
@@ -809,7 +908,11 @@ function App() {
 
   const updateRecord = (recordId, changes) => {
     setDictionary((current) =>
-      current.map((item) => (item.id === recordId ? { ...item, ...changes, updatedAt: new Date().toISOString() } : item)),
+      current.map((item) =>
+        item.id === recordId
+          ? { ...item, ...changes, updatedAt: new Date().toISOString() }
+          : item,
+      ),
     );
   };
 
@@ -821,21 +924,22 @@ function App() {
     const text = await file.text();
     const data = JSON.parse(text);
     const imported = Array.isArray(data.records) ? data.records : [];
-    setDictionary((current) => [...imported, ...current]);
+    setDictionary((current) => mergeRecordLists(current, imported));
   };
 
   return (
     <div className="app-shell">
       <div className="backdrop-orb orb-one" />
       <div className="backdrop-orb orb-two" />
+
       <header className="topbar">
         <div>
-          <p className="eyebrow">AI parça laboratuvarı</p>
+          <p className="eyebrow">AI parca laboratuvari</p>
           <h1>Autoteile Studio</h1>
-          <p className="subtitle">Fotoğrafla tanı, Almanca ismi öğren, parçaları sözlükte biriktir.</p>
+          <p className="subtitle">Fotografla tani, Almanca ismi ogren, parcalari sozlukte biriktir.</p>
         </div>
         <div className="hero-stats">
-          <StatCard value={stats.total} label="Kayıt" />
+          <StatCard value={stats.total} label="Kayit" />
           <StatCard value={stats.categories} label="Kategori" />
           <StatCard value={stats.photos} label="Foto" />
         </div>
@@ -866,11 +970,22 @@ function App() {
         ) : null}
 
         {activeTab === "camera" ? (
-          <CameraTab loadingMode={loadingMode} onAnalyzeImage={handleImageAnalysis} onAnalyzeByName={handleNameAnalysis} />
+          <CameraTab
+            loadingMode={loadingMode}
+            onAnalyzeImage={handleImageAnalysis}
+            onAnalyzeByName={handleNameAnalysis}
+            onShowError={setError}
+          />
         ) : null}
 
         {activeTab === "dictionary" ? (
-          <DictionaryTab dictionary={dictionary} sellerId={sellerId} apiKey={apiKey} onUpdate={updateRecord} onDelete={deleteRecord} />
+          <DictionaryTab
+            dictionary={dictionary}
+            sellerId={sellerId}
+            apiKey={apiKey}
+            onUpdate={updateRecord}
+            onDelete={deleteRecord}
+          />
         ) : null}
 
         {activeTab === "settings" ? (
