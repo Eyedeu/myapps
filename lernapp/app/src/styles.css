@@ -200,8 +200,25 @@ label { display: block; margin-bottom: 10px; color: #d8e6ff; }
 
 @media (max-width: 760px) {
   .content, .sidebar { padding: 18px; }
-  .brand-card h1, .hero-header h2, .viewer-top h2 { font-size: 2rem; }
+  .brand-card h1, .hero-header h2 { font-size: 2rem; }
   .toolbar-grid, .field-grid { grid-template-columns: 1fr; }
   .hero-header, .top-actions, .viewer-top { flex-direction: column; align-items: flex-start; }
   .viewer-overlay, .viewer-overlay.full { inset: 10px; right: 10px; bottom: 10px; width: auto; }
+  .viewer-card, .viewer-card.full { border-radius: 18px; }
+  .viewer-top { padding: 16px 16px 12px; gap: 12px; }
+  .viewer-top h2 { font-size: 1.45rem; line-height: 1.2; }
+  .viewer-meta { font-size: 0.78rem; gap: 8px; }
+  .viewer-actions { width: 100%; }
+  .viewer-actions .ghost { flex: 1; text-align: center; }
+  .viewer-content { padding: 14px 14px 18px; max-height: calc(100vh - 155px); }
+  .rt-h1 { font-size: 1.3rem; margin-bottom: 12px; }
+  .rt-h2 { font-size: 1rem; margin: 16px 0 10px; padding: 10px 12px; }
+  .rt-h3 { font-size: 0.92rem; margin: 14px 0 8px; }
+  .rt-p, .rt-number, .rt-bullet { font-size: 0.94rem; line-height: 1.6; margin-bottom: 9px; }
+  .exam-question { padding: 14px; }
+  .exam-q-head strong { font-size: 0.98rem; line-height: 1.45; }
+  .exam-option { padding: 10px 12px; }
+  .exam-tr, .exam-reason { font-size: 0.84rem; }
+  .panel, .brand-card, .welcome-card { border-radius: 18px; }
+  .tab, .primary, .secondary, .ghost { padding: 12px 14px; border-radius: 14px; }
 }
