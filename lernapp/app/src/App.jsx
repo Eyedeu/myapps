@@ -980,11 +980,14 @@ FORMAT:
         )}
 
         {activeCourse && activeTab === "chat" && (
-          <section className="workspace-grid">
-            <div className={`panel full emphasis ${chatFullScreen ? "chat-panel-full" : ""}`}>
-              <div className="row between">
-                <div className="panel-title">Ders Sohbeti</div>
-                <div className="row">
+          <section className="workspace-grid chat-layout">
+            <div className={`panel emphasis chat-panel ${chatFullScreen ? "chat-panel-full" : ""}`}>
+              <div className="chat-toolbar">
+                <div>
+                  <div className="panel-title">Ders Sohbeti</div>
+                  <p className="section-copy">Her sohbet ayrı bir oturum olarak kaydedilir. İstediğin zaman eski sohbetleri yeniden açabilirsin.</p>
+                </div>
+                <div className="chat-toolbar-actions">
                   <span className="source-pill">{resolvedModel || "Model seç"}</span>
                   <button className="secondary" onClick={startNewChat}>Yeni Sohbet</button>
                   <button className="ghost" onClick={() => setChatFullScreen((current) => !current)}>
@@ -992,7 +995,6 @@ FORMAT:
                   </button>
                 </div>
               </div>
-              <p className="section-copy">Her sohbet ayrı bir oturum olarak kaydedilir. İstediğin zaman eski sohbetleri yeniden açabilirsin.</p>
               <div className="chat-box">
                 {!activeChat && <p className="empty">Henüz sohbet yok. Yeni sohbet başlatarak başlayabilirsin.</p>}
                 {activeChat && (activeChat.messages || []).length === 0 && <p className="empty">Bu sohbet henüz boş. İlk mesajını göndererek başlayabilirsin.</p>}
@@ -1005,10 +1007,12 @@ FORMAT:
                   </div>
                 ))}
               </div>
-              <textarea rows="5" value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Dersle ilgili soru sor..." />
-              <button className="primary" disabled={busy} onClick={sendChatMessage}>
-                {busy ? "Gönderiliyor..." : "Mesajı Gönder"}
-              </button>
+              <div className="chat-composer">
+                <textarea rows="4" value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Dersle ilgili soru sor..." />
+                <button className="primary" disabled={busy} onClick={sendChatMessage}>
+                  {busy ? "Gönderiliyor..." : "Mesajı Gönder"}
+                </button>
+              </div>
             </div>
             <ArchiveList
               title="Sohbet Listesi"
