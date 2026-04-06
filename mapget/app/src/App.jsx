@@ -91,7 +91,7 @@ function addRow(widget, location, index) {
 
   row.addSpacer();
 
-  const arrow = row.addText("›");
+  const arrow = row.addText(">");
   arrow.font = Font.boldSystemFont(18);
   arrow.textColor = palette.accent;
 }
@@ -493,9 +493,7 @@ function App() {
               )}
             </div>
 
-            <p className="panel-note">
-              {helperText}
-            </p>
+            <p className="panel-note">{helperText}</p>
 
             <div className="saved-list">
               {savedLocations.length === 0 ? (
