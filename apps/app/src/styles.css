@@ -162,6 +162,12 @@ input {
   margin-bottom: 1.6rem;
 }
 
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
 .searchbox {
   display: flex;
   align-items: center;
@@ -186,10 +192,44 @@ input {
 }
 
 .toolbar-note {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
   max-width: 24rem;
   color: rgba(226, 232, 240, 0.72);
   font-size: 0.95rem;
   line-height: 1.6;
+}
+
+.refresh-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.92rem 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #f8fafc;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease;
+}
+
+.refresh-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(125, 211, 252, 0.42);
+  background: rgba(15, 23, 42, 0.96);
+}
+
+.refresh-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
 }
 
 .app-grid {
@@ -362,6 +402,15 @@ input {
     grid-template-columns: 1fr;
   }
 
+  .toolbar-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar-note {
+    max-width: none;
+  }
+
   .app-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -379,5 +428,15 @@ input {
 
   .hero-copy h1 {
     max-width: none;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
   }
 }

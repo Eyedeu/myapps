@@ -4,8 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node ./scripts/generate-apps.mjs",
     "dev": "vite",
-    "prebuild": "node ./scripts/generate-apps.mjs",
+    "prebuild": "node ./scripts/clean-output.mjs && node ./scripts/generate-apps.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },

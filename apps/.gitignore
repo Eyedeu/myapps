@@ -10,3 +10,4 @@ Thumbs.db
 
 # Generated source data
 app/src/generated/apps.json
+app/src/generated/repo.json

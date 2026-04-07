@@ -3,8 +3,11 @@ import path from "node:path";
 
 const workspaceRoot = process.cwd();
 const parentRoot = path.resolve(workspaceRoot, "..");
+const gitConfigFile = path.join(parentRoot, ".git", "config");
+const gitHeadFile = path.join(parentRoot, ".git", "HEAD");
 const outputDir = path.join(workspaceRoot, "app", "src", "generated");
 const outputFile = path.join(outputDir, "apps.json");
+const repoFile = path.join(outputDir, "repo.json");
 
 const EXCLUDED_DIRS = new Set(["apps", ".git", ".github", "node_modules"]);
 const ICON_CANDIDATES = [
@@ -15,6 +18,39 @@ const ICON_CANDIDATES = [
   "icon-512.png",
   "icon-192.png",
 ];
+
+function getGitInfo() {
+  try {
+    const configText = fs.readFileSync(gitConfigFile, "utf8");
+    const headText = fs.readFileSync(gitHeadFile, "utf8").trim();
+    const remoteSection = configText.match(/\[remote "origin"\][\s\S]*?url = (.+)/);
+    const remoteUrl = remoteSection?.[1]?.trim();
+    const branch = headText.startsWith("ref:")
+      ? headText.split("/").at(-1)
+      : "main";
+
+    const match = remoteUrl.match(/github\.com[:/](.+?)\/(.+?)(?:\.git)?$/i);
+    if (!match) {
+      return {
+        owner: "Eyedeu",
+        repo: "myapps",
+        branch: branch || "main",
+      };
+    }
+
+    return {
+      owner: match[1],
+      repo: match[2],
+      branch: branch || "main",
+    };
+  } catch {
+    return {
+      owner: "Eyedeu",
+      repo: "myapps",
+      branch: "main",
+    };
+  }
+}
 
 function safeReadJson(filePath) {
   try {
@@ -197,6 +233,17 @@ fs.writeFileSync(
       generatedAt: new Date().toISOString(),
       count: apps.length,
       apps,
+    },
+    null,
+    2,
+  ),
+);
+
+fs.writeFileSync(
+  repoFile,
+  JSON.stringify(
+    {
+      ...(getGitInfo() || {}),
     },
     null,
     2,
