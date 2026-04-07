@@ -198,19 +198,45 @@ function onSnapshot(ref, callback) {
 }
 
 const AI_STORAGE_KEY = "deutsch-battles-ai-settings";
+const SHARED_AI_STORAGE_KEYS = [AI_STORAGE_KEY, "ausbildung-webapp-v3"];
+const FAST_MODEL_ID = "gemini-3.1-flash-lite-preview";
 const defaultAiSettings = {
   geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
-  model: import.meta.env.VITE_GEMINI_MODEL || "gemini-3.1-flash-lite-preview"
+  model: FAST_MODEL_ID
 };
 
-function loadAiSettings() {
+function readStoredJson(key) {
   try {
-    const raw = localStorage.getItem(AI_STORAGE_KEY);
-    if (!raw) return defaultAiSettings;
-    return { ...defaultAiSettings, ...JSON.parse(raw) };
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
   } catch {
-    return defaultAiSettings;
+    return null;
   }
+}
+
+function resolveSharedGeminiApiKey() {
+  for (const key of SHARED_AI_STORAGE_KEYS) {
+    const parsed = readStoredJson(key);
+    if (!parsed) continue;
+    if (typeof parsed.geminiApiKey === "string" && parsed.geminiApiKey.trim()) {
+      return parsed.geminiApiKey.trim();
+    }
+    if (typeof parsed.settings?.geminiApiKey === "string" && parsed.settings.geminiApiKey.trim()) {
+      return parsed.settings.geminiApiKey.trim();
+    }
+  }
+  return defaultAiSettings.geminiApiKey;
+}
+
+function normalizeAiSettings(settings = {}) {
+  return {
+    geminiApiKey: String(settings.geminiApiKey || resolveSharedGeminiApiKey() || "").trim(),
+    model: FAST_MODEL_ID
+  };
+}
+
+function loadAiSettings() {
+  return normalizeAiSettings(readStoredJson(AI_STORAGE_KEY) || {});
 }
 
 function safeJSONParse(text) {
@@ -235,24 +261,65 @@ function safeJSONParse(text) {
 }
 
 async function generateContent(settings, prompt, type = "text") {
-  if (!settings.geminiApiKey) {
+  const activeSettings = normalizeAiSettings(settings);
+  if (!activeSettings.geminiApiKey) {
     throw new Error("Gemini API key gerekli. Üst bardaki ayarlardan ekleyebilirsin.");
   }
 
-  const payload = { contents: [{ parts: [{ text: prompt }] }] };
-  if (type === "json") payload.generationConfig = { responseMimeType: "application/json" };
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${settings.model}:generateContent?key=${settings.geminiApiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+  const payload = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      responseMimeType: type === "json" ? "application/json" : "text/plain",
+      temperature: type === "json" ? 0.15 : 0.35,
+      topP: 0.8,
+      topK: 20,
+      maxOutputTokens: type === "json" ? 2048 : 3072,
+      thinkingConfig: { thinkingBudget: 0 }
     }
-  );
-  const data = await response.json();
-  if (!response.ok) throw new Error(data?.error?.message || "Gemini istegi basarisiz oldu.");
-  return data?.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("\n").trim() || "";
+  };
+
+  let lastError = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 18000);
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${activeSettings.model}:generateContent?key=${activeSettings.geminiApiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        }
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = data?.error?.message || "Gemini isteği başarısız oldu.";
+        if ((response.status === 429 || response.status >= 500) && attempt === 0) {
+          lastError = new Error(message);
+          continue;
+        }
+        throw new Error(message);
+      }
+
+      const text = data?.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("\n").trim() || "";
+      if (!text) throw new Error("Yapay zeka boş yanıt döndürdü.");
+      return text;
+    } catch (error) {
+      lastError = error;
+      if (error.name === "AbortError") {
+        lastError = new Error("Yapay zeka isteği zaman aşımına uğradı. Lütfen tekrar dene.");
+      }
+      if (attempt === 0 && /network|fetch|timeout|503|500|429/i.test(String(lastError?.message || ""))) {
+        continue;
+      }
+      throw lastError;
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  }
+
+  throw lastError || new Error("Yapay zeka isteği tamamlanamadı.");
 }
 
 const isStorageBlocked = () => {
@@ -407,8 +474,9 @@ function SettingsModal({ isOpen, onClose, aiSettings, setAiSettings }) {
   if (!isOpen) return null;
 
   const save = () => {
-    setAiSettings(draft);
-    storageObj.set(AI_STORAGE_KEY, JSON.stringify(draft));
+    const normalizedDraft = normalizeAiSettings(draft);
+    setAiSettings(normalizedDraft);
+    storageObj.set(AI_STORAGE_KEY, JSON.stringify(normalizedDraft));
     onClose();
   };
 
@@ -418,7 +486,7 @@ function SettingsModal({ isOpen, onClose, aiSettings, setAiSettings }) {
         <div className="mb-5 flex items-start justify-between">
           <div>
             <h2 className="text-2xl font-black text-slate-900">AI Ayarları</h2>
-            <p className="mt-1 text-sm text-slate-500">Diğer projelerindeki gibi Gemini API key ve modeli burada kullanılıyor.</p>
+            <p className="mt-1 text-sm text-slate-500">Gemini anahtarı diğer uygulamalarından otomatik alınabilir. Bu uygulama her zaman daha hızlı yanıt için Gemini 3.1 Flash Lite Preview kullanır.</p>
           </div>
           <button onClick={onClose} className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
             <X size={20} />
@@ -431,15 +499,10 @@ function SettingsModal({ isOpen, onClose, aiSettings, setAiSettings }) {
           </label>
           <label className="block">
             <span className="mb-1 block text-sm font-bold text-slate-700">Model</span>
-            <select value={draft.model} onChange={(event) => setDraft((prev) => ({ ...prev, model: event.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
-              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-              <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
-              <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-              <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite Preview</option>
-            </select>
+            <input value={FAST_MODEL_ID} disabled className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-600 outline-none" />
           </label>
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            Uygulama artık tüm verileri tarayıcıdaki localStorage içinde tutuyor. Gemini anahtarını ister `.env`, ister bu pencere üzerinden verebilirsin.
+            Uygulama tüm verileri tarayıcıdaki localStorage içinde tutuyor. Gemini anahtarını istersen burada saklayabilir, istersen aynı alan adındaki diğer uygulamalardan otomatik kullanabilirsin.
           </div>
         </div>
         <div className="mt-6 flex gap-3">
@@ -1324,6 +1387,7 @@ function Dashboard({ level, onExecutePlan, user, aiSettings }) {
   const [stats, setStats] = useState({ known: 0, unknown: 0, totalWords: 0 });
   const [plan, setPlan] = useState(null);
   const [loadingPlan, setLoadingPlan] = useState(false);
+  const [planError, setPlanError] = useState("");
 
   useEffect(() => {
     if (!db || !user) return undefined;
@@ -1342,10 +1406,14 @@ function Dashboard({ level, onExecutePlan, user, aiSettings }) {
 
   const generatePlan = async () => {
     setLoadingPlan(true);
+    setPlanError("");
     try {
       const prompt = `Almanca TELC ${level} seviyesi için günlük çalışma planı hazırla. JSON: {"tasks":[{"title":"German Title","description":"Türkçe açıklama","duration":"15 dk"}]}`;
       const data = safeJSONParse(await generateContent(aiSettings, prompt, "json"));
       if (data?.tasks) setPlan(data);
+      else throw new Error("Geçerli bir çalışma planı alınamadı.");
+    } catch (error) {
+      setPlanError(error.message || "Çalışma planı hazırlanamadı.");
     } finally {
       setLoadingPlan(false);
     }
@@ -1370,6 +1438,7 @@ function Dashboard({ level, onExecutePlan, user, aiSettings }) {
       </div>
       <div>
         <div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-bold text-gray-800">AI Günlük Çalışma Planı</h2><button onClick={generatePlan} disabled={loadingPlan} className="flex items-center gap-1 rounded-lg px-3 py-1 text-sm font-bold text-indigo-600 hover:bg-indigo-50"><RefreshCw size={16} className={loadingPlan ? "animate-spin" : ""} /> {plan ? "Planı Yenile" : "Plan Oluştur"}</button></div>
+        {!!planError && <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{planError}</div>}
         {!plan && !loadingPlan && <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-10 text-center text-gray-500">Bugün için henüz bir planın yok.</div>}
         {loadingPlan && <div className="rounded-2xl border border-gray-100 bg-white py-10 text-center"><Loader2 className="mx-auto mb-2 h-8 w-8 animate-spin text-indigo-600" /><p className="text-gray-500">Yapay zeka planını hazırlıyor...</p></div>}
         {plan && !loadingPlan && <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">{plan.tasks.map((item, index) => <div key={`${item.title}-${index}`} onClick={() => onExecutePlan(item)} className="group flex cursor-pointer items-center justify-between border-b p-4 transition last:border-0 hover:bg-gray-50"><div className="flex items-center gap-4"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-600">{index + 1}</div><div><h4 className="font-semibold text-gray-800 group-hover:text-indigo-600">{item.title}</h4><p className="text-xs text-gray-500">{item.description}</p></div></div><div className="flex items-center gap-2"><span className="rounded bg-gray-100 px-2 py-1 text-sm font-medium text-gray-500">{item.duration}</span><ArrowRightCircle size={18} className="text-gray-300 group-hover:text-indigo-600" /></div></div>)}</div>}
@@ -1401,6 +1470,7 @@ function VocabTrainer({ level, user, aiSettings }) {
   const [history, setHistory] = useState([]);
   const [unknowns, setUnknowns] = useState([]);
   const [arenaMode, setArenaMode] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!db || !user) return undefined;
@@ -1413,13 +1483,16 @@ function VocabTrainer({ level, user, aiSettings }) {
 
   const generateWords = async () => {
     setLoading(true);
+    setError("");
     try {
       const prompt = `Generate a JSON array of 5 distinct German vocabulary words for TELC Level ${level}. Format: [{"word":"GermanWord","article":"der/die/das","meaning":"TurkishMeaning","example":"GermanSentence","translation":"TurkishTranslationOfSentence"}]`;
       const data = safeJSONParse(await generateContent(aiSettings, prompt, "json"));
       if (Array.isArray(data)) {
         setCurrentBatch(data);
         if (db && user) await addDoc(collection(db, "artifacts", appId, "users", user.uid, "vocab_history"), { date: new Date().toISOString(), level, words: data });
-      }
+      } else throw new Error("Kelime paketi oluşturulamadı.");
+    } catch (requestError) {
+      setError(requestError.message || "Kelime paketi oluşturulamadı.");
     } finally {
       setLoading(false);
     }
@@ -1445,6 +1518,7 @@ function VocabTrainer({ level, user, aiSettings }) {
           <button onClick={generateWords} disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white md:w-auto">{loading ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />} Yeni Paket</button>
         </div>
       </div>
+      {!!error && <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
       {tab === "new" && <div className="space-y-4">{currentBatch.length === 0 && !loading ? <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-20 text-center text-gray-500">Açık paket yok.</div> : currentBatch.map((word, index) => <WordCard key={`${word.word}-${index}`} word={word} onUnknown={() => markAsUnknown(word)} onKnown={() => setCurrentBatch((prev) => prev.filter((item) => item.word !== word.word))} isUnknownList={false} />)}</div>}
       {tab === "history" && <div className="space-y-4">{history.map((batch) => <div key={batch.id} className="rounded-xl border border-gray-200 bg-white p-4"><div className="mb-2 flex items-center gap-3"><Calendar size={16} className="text-indigo-500" /><span className="text-sm font-bold text-gray-700">{new Date(batch.date).toLocaleString("tr-TR")}</span><span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600">{batch.level}</span></div>{(batch.words || []).map((word, index) => <div key={`${word.word}-${index}`} className="py-1 text-sm text-gray-700"><span className="mr-2 font-bold">{word.word}</span>{word.meaning}</div>)}</div>)}</div>}
       {tab === "unknowns" && <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{unknowns.length === 0 ? <div className="col-span-2 py-20 text-center text-gray-500">Tebrikler! Bilinmeyen kelime eklemedin.</div> : unknowns.map((word) => <WordCard key={word.firestoreId} word={word} onKnown={() => db && user && deleteDoc(doc(db, "artifacts", appId, "users", user.uid, "vocab_unknowns", word.firestoreId))} isUnknownList />)}</div>}
@@ -1459,17 +1533,24 @@ function ExamSimulator({ level, aiSettings }) {
   const [userAnswer, setUserAnswer] = useState("");
   const [answers, setAnswers] = useState({});
   const [feedback, setFeedback] = useState(null);
+  const [error, setError] = useState("");
 
   const startReading = async (type) => {
     setLoading(true);
     setMode(type);
+    setError("");
     try {
       const prompt = type === "lesen"
         ? `TELC ${level} Leseverstehen sınavı hazırla. JSON: {"teil1":{"text":"...","questions":[{"id":"t1_1","question":"...","options":["Richtig","Falsch"],"correct":0,"explanation":"...","quote":"..."}]},"teil2":{"text":"...","questions":[{"id":"t2_1","question":"...","options":["A","B","C"],"correct":0,"explanation":"...","quote":"..."}]}}`
         : `TELC ${level} Sprachbausteine görevi hazırla. JSON: {"text":"...","questions":[{"id":"1","question":"Boşluk 1","options":["weil","denn","da"],"correct":0,"explanation":"..."}]}`;
-      setExamData(safeJSONParse(await generateContent(aiSettings, prompt, "json")));
+      const parsed = safeJSONParse(await generateContent(aiSettings, prompt, "json"));
+      if (!parsed) throw new Error("Sınav verisi oluşturulamadı.");
+      setExamData(parsed);
       setFeedback(null);
       setAnswers({});
+    } catch (requestError) {
+      setError(requestError.message || "Sınav hazırlanamadı.");
+      setMode("menu");
     } finally {
       setLoading(false);
     }
@@ -1478,10 +1559,16 @@ function ExamSimulator({ level, aiSettings }) {
   const startWriting = async () => {
     setLoading(true);
     setMode("schreiben");
+    setError("");
     try {
-      setExamData(safeJSONParse(await generateContent(aiSettings, `TELC ${level} yazma görevi hazırla. JSON: {"title":"German Title","situation":"German Situation","points":["Point 1","Point 2","Point 3"]}`, "json")));
+      const parsed = safeJSONParse(await generateContent(aiSettings, `TELC ${level} yazma görevi hazırla. JSON: {"title":"German Title","situation":"German Situation","points":["Point 1","Point 2","Point 3"]}`, "json"));
+      if (!parsed) throw new Error("Yazma görevi oluşturulamadı.");
+      setExamData(parsed);
       setFeedback(null);
       setUserAnswer("");
+    } catch (requestError) {
+      setError(requestError.message || "Yazma görevi hazırlanamadı.");
+      setMode("menu");
     } finally {
       setLoading(false);
     }
@@ -1489,9 +1576,12 @@ function ExamSimulator({ level, aiSettings }) {
 
   const evaluateWriting = async () => {
     setLoading(true);
+    setError("");
     try {
       const html = await generateContent(aiSettings, `Evaluate TELC ${level} writing. Task: ${JSON.stringify(examData)} User text: "${userAnswer}". Return HTML in Turkish.`);
       setFeedback({ html });
+    } catch (requestError) {
+      setError(requestError.message || "Yazı değerlendirilemedi.");
     } finally {
       setLoading(false);
     }
@@ -1508,6 +1598,7 @@ function ExamSimulator({ level, aiSettings }) {
   if (mode === "menu") {
     return (
       <div className="space-y-6">
+        {!!error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           {[{ id: "schreiben", title: "Schreiben", icon: PenTool, color: "text-indigo-600" }, { id: "lesen", title: "Lesen", icon: BookOpen, color: "text-blue-600" }, { id: "sprachbausteine", title: "Sprachbausteine", icon: List, color: "text-orange-600" }].map((item) => (
             <button key={item.id} onClick={() => item.id === "schreiben" ? startWriting() : startReading(item.id)} className="group rounded-2xl border border-gray-200 bg-white p-8 text-left transition hover:border-indigo-300 hover:shadow-xl">
@@ -1524,6 +1615,7 @@ function ExamSimulator({ level, aiSettings }) {
   return (
     <div className="mx-auto max-w-4xl pb-10">
       <button onClick={() => setMode("menu")} className="mb-4 flex items-center gap-1 text-gray-500"><ChevronLeft size={16} /> Menü</button>
+      {!!error && <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
       {mode === "schreiben" ? (
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
           <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-6"><h3 className="mb-2 text-xl font-bold text-yellow-900">{examData?.title}</h3><p className="mb-4 text-sm leading-relaxed text-yellow-800">{examData?.situation}</p><ul className="list-disc space-y-2 pl-5 text-sm text-yellow-800">{examData?.points?.map((point, index) => <li key={`${point}-${index}`}>{point}</li>)}</ul></div>
@@ -1570,8 +1662,10 @@ function AICoach({ level, initialPrompt, onClearPrompt, aiSettings }) {
     setInput("");
     setLoading(true);
     try {
-      const data = safeJSONParse(await generateContent(aiSettings, `Almanca TELC ${level} uzmanı olarak cevap ver. JSON: {"response":"Markdown cevap..."}`, "json"));
+      const data = safeJSONParse(await generateContent(aiSettings, `Almanca TELC ${level} uzmanı olarak cevap ver. Soruyu Türkçe açıklayıp Almanca örnekler ver. JSON: {"response":"Markdown cevap..."}`, "json"));
       setMessages((prev) => [...prev, { role: "ai", text: data?.response || "Yanıt alınamadı." }]);
+    } catch (error) {
+      setMessages((prev) => [...prev, { role: "ai", text: `Şu anda yanıt oluşturulamadı: ${error.message || "Bilinmeyen hata"}` }]);
     } finally {
       setLoading(false);
     }
@@ -1587,7 +1681,7 @@ function StrategySection() {
 }
 
 function MissingSetup({ aiSettings, onOpenSettings }) {
-  return <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center p-6"><div className="w-full rounded-3xl border border-amber-200 bg-white p-8 shadow-xl"><div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700"><AlertCircle size={32} /></div><h1 className="mb-3 text-3xl font-black text-slate-900">Kurulum Eksik</h1><p className="mb-6 text-slate-600">Uygulama localStorage ile çalışıyor. Sadece Gemini API key bilgisini tamamlaman gerekiyor.</p><div className="space-y-3 rounded-2xl bg-slate-50 p-5 text-sm text-slate-700"><p className="text-green-600">Veri kaydı: localStorage hazır.</p><p className={!aiSettings.geminiApiKey ? "font-bold text-red-600" : "text-green-600"}>{!aiSettings.geminiApiKey ? "Gemini API key eksik." : "Gemini API key hazır."}</p><p>.env için `.env.example` dosyasını baz alabilirsin.</p></div><div className="mt-6 flex gap-3"><button onClick={onOpenSettings} className="rounded-xl bg-indigo-600 px-6 py-3 font-bold text-white">AI Ayarlarını Aç</button></div></div></div>;
+  return <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center p-6"><div className="w-full rounded-3xl border border-amber-200 bg-white p-8 shadow-xl"><div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700"><AlertCircle size={32} /></div><h1 className="mb-3 text-3xl font-black text-slate-900">Kurulum Eksik</h1><p className="mb-6 text-slate-600">Uygulama localStorage ile çalışıyor. Aynı alan adındaki diğer uygulamalarda kayıtlı bir Gemini anahtarı bulunamazsa burada eklemen gerekiyor.</p><div className="space-y-3 rounded-2xl bg-slate-50 p-5 text-sm text-slate-700"><p className="text-green-600">Veri kaydı: localStorage hazır.</p><p className={!aiSettings.geminiApiKey ? "font-bold text-red-600" : "text-green-600"}>{!aiSettings.geminiApiKey ? "Gemini API key eksik." : "Gemini API key hazır."}</p><p>Model sabit olarak Gemini 3.1 Flash Lite Preview kullanır.</p></div><div className="mt-6 flex gap-3"><button onClick={onOpenSettings} className="rounded-xl bg-indigo-600 px-6 py-3 font-bold text-white">AI Ayarlarını Aç</button></div></div></div>;
 }
 
 export default function TELCMasterApp() {
@@ -1600,7 +1694,16 @@ export default function TELCMasterApp() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [aiSettings, setAiSettings] = useState(loadAiSettings);
 
-  useEffect(() => { storageObj.set(AI_STORAGE_KEY, JSON.stringify(aiSettings)); }, [aiSettings]);
+  useEffect(() => { storageObj.set(AI_STORAGE_KEY, JSON.stringify(normalizeAiSettings(aiSettings))); }, [aiSettings]);
+  useEffect(() => {
+    const syncAiSettings = () => setAiSettings(loadAiSettings());
+    window.addEventListener("storage", syncAiSettings);
+    window.addEventListener("focus", syncAiSettings);
+    return () => {
+      window.removeEventListener("storage", syncAiSettings);
+      window.removeEventListener("focus", syncAiSettings);
+    };
+  }, []);
   useEffect(() => {
     const savedUser = storageObj.get(LOCAL_USER_KEY);
     if (savedUser) {
