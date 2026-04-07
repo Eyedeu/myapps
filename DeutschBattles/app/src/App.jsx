@@ -199,14 +199,14 @@ function onSnapshot(ref, callback) {
 }
 
 const AI_STORAGE_KEY = "deutsch-battles-ai-settings";
-const SHARED_AI_STORAGE_KEYS = [AI_STORAGE_KEY];
+const PROJECT_AI_STORAGE_KEYS = [AI_STORAGE_KEY];
 const defaultAiSettings = {
   geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
   model: FAST_PRIMARY_MODEL
 };
 
 function resolveSharedGeminiApiKey() {
-  return SHARED_AI_STORAGE_KEYS
+  return PROJECT_AI_STORAGE_KEYS
     .map((key) => resolveStoredGeminiApiKey(key, defaultAiSettings.geminiApiKey))
     .find(Boolean) || "";
 }
