@@ -119,6 +119,9 @@ button {
 .map-panel {
   border-radius: 34px;
   padding: 18px;
+  background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.09), transparent 24%),
+    rgba(9, 16, 28, 0.82);
 }
 
 .search-bar {
@@ -168,6 +171,7 @@ button {
   border-radius: 28px;
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .map-canvas,
@@ -184,6 +188,85 @@ button {
   background: rgba(7, 17, 31, 0.86);
   color: #d6e6fb;
   z-index: 400;
+}
+
+.map-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.map-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  color: #c7d7ec;
+  font-size: 0.9rem;
+}
+
+.map-chip.accent {
+  background: rgba(14, 165, 233, 0.12);
+  color: #c9f2ff;
+}
+
+.leaflet-container {
+  background: #08111e;
+  font-family: inherit;
+}
+
+.leaflet-control-zoom {
+  border: 0 !important;
+  margin: 0 16px 16px 0 !important;
+  box-shadow: 0 18px 30px rgba(0, 0, 0, 0.28) !important;
+}
+
+.leaflet-control-zoom a {
+  width: 38px !important;
+  height: 38px !important;
+  line-height: 38px !important;
+  border: 0 !important;
+  background: rgba(15, 23, 42, 0.92) !important;
+  color: #e6f4ff !important;
+}
+
+.leaflet-control-attribution {
+  background: rgba(9, 16, 28, 0.78) !important;
+  color: #a8bfd8 !important;
+  border-radius: 10px 0 0 0;
+  padding: 4px 8px !important;
+}
+
+.leaflet-control-attribution a {
+  color: #7dd3fc !important;
+}
+
+.selection-pin {
+  background: transparent;
+  border: 0;
+}
+
+.selection-pin__shell {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(14, 165, 233, 0.2);
+  border: 1px solid rgba(125, 211, 252, 0.7);
+  box-shadow: 0 10px 22px rgba(14, 165, 233, 0.22);
+}
+
+.selection-pin__core {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #67e8f9, #0ea5e9);
+  box-shadow: 0 0 0 5px rgba(14, 165, 233, 0.16);
 }
 
 .selection-card {
@@ -277,7 +360,7 @@ button {
 .empty-state {
   display: flex;
   gap: 12px;
-  align-items: center;
+  align-items: flex-start;
   padding: 14px;
   border-radius: 20px;
   background: rgba(23, 32, 51, 0.88);
@@ -300,20 +383,40 @@ button {
   flex: 1;
 }
 
-.saved-copy strong,
 .saved-copy span {
   display: block;
-}
-
-.saved-copy strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .saved-copy span {
   margin-top: 4px;
   font-size: 0.86rem;
+}
+
+.rename-field {
+  display: block;
+}
+
+.rename-field span {
+  margin: 0 0 6px;
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #89a9c8;
+}
+
+.rename-field input {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(8, 15, 28, 0.9);
+  color: #f8fbff;
+  border-radius: 14px;
+  padding: 10px 12px;
+  outline: 0;
+}
+
+.rename-field input:focus {
+  border-color: rgba(56, 189, 248, 0.7);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
 }
 
 .saved-actions {
