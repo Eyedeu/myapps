@@ -996,7 +996,7 @@ FORMAT:
               {MODEL_OPTIONS.map((item) => <option key={item[0]} value={item[0]}>{item[1]}</option>)}
             </select>
             <p className="muted">
-              Varsayılan model `Gemini 3.1 Flash Lite` olarak ayarlandı. Uygulama önce bu modeli dener; yoğunluk veya zaman aşımı olursa hızlı bir yedek modele otomatik geçer.
+              Varsayılan model `Gemini 3.1 Flash Lite` olarak ayarlandı. Uygulama önce seçtiğin modeli dener; yoğunluk, kota veya erişim sorunu olursa hızlı yedek modellere otomatik geçer.
             </p>
             {state.settings.model === "custom" && (
               <>

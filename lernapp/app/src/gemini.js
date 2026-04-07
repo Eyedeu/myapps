@@ -106,7 +106,7 @@ async function tryGeminiCall({ apiKey, model, prompt, files = [], timeoutMs = 15
   }
 }
 
-export async function callGemini({ apiKey, model, prompt, files = [], timeoutMs = 15000, retries = 1 }) {
+export async function callGemini({ apiKey, model, prompt, files = [], timeoutMs = 9000, retries = 0 }) {
   if (!apiKey) {
     throw new Error("Gemini API anahtarı gerekli.");
   }
@@ -114,12 +114,8 @@ export async function callGemini({ apiKey, model, prompt, files = [], timeoutMs 
     throw new Error("Geçerli bir model seçilmedi.");
   }
 
-  const shouldStayOnSelectedModel =
-    model === FAST_PRIMARY_MODEL || !FAST_FALLBACK_MODELS.includes(model);
-
-  const candidates = shouldStayOnSelectedModel
-    ? [model]
-    : [model, ...FAST_FALLBACK_MODELS].filter((value, index, array) => value && array.indexOf(value) === index);
+  const candidates = [model, ...FAST_FALLBACK_MODELS]
+    .filter((value, index, array) => value && array.indexOf(value) === index);
 
   let lastFailure = null;
 
@@ -133,7 +129,7 @@ export async function callGemini({ apiKey, model, prompt, files = [], timeoutMs 
       lastFailure = result;
       const retryable = isRetryableFailure(result.status, result.message);
       if (retryable && attempt < retries) {
-        await wait(800);
+        await wait(250);
         continue;
       }
       if (!retryable) {
