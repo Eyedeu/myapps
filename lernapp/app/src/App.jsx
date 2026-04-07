@@ -25,6 +25,20 @@ const defaultState = {
   chats: []
 };
 
+function normalizeSettings(settings = {}) {
+  const next = { ...defaultState.settings, ...settings };
+
+  if (next.model === "gemini-3.1-flash-lite") {
+    next.model = FAST_PRIMARY_MODEL;
+  }
+
+  if (next.customModel === "gemini-3.1-flash-lite") {
+    next.customModel = FAST_PRIMARY_MODEL;
+  }
+
+  return next;
+}
+
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
 function extractTitle(text, fallback) {
@@ -87,7 +101,7 @@ function loadState() {
     return {
       ...defaultState,
       ...parsed,
-      settings: { ...defaultState.settings, ...(parsed.settings || {}) }
+      settings: normalizeSettings(parsed.settings || {})
     };
   } catch {
     return defaultState;
@@ -674,7 +688,7 @@ FORMAT:
     reader.onload = () => {
       try {
         const parsed = JSON.parse(String(reader.result));
-        setState({ ...defaultState, ...parsed, settings: { ...defaultState.settings, ...(parsed.settings || {}) } });
+        setState({ ...defaultState, ...parsed, settings: normalizeSettings(parsed.settings || {}) });
       } catch {
         setError("İçe aktarma dosyası geçersiz.");
       }
