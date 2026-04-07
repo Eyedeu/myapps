@@ -1722,6 +1722,7 @@ function ExamSimulator({ level, aiSettings, user }) {
   const [feedback, setFeedback] = useState(null);
   const [error, setError] = useState("");
   const [historyList, setHistoryList] = useState([]);
+  const generatedSignaturesRef = useRef(new Set());
 
   useEffect(() => {
     if (!db || !user) return undefined;
@@ -1741,16 +1742,92 @@ function ExamSimulator({ level, aiSettings, user }) {
     });
   };
 
+  const buildExamSignature = (type, data) => {
+    if (!data) return "";
+
+    if (type === "schreiben") {
+      return normalizeWordKey(`${data.title || ""} ${data.situation || ""} ${(data.points || []).join(" ")}`);
+    }
+
+    if (type === "lesen") {
+      return normalizeWordKey(`${data?.teil1?.text || ""} ${data?.teil2?.text || ""}`);
+    }
+
+    return normalizeWordKey(`${data.text || ""} ${(data.questions || []).map((question) => `${question.question || question.q || ""} ${(question.options || []).join(" ")}`).join(" ")}`);
+  };
+
+  const buildExamHistoryContext = (type) => {
+    return historyList
+      .filter((item) => item.type === type && item.level === level && item.examData)
+      .slice(0, 12)
+      .map((item, index) => {
+        const data = item.examData;
+        if (type === "schreiben") {
+          return `${index + 1}. Başlık: ${data.title || "-"} | Durum: ${data.situation || "-"}`;
+        }
+        if (type === "lesen") {
+          return `${index + 1}. Teil 1 başlangıcı: ${(data?.teil1?.text || "").slice(0, 180)} | Teil 2 başlangıcı: ${(data?.teil2?.text || "").slice(0, 180)}`;
+        }
+        return `${index + 1}. Metin başlangıcı: ${(data?.text || "").slice(0, 220)}`;
+      })
+      .join("\n");
+  };
+
+  const isDuplicateExam = (type, data) => {
+    const signature = buildExamSignature(type, data);
+    if (!signature) return true;
+
+    if (generatedSignaturesRef.current.has(signature)) return true;
+
+    const historySignatureExists = historyList.some((item) => item.type === type && item.level === level && buildExamSignature(type, item.examData) === signature);
+    return historySignatureExists;
+  };
+
+  const registerGeneratedExam = (type, data) => {
+    const signature = buildExamSignature(type, data);
+    if (signature) generatedSignaturesRef.current.add(signature);
+  };
+
   const startReading = async (type) => {
     setLoading(true);
     setMode(type);
     setError("");
     try {
-      const prompt = type === "lesen"
-        ? `TELC ${level} Leseverstehen sınavı hazırla. JSON: {"teil1":{"text":"...","questions":[{"id":"t1_1","question":"...","options":["Richtig","Falsch"],"correct":0,"explanation":"...","quote":"..."}]},"teil2":{"text":"...","questions":[{"id":"t2_1","question":"...","options":["A","B","C"],"correct":0,"explanation":"...","quote":"..."}]}}`
-        : `TELC ${level} Sprachbausteine görevi hazırla. JSON: {"text":"...","questions":[{"id":"1","question":"Boşluk 1","options":["weil","denn","da"],"correct":0,"explanation":"..."}]}`;
-      const parsed = safeJSONParse(await generateContent(aiSettings, prompt, "json"));
-      if (!parsed) throw new Error("Sınav verisi oluşturulamadı.");
+      const previousContext = buildExamHistoryContext(type);
+      let parsed = null;
+
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        const prompt = type === "lesen"
+          ? `TELC ${level} için tamamen yeni bir Leseverstehen sınavı hazırla.
+Kurallar:
+- Daha önce üretilmiş sınavlarla aynı konu, aynı metin, aynı soru kalıbı veya benzer içerik kullanma.
+- İki bölüm olsun.
+- Teil 1: yaklaşık 150-180 kelimelik yeni bir metin ve 5 adet Richtig/Falsch soru.
+- Teil 2: yaklaşık 180-220 kelimelik farklı bir yeni metin ve 5 adet çoktan seçmeli soru.
+- Açıklamalar Türkçe olsun.
+- "quote" alanında doğru cevabı kanıtlayan kısa metin parçası olsun.
+Tekrar etmemen gereken önceki sınav özetleri:
+${previousContext || "Yok"}
+Sadece JSON dön: {"teil1":{"text":"...","questions":[{"id":"t1_1","question":"...","options":["Richtig","Falsch"],"correct":0,"explanation":"...","quote":"..."}]},"teil2":{"text":"...","questions":[{"id":"t2_1","question":"...","options":["A","B","C"],"correct":0,"explanation":"...","quote":"..."}]}}`
+          : `TELC ${level} için tamamen yeni bir Sprachbausteine görevi hazırla.
+Kurallar:
+- Daha önce üretilmiş görevlerle aynı konu, aynı metin, aynı boşluk yapısı veya benzer içerik kullanma.
+- Yaklaşık 150-180 kelimelik yeni bir metin yaz.
+- 5 boşluk olsun.
+- Her boşluk için 3 seçenek ver.
+- Açıklamalar Türkçe olsun.
+Tekrar etmemen gereken önceki görev özetleri:
+${previousContext || "Yok"}
+Sadece JSON dön: {"text":"...","questions":[{"id":"1","question":"Boşluk 1","options":["weil","denn","da"],"correct":0,"explanation":"..."}]}`;
+
+        parsed = safeJSONParse(await generateContent(aiSettings, prompt, "json"));
+        if (parsed && !isDuplicateExam(type, parsed)) break;
+        parsed = null;
+      }
+
+      if (!parsed) throw new Error("Yeni ve benzersiz sınav verisi oluşturulamadı.");
+
+      registerGeneratedExam(type, parsed);
       setExamData(parsed);
       setFeedback(null);
       setAnswers({});
@@ -1767,8 +1844,28 @@ function ExamSimulator({ level, aiSettings, user }) {
     setMode("schreiben");
     setError("");
     try {
-      const parsed = safeJSONParse(await generateContent(aiSettings, `TELC ${level} yazma görevi hazırla. JSON: {"title":"German Title","situation":"German Situation","points":["Point 1","Point 2","Point 3"]}`, "json"));
-      if (!parsed) throw new Error("Yazma görevi oluşturulamadı.");
+      const previousContext = buildExamHistoryContext("schreiben");
+      let parsed = null;
+
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        parsed = safeJSONParse(await generateContent(aiSettings, `TELC ${level} için tamamen yeni bir yazma görevi hazırla.
+Kurallar:
+- Daha önce üretilmiş yazma görevleriyle aynı konu, aynı durum, aynı görev maddeleri veya çok benzer içerik kullanma.
+- Görev gerçek bir TELC Schreiben hissi vermeli.
+- Başlık Almanca olsun.
+- Durum Almanca olsun.
+- 3 madde ver.
+Tekrar etmemen gereken önceki Schreiben görevleri:
+${previousContext || "Yok"}
+Sadece JSON dön: {"title":"German Title","situation":"German Situation","points":["Point 1","Point 2","Point 3"]}`, "json"));
+
+        if (parsed && !isDuplicateExam("schreiben", parsed)) break;
+        parsed = null;
+      }
+
+      if (!parsed) throw new Error("Yeni ve benzersiz yazma görevi oluşturulamadı.");
+
+      registerGeneratedExam("schreiben", parsed);
       setExamData(parsed);
       setFeedback(null);
       setUserAnswer("");
