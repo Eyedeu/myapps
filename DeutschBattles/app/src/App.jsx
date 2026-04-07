@@ -37,6 +37,12 @@ import {
   X,
   XCircle
 } from "lucide-react";
+import {
+  FAST_PRIMARY_MODEL,
+  callGemini,
+  readStoredJson,
+  resolveSharedGeminiApiKey as resolveSharedGeminiApiKeyFromStorage
+} from "@shared/gemini-client.js";
 const LOCAL_DB_KEY = "deutsch-battles-db";
 const LOCAL_USER_KEY = "deutsch-battles-user";
 const appId = import.meta.env.VITE_FIREBASE_DATA_APP_ID || "deutsch-battles";
@@ -199,39 +205,19 @@ function onSnapshot(ref, callback) {
 
 const AI_STORAGE_KEY = "deutsch-battles-ai-settings";
 const SHARED_AI_STORAGE_KEYS = [AI_STORAGE_KEY, "ausbildung-webapp-v3"];
-const FAST_MODEL_ID = "gemini-3.1-flash-lite-preview";
 const defaultAiSettings = {
   geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
-  model: FAST_MODEL_ID
+  model: FAST_PRIMARY_MODEL
 };
 
-function readStoredJson(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
 function resolveSharedGeminiApiKey() {
-  for (const key of SHARED_AI_STORAGE_KEYS) {
-    const parsed = readStoredJson(key);
-    if (!parsed) continue;
-    if (typeof parsed.geminiApiKey === "string" && parsed.geminiApiKey.trim()) {
-      return parsed.geminiApiKey.trim();
-    }
-    if (typeof parsed.settings?.geminiApiKey === "string" && parsed.settings.geminiApiKey.trim()) {
-      return parsed.settings.geminiApiKey.trim();
-    }
-  }
-  return defaultAiSettings.geminiApiKey;
+  return resolveSharedGeminiApiKeyFromStorage(SHARED_AI_STORAGE_KEYS, defaultAiSettings.geminiApiKey);
 }
 
 function normalizeAiSettings(settings = {}) {
   return {
     geminiApiKey: String(settings.geminiApiKey || resolveSharedGeminiApiKey() || "").trim(),
-    model: FAST_MODEL_ID
+    model: FAST_PRIMARY_MODEL
   };
 }
 
@@ -262,64 +248,16 @@ function safeJSONParse(text) {
 
 async function generateContent(settings, prompt, type = "text") {
   const activeSettings = normalizeAiSettings(settings);
-  if (!activeSettings.geminiApiKey) {
-    throw new Error("Gemini API key gerekli. Üst bardaki ayarlardan ekleyebilirsin.");
-  }
-
-  const payload = {
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: {
-      responseMimeType: type === "json" ? "application/json" : "text/plain",
-      temperature: type === "json" ? 0.15 : 0.35,
-      topP: 0.8,
-      topK: 20,
-      maxOutputTokens: type === "json" ? 2048 : 3072,
-      thinkingConfig: { thinkingBudget: 0 }
-    }
-  };
-
-  let lastError = null;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 18000);
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${activeSettings.model}:generateContent?key=${activeSettings.geminiApiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-          signal: controller.signal
-        }
-      );
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        const message = data?.error?.message || "Gemini isteği başarısız oldu.";
-        if ((response.status === 429 || response.status >= 500) && attempt === 0) {
-          lastError = new Error(message);
-          continue;
-        }
-        throw new Error(message);
-      }
-
-      const text = data?.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("\n").trim() || "";
-      if (!text) throw new Error("Yapay zeka boş yanıt döndürdü.");
-      return text;
-    } catch (error) {
-      lastError = error;
-      if (error.name === "AbortError") {
-        lastError = new Error("Yapay zeka isteği zaman aşımına uğradı. Lütfen tekrar dene.");
-      }
-      if (attempt === 0 && /network|fetch|timeout|503|500|429/i.test(String(lastError?.message || ""))) {
-        continue;
-      }
-      throw lastError;
-    } finally {
-      window.clearTimeout(timeoutId);
-    }
-  }
-
-  throw lastError || new Error("Yapay zeka isteği tamamlanamadı.");
+  if (!activeSettings.geminiApiKey) throw new Error("Gemini API key gerekli. Üst bardaki ayarlardan ekleyebilirsin.");
+  const result = await callGemini({
+    apiKey: activeSettings.geminiApiKey,
+    model: FAST_PRIMARY_MODEL,
+    prompt,
+    mode: type,
+    timeoutMs: 14000,
+    retries: 1
+  });
+  return result.text;
 }
 
 const isStorageBlocked = () => {
@@ -486,7 +424,7 @@ function SettingsModal({ isOpen, onClose, aiSettings, setAiSettings }) {
         <div className="mb-5 flex items-start justify-between">
           <div>
             <h2 className="text-2xl font-black text-slate-900">AI Ayarları</h2>
-            <p className="mt-1 text-sm text-slate-500">Gemini anahtarı diğer uygulamalarından otomatik alınabilir. Bu uygulama her zaman daha hızlı yanıt için Gemini 3.1 Flash Lite Preview kullanır.</p>
+            <p className="mt-1 text-sm text-slate-500">Gemini anahtarı diğer uygulamalarından otomatik alınabilir. Uygulama önce Gemini 3.1 Flash Lite Preview kullanır, yoğunluk olursa otomatik olarak hızlı bir yedek modele geçer.</p>
           </div>
           <button onClick={onClose} className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
             <X size={20} />
@@ -1681,7 +1619,7 @@ function StrategySection() {
 }
 
 function MissingSetup({ aiSettings, onOpenSettings }) {
-  return <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center p-6"><div className="w-full rounded-3xl border border-amber-200 bg-white p-8 shadow-xl"><div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700"><AlertCircle size={32} /></div><h1 className="mb-3 text-3xl font-black text-slate-900">Kurulum Eksik</h1><p className="mb-6 text-slate-600">Uygulama localStorage ile çalışıyor. Aynı alan adındaki diğer uygulamalarda kayıtlı bir Gemini anahtarı bulunamazsa burada eklemen gerekiyor.</p><div className="space-y-3 rounded-2xl bg-slate-50 p-5 text-sm text-slate-700"><p className="text-green-600">Veri kaydı: localStorage hazır.</p><p className={!aiSettings.geminiApiKey ? "font-bold text-red-600" : "text-green-600"}>{!aiSettings.geminiApiKey ? "Gemini API key eksik." : "Gemini API key hazır."}</p><p>Model sabit olarak Gemini 3.1 Flash Lite Preview kullanır.</p></div><div className="mt-6 flex gap-3"><button onClick={onOpenSettings} className="rounded-xl bg-indigo-600 px-6 py-3 font-bold text-white">AI Ayarlarını Aç</button></div></div></div>;
+  return <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center p-6"><div className="w-full rounded-3xl border border-amber-200 bg-white p-8 shadow-xl"><div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700"><AlertCircle size={32} /></div><h1 className="mb-3 text-3xl font-black text-slate-900">Kurulum Eksik</h1><p className="mb-6 text-slate-600">Uygulama localStorage ile çalışıyor. Aynı alan adındaki diğer uygulamalarda kayıtlı bir Gemini anahtarı bulunamazsa burada eklemen gerekiyor.</p><div className="space-y-3 rounded-2xl bg-slate-50 p-5 text-sm text-slate-700"><p className="text-green-600">Veri kaydı: localStorage hazır.</p><p className={!aiSettings.geminiApiKey ? "font-bold text-red-600" : "text-green-600"}>{!aiSettings.geminiApiKey ? "Gemini API key eksik." : "Gemini API key hazır."}</p><p>Birincil model Gemini 3.1 Flash Lite Preview'dur; yoğunlukta otomatik olarak hızlı yedek modele geçilir.</p></div><div className="mt-6 flex gap-3"><button onClick={onOpenSettings} className="rounded-xl bg-indigo-600 px-6 py-3 font-bold text-white">AI Ayarlarını Aç</button></div></div></div>;
 }
 
 export default function TELCMasterApp() {
