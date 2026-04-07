@@ -8,12 +8,20 @@ function wait(ms) {
 function normalizeGeminiError(message, model) {
   const text = String(message || "");
   const lowered = text.toLowerCase();
+
   if (lowered.includes("high demand") || lowered.includes("overloaded")) {
     return `${model} modeli şu anda yoğun. Uygulama otomatik olarak yedek modeli deniyor.`;
   }
-  if (lowered.includes("quota")) return `${model} için kota dolu veya bu anahtarla erişim yok.`;
-  if (lowered.includes("not found") || lowered.includes("not supported")) return `${model} modeli bulunamadı. Özel model kimliğini kontrol et.`;
-  if (lowered.includes("api key")) return "API anahtarı geçersiz veya eksik.";
+  if (lowered.includes("quota")) {
+    return `${model} için kota dolu veya bu anahtarla erişim yok.`;
+  }
+  if (lowered.includes("not found") || lowered.includes("not supported")) {
+    return `${model} modeli bulunamadı. Özel model kimliğini kontrol et.`;
+  }
+  if (lowered.includes("api key")) {
+    return "API anahtarı geçersiz veya eksik.";
+  }
+
   return text || "Gemini isteği sırasında bir hata oluştu.";
 }
 
@@ -50,10 +58,13 @@ function fileToInlineData(file) {
 
 async function tryGeminiCall({ apiKey, model, prompt, files = [], timeoutMs = 15000 }) {
   const parts = [{ text: prompt }];
-  if (files.length > 0) parts.push(...await Promise.all(files.map(fileToInlineData)));
+  if (files.length > 0) {
+    parts.push(...await Promise.all(files.map(fileToInlineData)));
+  }
 
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -73,13 +84,22 @@ async function tryGeminiCall({ apiKey, model, prompt, files = [], timeoutMs = 15
         signal: controller.signal
       }
     );
+
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) return { ok: false, status: response.status, model, message: data?.error?.message || "Hata" };
+    if (!response.ok) {
+      return { ok: false, status: response.status, model, message: data?.error?.message || "Hata" };
+    }
+
     const text = data?.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("\n").trim() || "";
-    if (!text) return { ok: false, status: 204, model, message: "Boş yanıt" };
+    if (!text) {
+      return { ok: false, status: 204, model, message: "Boş yanıt" };
+    }
+
     return { ok: true, model, text };
   } catch (error) {
-    if (error.name === "AbortError") return { ok: false, status: 408, model, message: "Request timeout" };
+    if (error.name === "AbortError") {
+      return { ok: false, status: 408, model, message: "Request timeout" };
+    }
     return { ok: false, status: 0, model, message: error?.message || "Ağ hatası" };
   } finally {
     window.clearTimeout(timeoutId);
@@ -87,18 +107,28 @@ async function tryGeminiCall({ apiKey, model, prompt, files = [], timeoutMs = 15
 }
 
 export async function callGemini({ apiKey, model, prompt, files = [], timeoutMs = 15000, retries = 1 }) {
-  if (!apiKey) throw new Error("Gemini API anahtarı gerekli.");
-  if (!model) throw new Error("Geçerli bir model seçilmedi.");
+  if (!apiKey) {
+    throw new Error("Gemini API anahtarı gerekli.");
+  }
+  if (!model) {
+    throw new Error("Geçerli bir model seçilmedi.");
+  }
 
-  const candidates = model === "custom"
+  const shouldStayOnSelectedModel =
+    model === FAST_PRIMARY_MODEL || !FAST_FALLBACK_MODELS.includes(model);
+
+  const candidates = shouldStayOnSelectedModel
     ? [model]
     : [model, ...FAST_FALLBACK_MODELS].filter((value, index, array) => value && array.indexOf(value) === index);
 
   let lastFailure = null;
+
   for (const candidate of candidates) {
     for (let attempt = 0; attempt <= retries; attempt += 1) {
       const result = await tryGeminiCall({ apiKey, model: candidate, prompt, files, timeoutMs });
-      if (result.ok) return { text: result.text, usedModel: result.model, fallbackUsed: result.model !== model };
+      if (result.ok) {
+        return { text: result.text, usedModel: result.model, fallbackUsed: result.model !== model };
+      }
 
       lastFailure = result;
       const retryable = isRetryableFailure(result.status, result.message);
@@ -106,7 +136,9 @@ export async function callGemini({ apiKey, model, prompt, files = [], timeoutMs 
         await wait(800);
         continue;
       }
-      if (!retryable) throw new Error(normalizeGeminiError(result.message, candidate));
+      if (!retryable) {
+        throw new Error(normalizeGeminiError(result.message, candidate));
+      }
       break;
     }
   }

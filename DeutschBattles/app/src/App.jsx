@@ -205,7 +205,7 @@ const defaultAiSettings = {
   model: FAST_PRIMARY_MODEL
 };
 
-function resolveSharedGeminiApiKey() {
+function resolveProjectGeminiApiKey() {
   return PROJECT_AI_STORAGE_KEYS
     .map((key) => resolveStoredGeminiApiKey(key, defaultAiSettings.geminiApiKey))
     .find(Boolean) || "";
@@ -213,7 +213,7 @@ function resolveSharedGeminiApiKey() {
 
 function normalizeAiSettings(settings = {}) {
   return {
-    geminiApiKey: String(settings.geminiApiKey || resolveSharedGeminiApiKey() || "").trim(),
+    geminiApiKey: String(settings.geminiApiKey || resolveProjectGeminiApiKey() || "").trim(),
     model: FAST_PRIMARY_MODEL
   };
 }
@@ -285,6 +285,34 @@ const storageObj = {
     } catch {}
   }
 };
+
+function downloadBackupFile(filename, payload) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+async function importBackupFile(file) {
+  const text = await file.text();
+  return JSON.parse(text);
+}
+
+function buildLocalBackup() {
+  return {
+    app: "deutsch-battles",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    data: {
+      [LOCAL_DB_KEY]: storageObj.get(LOCAL_DB_KEY),
+      [LOCAL_USER_KEY]: storageObj.get(LOCAL_USER_KEY),
+      [AI_STORAGE_KEY]: storageObj.get(AI_STORAGE_KEY)
+    }
+  };
+}
 
 function getDeviceId() {
   let id = storageObj.get("telc_device_id");
@@ -405,9 +433,13 @@ function ConfirmModal({ isOpen, onClose, onConfirm, message }) {
 
 function SettingsModal({ isOpen, onClose, aiSettings, setAiSettings }) {
   const [draft, setDraft] = useState(aiSettings);
+  const [status, setStatus] = useState("");
+  const [importError, setImportError] = useState("");
 
   useEffect(() => {
     setDraft(aiSettings);
+    setStatus("");
+    setImportError("");
   }, [aiSettings, isOpen]);
 
   if (!isOpen) return null;
@@ -417,6 +449,36 @@ function SettingsModal({ isOpen, onClose, aiSettings, setAiSettings }) {
     setAiSettings(normalizedDraft);
     storageObj.set(AI_STORAGE_KEY, JSON.stringify(normalizedDraft));
     onClose();
+  };
+
+  const exportBackup = () => {
+    downloadBackupFile(`deutsch-battles-backup-${new Date().toISOString().slice(0, 10)}.json`, buildLocalBackup());
+    setStatus("Yedek dosyası indirildi.");
+    setImportError("");
+  };
+
+  const handleImport = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    try {
+      const backup = await importBackupFile(file);
+      if (backup?.app !== "deutsch-battles" || !backup?.data) {
+        throw new Error("Geçersiz yedek dosyası.");
+      }
+
+      Object.entries(backup.data).forEach(([key, value]) => {
+        if (typeof value === "string") storageObj.set(key, value);
+      });
+
+      const nextSettings = loadAiSettings();
+      setDraft(nextSettings);
+      setAiSettings(nextSettings);
+      window.location.reload();
+    } catch (error) {
+      setImportError(error.message || "Yedek dosyası içe aktarılamadı.");
+    }
   };
 
   return (
@@ -438,14 +500,28 @@ function SettingsModal({ isOpen, onClose, aiSettings, setAiSettings }) {
           </label>
           <label className="block">
             <span className="mb-1 block text-sm font-bold text-slate-700">Model</span>
-            <input value={FAST_MODEL_ID} disabled className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-600 outline-none" />
+            <input value={FAST_PRIMARY_MODEL} disabled className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-600 outline-none" />
           </label>
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
             Uygulama tüm verileri tarayıcıdaki localStorage içinde tutuyor. Gemini anahtarını burada saklayabilirsin.
           </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-3 text-sm font-bold text-slate-700">Veri Araçları</div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button onClick={exportBackup} className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-100">
+                Yedeği İndir
+              </button>
+              <label className="flex-1 cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-100">
+                Yedeği Geri Yükle
+                <input type="file" accept=".json,application/json" onChange={handleImport} className="hidden" />
+              </label>
+            </div>
+            {!!status && <p className="mt-3 text-xs font-medium text-green-600">{status}</p>}
+            {!!importError && <p className="mt-3 text-xs font-medium text-red-600">{importError}</p>}
+          </div>
         </div>
         <div className="mt-6 flex gap-3">
-          <button onClick={onClose} className="flex-1 rounded-xl bg-slate-100 py-3 font-bold text-slate-700 transition hover:bg-slate-200">Iptal</button>
+          <button onClick={onClose} className="flex-1 rounded-xl bg-slate-100 py-3 font-bold text-slate-700 transition hover:bg-slate-200">İptal</button>
           <button onClick={save} className="flex-1 rounded-xl bg-indigo-600 py-3 font-bold text-white transition hover:bg-indigo-700">Kaydet</button>
         </div>
       </div>
@@ -466,7 +542,7 @@ function HighlightedText({ text, questions, title }) {
   return (
     <div className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
       <div className="flex items-center gap-2 border-b border-indigo-100 bg-indigo-50 p-4 font-bold text-indigo-900">
-        <BookOpen size={18} /> {title} - Metin Kaynagi
+        <BookOpen size={18} /> {title} - Metin Kaynağı
       </div>
       <div className="prose max-w-none whitespace-pre-line p-6 text-lg leading-relaxed text-gray-800" dangerouslySetInnerHTML={{ __html: highlighted }} />
     </div>
@@ -622,7 +698,7 @@ function Lobby({ user, dbProfile, onlineUsers, mySentInvite, pendingIncomingInvi
                     </div>
                   </div>
                   <button onClick={() => onSendInvite(onlineUser.connectionId)} disabled={Boolean(mySentInvite)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3 font-bold text-white shadow-md transition hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-2.5">
-                    <Swords size={18} /> DÃ¯Â¿Â½elloya Davet Et
+                    <Swords size={18} /> Düelloya Davet Et
                   </button>
                 </div>
               );
@@ -1404,6 +1480,8 @@ function WordCard({ word, onUnknown, onKnown, isUnknownList }) {
 
 function HistoryBatchCard({ batch, onAddUnknown }) {
   const [expanded, setExpanded] = useState(false);
+  const words = Array.isArray(batch.words) ? batch.words : [];
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       <button onClick={() => setExpanded((prev) => !prev)} className="flex w-full items-center justify-between text-left">
@@ -1411,17 +1489,31 @@ function HistoryBatchCard({ batch, onAddUnknown }) {
           <Calendar size={16} className="text-indigo-500" />
           <span className="text-sm font-bold text-gray-700">{new Date(batch.date).toLocaleString("tr-TR")}</span>
           <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600">{batch.level}</span>
-          <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-600">{(batch.words || []).length} kelime</span>
+          <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-600">{words.length} kelime</span>
         </div>
         <ChevronDown size={16} className={`text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`} />
       </button>
-      {expanded && <div className="mt-4 space-y-2 border-t border-gray-100 pt-4">{(batch.words || []).map((word, index) => <div key={`${batch.id}-${word.word}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"><div className="min-w-0 text-sm text-gray-700"><span className="mr-2 font-bold text-gray-900">{word.article} {word.word}</span>{word.meaning}</div><button onClick={() => onAddUnknown(word)} className="shrink-0 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-50">Bilinmeyenlere Ekle</button></div>)}</div>}
+      {expanded && (
+        <div className="mt-4 space-y-2 border-t border-gray-100 pt-4">
+          {words.map((word, index) => (
+            <div key={`${batch.id}-${word.word}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+              <div className="min-w-0 text-sm text-gray-700">
+                <span className="mr-2 font-bold text-gray-900">{word.article} {word.word}</span>
+                {word.meaning}
+              </div>
+              <button onClick={() => onAddUnknown(word)} className="shrink-0 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-50">
+                Bilinmeyenlere Ekle
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 function UnknownWordQuiz({ words, onClose, onMarkKnown }) {
-  const [items, setItems] = useState(() => [...words].sort(() => Math.random() - 0.5).slice(0, Math.min(10, words.length)));
+  const [items] = useState(() => [...words].sort(() => Math.random() - 0.5).slice(0, Math.min(10, words.length)));
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState(null);
   const [score, setScore] = useState(0);
@@ -1520,9 +1612,26 @@ function VocabTrainer({ level, user, aiSettings }) {
 The words must be useful for exam study and must be completely different from all previously generated words.
 Never use any of these words again: ${blockedWords.join(", ") || "none"}.
 Format: [{"word":"GermanWord","article":"der/die/das","meaning":"TurkishMeaning","example":"GermanSentence","translation":"TurkishTranslationOfSentence"}]`;
-      const data = safeJSONParse(await generateContent(aiSettings, prompt, "json"));
-      const filteredData = Array.isArray(data) ? data.filter((word) => !usedWords.has(normalizeWordKey(word.word))) : [];
-      if (filteredData.length !== 5) throw new Error("Yapay zeka tekrar eden kelimeler üretti. Lütfen yeniden dene.");
+
+      let filteredData = [];
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const data = safeJSONParse(await generateContent(aiSettings, prompt, "json"));
+        filteredData = Array.isArray(data)
+          ? data.filter((word, index, array) => {
+            const normalized = normalizeWordKey(word.word);
+            return normalized
+              && !usedWords.has(normalized)
+              && array.findIndex((item) => normalizeWordKey(item.word) === normalized) === index;
+          })
+          : [];
+
+        if (filteredData.length === 5) break;
+      }
+
+      if (filteredData.length !== 5) {
+        throw new Error("Yapay zeka benzersiz 5 kelime üretemedi. Lütfen yeniden dene.");
+      }
+
       setCurrentBatch(filteredData);
       if (db && user) {
         await addDoc(collection(db, "artifacts", appId, "users", user.uid, "vocab_history"), {
@@ -1579,14 +1688,20 @@ Format: [{"word":"GermanWord","article":"der/die/das","meaning":"TurkishMeaning"
       {tab === "new" && (
         <div className="space-y-4">
           {currentBatch.length === 0 && !loading
-            ? <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-20 text-center text-gray-500">Açık paket yok.</div>
+            ? <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-20 text-center text-gray-500">Açık paket yok. Yeni Paket ile benzersiz bir kelime seti oluşturabilirsin.</div>
             : currentBatch.map((word, index) => <WordCard key={`${word.word}-${index}`} word={word} onUnknown={() => markAsUnknown(word)} onKnown={() => setCurrentBatch((prev) => prev.filter((item) => item.word !== word.word))} isUnknownList={false} />)}
         </div>
       )}
-      {tab === "history" && <div className="space-y-4">{history.map((batch) => <HistoryBatchCard key={batch.id} batch={batch} onAddUnknown={addHistoryWordToUnknowns} />)}</div>}
+      {tab === "history" && (
+        <div className="space-y-4">
+          {history.length === 0
+            ? <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-20 text-center text-gray-500">Henüz kayıtlı kelime paketi yok.</div>
+            : history.map((batch) => <HistoryBatchCard key={batch.id} batch={batch} onAddUnknown={addHistoryWordToUnknowns} />)}
+        </div>
+      )}
       {tab === "unknowns" && (
         <div className="space-y-6">
-          {unknowns.length > 0 && <div className="flex justify-end"><button onClick={() => setUnknownGameOpen(true)} className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white">Bilinmeyen Kelime Oyunu</button></div>}
+          {unknowns.length > 0 && <div className="flex justify-end"><button onClick={() => setUnknownGameOpen(true)} className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white">Bilinmeyenlerle Oyna</button></div>}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {unknowns.length === 0
               ? <div className="col-span-2 py-20 text-center text-gray-500">Tebrikler! Bilinmeyen kelime eklemedin.</div>
@@ -1718,6 +1833,9 @@ Zorunlu yapı:
 
   if (loading) return <div className="flex h-96 flex-col items-center justify-center"><Loader2 className="mb-4 h-12 w-12 animate-spin text-indigo-600" /><p className="text-gray-500">Sınav hazırlanıyor...</p></div>;
 
+  const readingResults = feedback?.results || [];
+  const readingPercent = readingResults.length > 0 ? Math.round((feedback.score / feedback.total) * 100) : 0;
+
   if (mode === "menu") {
     return (
       <div className="space-y-6">
@@ -1767,8 +1885,37 @@ Zorunlu yapı:
             </>
           ) : (
             <div className="space-y-6">
-              <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-8 text-center shadow-sm"><Award size={48} className="mx-auto mb-2 text-indigo-400" /><h3 className="text-3xl font-bold text-indigo-900">Sonuç: {feedback.score} / {feedback.total}</h3></div>
-              {feedback.results.map((result, index) => <div key={`${result.id}-${index}`} className={`rounded-2xl border p-5 shadow-sm ${result.isCorrect ? "border-green-200 bg-green-50/50" : "border-red-200 bg-red-50/50"}`}><p className="mb-2 text-lg font-bold text-gray-900">Soru {result.displayNum}</p><p className="text-sm text-gray-700">Açıklama: {result.explanation}</p></div>)}
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-8 text-center shadow-sm">
+                <Award size={48} className="mx-auto mb-2 text-indigo-400" />
+                <h3 className="text-3xl font-bold text-indigo-900">Sonuç: {feedback.score} / {feedback.total}</h3>
+                <p className="mt-2 text-sm font-medium text-indigo-700">Başarı oranı: %{readingPercent}</p>
+              </div>
+              {examData?.teil1 && <HighlightedText text={examData.teil1.text} questions={readingResults.filter((item) => item.id?.startsWith("t1"))} title="Teil 1" />}
+              {examData?.teil2 && <HighlightedText text={examData.teil2.text} questions={readingResults.filter((item) => item.id?.startsWith("t2"))} title="Teil 2" />}
+              {!examData?.teil1 && examData?.text && <HighlightedText text={examData.text} questions={readingResults} title="Sınav Metni" />}
+              {readingResults.map((result, index) => (
+                <div key={`${result.id}-${index}`} className={`rounded-2xl border p-5 shadow-sm ${result.isCorrect ? "border-green-200 bg-green-50/50" : "border-red-200 bg-red-50/50"}`}>
+                  <div className="mb-3 flex items-center gap-3">
+                    <div className={`rounded-full p-2 ${result.isCorrect ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}>
+                      {result.isCorrect ? <CheckCircle size={20} /> : <XCircle size={20} />}
+                    </div>
+                    <p className="text-lg font-bold text-gray-900">Soru {result.displayNum}</p>
+                  </div>
+                  <div className="mb-4 grid gap-3 md:grid-cols-2">
+                    <div className="rounded-xl border border-gray-200 bg-white p-4">
+                      <div className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-400">Senin Cevabın</div>
+                      <div className={`font-bold ${result.isCorrect ? "text-green-700" : "text-red-600"}`}>{result.options?.[result.userIdx] || "Boş"}</div>
+                    </div>
+                    <div className="rounded-xl border border-green-200 bg-white p-4">
+                      <div className="mb-1 text-xs font-bold uppercase tracking-wide text-green-500">Doğru Cevap</div>
+                      <div className="font-bold text-green-700">{result.options?.[result.correct] || "-"}</div>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-gray-100 bg-white p-4 text-sm text-gray-700">
+                    <span className="font-bold text-indigo-600">Açıklama:</span> {result.explanation}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
