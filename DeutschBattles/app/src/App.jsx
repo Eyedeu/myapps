@@ -236,7 +236,7 @@ function safeJSONParse(text) {
 
 async function generateContent(settings, prompt, type = "text") {
   if (!settings.geminiApiKey) {
-    throw new Error("Gemini API key gerekli. Ust bardaki ayarlardan ekleyebilirsin.");
+    throw new Error("Gemini API key gerekli. Üst bardaki ayarlardan ekleyebilirsin.");
   }
 
   const payload = { contents: [{ parts: [{ text: prompt }] }] };
@@ -313,15 +313,15 @@ function shuffleOptionItem(question) {
 function createGameGenerators(aiSettings) {
   return {
     schreiben: async (level) => {
-      const prompt = `TELC ${level} seviyesi icin iki oyuncunun birbirine karsi yaristigi Almanca yazma gorevi uret. JSON formatinda don: {"title":"Gorev Basligi (Almanca)","situation":"Durum ve istenenler (Almanca)"}`;
+      const prompt = `TELC ${level} seviyesi için iki oyuncunun birbirine karşı yarıştığı Almanca yazma görevi üret. JSON formatında dön: {"title":"Görev Başlığı (Almanca)","situation":"Durum ve istenenler (Almanca)"}`;
       const res = await generateContent(aiSettings, prompt, "json");
       return safeJSONParse(res) || { title: "Einladung schreiben", situation: "Schreiben Sie eine Einladung zu Ihrer Geburtstagsparty." };
     },
     lesen_sprachbausteine: async (level) => {
-      const prompt = `TELC ${level} seviyesi icin tam 10 soruluk sinav uret.
-Bolum 1 (Lesen): Yaklasik 200 kelimelik bir metin ve 5 adet coktan secmeli Almanca soru.
-Bolum 2 (Sprachbausteine): Yaklasik 150 kelimelik, 5 bosluklu bir metin ve her bosluk icin 3 Almanca secenek.
-JSON formati:
+      const prompt = `TELC ${level} seviyesi için tam 10 soruluk sınav üret.
+Bölüm 1 (Lesen): Yaklaşık 200 kelimelik bir metin ve 5 adet çoktan seçmeli Almanca soru.
+Bölüm 2 (Sprachbausteine): Yaklaşık 150 kelimelik, 5 boşluklu bir metin ve her boşluk için 3 Almanca seçenek.
+JSON formatı:
 {"lesen":{"text":"...","questions":[{"id":"l1","q":"...","options":["A","B","C"],"correct":0}]},"sprach":{"text":"... [1] ...","questions":[{"id":"s1","q":"[1]","options":["A","B","C"],"correct":0}]}}`;
       const parsed = safeJSONParse(await generateContent(aiSettings, prompt, "json"));
       if (parsed) {
@@ -337,8 +337,8 @@ JSON formati:
     fillblank: async (level) => {
       const categories = ["Alltag", "Beruf", "Reisen", "Gesundheit", "Umwelt", "Technik", "Kultur", "Sport", "Bildung", "Gesellschaft"];
       const randomCategory = categories[Math.floor(Math.random() * categories.length)];
-      const prompt = `TELC ${level} seviyesi icin ${randomCategory} temali 10 farkli Almanca kelime sec. Her biri icin kelimeyi ___ ile gizleyen bir Almanca cumle ve Turkce ceviri ver. Sadece JSON don:
-[{"word":"Hund","sentence":"Das ist mein ___.","translation":"Bu benim kopegim."}]`;
+      const prompt = `TELC ${level} seviyesi için ${randomCategory} temalı 10 farklı Almanca kelime seç. Her biri için kelimeyi ___ ile gizleyen bir Almanca cümle ve Türkçe çeviri ver. Sadece JSON dön:
+[{"word":"Hund","sentence":"Das ist mein ___.","translation":"Bu benim köpeğim."}]`;
       const parsed = safeJSONParse(await generateContent(aiSettings, prompt, "json"));
       if (Array.isArray(parsed) && parsed.length > 0) {
         const allWords = parsed.map((item) => item.word);
@@ -355,7 +355,7 @@ JSON formati:
       }));
     },
     syllable: async (level) => {
-      const prompt = `TELC ${level} seviyesi icin 5 adet Almanca kelime sec. Her kelime icin Turkce ceviri, heceler ve 4 yaniltici hece don.
+      const prompt = `TELC ${level} seviyesi için 5 adet Almanca kelime seç. Her kelime için Türkçe çeviri, heceler ve 4 yanıltıcı hece dön.
 JSON:
 [{"word":"Auto","meaning":"Araba","syllables":["Au","to"],"decoys":["ba","ka","la","ma"]}]`;
       return (
@@ -367,13 +367,13 @@ JSON:
 }
 
 async function evaluateSchreiben(aiSettings, text1, text2, task, level) {
-  const prompt = `TELC ${level} yazma gorevini degerlendir.
-Gorev: ${task.situation}
+  const prompt = `TELC ${level} yazma görevini değerlendir.
+Görev: ${task.situation}
 Oyuncu 1: "${text1}"
 Oyuncu 2: "${text2}"
-Kati kurallar: gramer, kelime dagarcigi, gorevi yerine getirme ve ozgunluk. Kopyaya sifir tolerans.
-JSON formatinda don: {"p1Score":85,"p1Feedback":"...","p2Score":90,"p2Feedback":"..."}`;
-  return safeJSONParse(await generateContent(aiSettings, prompt, "json")) || { p1Score: 50, p1Feedback: "Degerlendirilemedi.", p2Score: 50, p2Feedback: "Degerlendirilemedi." };
+Katı kurallar: gramer, kelime dağarcığı, görevi yerine getirme ve özgünlük. Kopyaya sıfır tolerans.
+JSON formatında dön: {"p1Score":85,"p1Feedback":"...","p2Score":90,"p2Feedback":"..."}`;
+  return safeJSONParse(await generateContent(aiSettings, prompt, "json")) || { p1Score: 50, p1Feedback: "Değerlendirilemedi.", p2Score: 50, p2Feedback: "Değerlendirilemedi." };
 }
 
 function ConfirmModal({ isOpen, onClose, onConfirm, message }) {
@@ -386,9 +386,9 @@ function ConfirmModal({ isOpen, onClose, onConfirm, message }) {
             <Trash2 className="text-red-600" size={24} />
           </div>
           <h3 className="mb-2 text-lg font-bold text-gray-900">Silmek istiyor musunuz?</h3>
-          <p className="mb-6 text-sm text-gray-500">{message || "Bu islem geri alinamaz."}</p>
+          <p className="mb-6 text-sm text-gray-500">{message || "Bu işlem geri alınamaz."}</p>
           <div className="flex w-full gap-3">
-            <button onClick={onClose} className="flex-1 rounded-xl bg-gray-100 py-2.5 font-bold text-gray-700 transition hover:bg-gray-200">Vazgec</button>
+            <button onClick={onClose} className="flex-1 rounded-xl bg-gray-100 py-2.5 font-bold text-gray-700 transition hover:bg-gray-200">Vazgeç</button>
             <button onClick={onConfirm} className="flex-1 rounded-xl bg-red-600 py-2.5 font-bold text-white transition hover:bg-red-700">Sil</button>
           </div>
         </div>
@@ -417,8 +417,8 @@ function SettingsModal({ isOpen, onClose, aiSettings, setAiSettings }) {
       <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
         <div className="mb-5 flex items-start justify-between">
           <div>
-            <h2 className="text-2xl font-black text-slate-900">AI Ayarlari</h2>
-            <p className="mt-1 text-sm text-slate-500">Diger projelerindeki gibi Gemini API key ve modeli burada kullaniliyor.</p>
+            <h2 className="text-2xl font-black text-slate-900">AI Ayarları</h2>
+            <p className="mt-1 text-sm text-slate-500">Diğer projelerindeki gibi Gemini API key ve modeli burada kullanılıyor.</p>
           </div>
           <button onClick={onClose} className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
             <X size={20} />
@@ -439,11 +439,11 @@ function SettingsModal({ isOpen, onClose, aiSettings, setAiSettings }) {
             </select>
           </label>
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            Uygulama artik tum verileri tarayicidaki localStorage icinde tutuyor. Gemini anahtarini ister `.env`, ister bu pencere uzerinden verebilirsin.
+            Uygulama artık tüm verileri tarayıcıdaki localStorage içinde tutuyor. Gemini anahtarını ister `.env`, ister bu pencere üzerinden verebilirsin.
           </div>
         </div>
         <div className="mt-6 flex gap-3">
-          <button onClick={onClose} className="flex-1 rounded-xl bg-slate-100 py-3 font-bold text-slate-700 transition hover:bg-slate-200">Iptal</button>
+          <button onClick={onClose} className="flex-1 rounded-xl bg-slate-100 py-3 font-bold text-slate-700 transition hover:bg-slate-200">İptal</button>
           <button onClick={save} className="flex-1 rounded-xl bg-indigo-600 py-3 font-bold text-white transition hover:bg-indigo-700">Kaydet</button>
         </div>
       </div>
@@ -464,7 +464,7 @@ function HighlightedText({ text, questions, title }) {
   return (
     <div className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
       <div className="flex items-center gap-2 border-b border-indigo-100 bg-indigo-50 p-4 font-bold text-indigo-900">
-        <BookOpen size={18} /> {title} - Metin Kaynagi
+        <BookOpen size={18} /> {title} - Metin Kaynağı
       </div>
       <div className="prose max-w-none whitespace-pre-line p-6 text-lg leading-relaxed text-gray-800" dangerouslySetInnerHTML={{ __html: highlighted }} />
     </div>
@@ -496,24 +496,24 @@ function UsernamePrompt({ user, onClose, onSave }) {
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center overflow-hidden rounded-3xl bg-slate-900 p-4">
       <button onClick={onClose} className="absolute left-4 top-4 z-[60] flex items-center gap-1 text-white transition-colors hover:text-gray-300">
-        <ChevronLeft size={24} /> Menuye Don
+        <ChevronLeft size={24} /> Menüye Dön
       </button>
       <div className="relative z-10 w-full max-w-md rounded-3xl bg-white p-6 text-center shadow-2xl md:p-8">
         <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-indigo-100">
           <User size={40} className="text-indigo-600" />
         </div>
-        <h2 className="mb-2 text-2xl font-bold text-gray-800">Arenaya Hos Geldin</h2>
-        <p className="mb-6 text-sm text-gray-500">Rakiplerinin seni taniyabilmesi icin bir kullanici adi belirle.</p>
+        <h2 className="mb-2 text-2xl font-bold text-gray-800">Arenaya Hoş Geldin</h2>
+        <p className="mb-6 text-sm text-gray-500">Rakiplerinin seni tanıyabilmesi için bir kullanıcı adı belirle.</p>
         {storageIsBlocked && (
           <div className="mb-4 rounded-xl border border-red-100 bg-red-50 p-4 text-left text-xs text-red-600">
             <AlertCircle size={16} className="mb-1 mr-1 inline-block" />
-            Tarayici gizlilik ayarlari yerel depolamayi engelliyor olabilir.
+            Tarayıcı gizlilik ayarları yerel depolamayı engelliyor olabilir.
           </div>
         )}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <input type="text" value={name} onChange={(event) => setName(event.target.value)} placeholder="Kullanici Adi" maxLength={15} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-center text-lg font-bold outline-none focus:ring-2 focus:ring-indigo-500" />
+          <input type="text" value={name} onChange={(event) => setName(event.target.value)} placeholder="Kullanıcı Adı" maxLength={15} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-center text-lg font-bold outline-none focus:ring-2 focus:ring-indigo-500" />
           <button disabled={name.trim().length < 3 || loading} type="submit" className="w-full rounded-xl bg-indigo-600 py-4 font-bold text-white shadow-lg transition hover:bg-indigo-700 disabled:opacity-50">
-            {loading ? <Loader2 className="mx-auto animate-spin" /> : "Savasa Katil"}
+            {loading ? <Loader2 className="mx-auto animate-spin" /> : "Savaşa Katıl"}
           </button>
         </form>
       </div>
@@ -540,11 +540,11 @@ function EditUsernameModal({ user, currentName, onClose, onSave }) {
   return (
     <div className="absolute inset-0 z-[100] flex items-center justify-center rounded-3xl bg-slate-900/60 p-4 backdrop-blur-sm">
       <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl md:p-8">
-        <h2 className="mb-4 text-xl font-bold text-gray-800">Ismini Degistir</h2>
+        <h2 className="mb-4 text-xl font-bold text-gray-800">İsmini Değiştir</h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <input type="text" value={name} onChange={(event) => setName(event.target.value)} placeholder="Yeni Kullanici Adi" maxLength={15} autoFocus className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-center text-lg font-bold outline-none focus:ring-2 focus:ring-indigo-500" />
+          <input type="text" value={name} onChange={(event) => setName(event.target.value)} placeholder="Yeni Kullanıcı Adı" maxLength={15} autoFocus className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-center text-lg font-bold outline-none focus:ring-2 focus:ring-indigo-500" />
           <div className="flex gap-2">
-            <button type="button" onClick={onClose} className="flex-1 rounded-xl bg-gray-100 py-3 font-bold text-gray-700 transition hover:bg-gray-200">Iptal</button>
+            <button type="button" onClick={onClose} className="flex-1 rounded-xl bg-gray-100 py-3 font-bold text-gray-700 transition hover:bg-gray-200">İptal</button>
             <button disabled={name.trim().length < 3 || loading} type="submit" className="flex-1 rounded-xl bg-indigo-600 py-3 font-bold text-white transition hover:bg-indigo-700 disabled:opacity-50">
               {loading ? <Loader2 className="mx-auto animate-spin" /> : "Kaydet"}
             </button>
@@ -566,7 +566,7 @@ function Lobby({ user, dbProfile, onlineUsers, mySentInvite, pendingIncomingInvi
             </div>
             <h3 className="mb-2 text-2xl font-black text-gray-800">Meydan Okuma</h3>
             <p className="mb-8 text-sm text-gray-600 md:text-base">
-              <strong className="text-indigo-600">{invite.fromName}</strong> seni 1v1 duelloya davet ediyor.
+              <strong className="text-indigo-600">{invite.fromName}</strong> seni 1v1 düelloya davet ediyor.
             </p>
             <div className="flex gap-3">
               <button onClick={() => onDecline(invite.id)} className="flex-1 rounded-xl bg-gray-100 py-3 font-bold text-gray-700 transition hover:bg-gray-200">Reddet</button>
@@ -580,7 +580,7 @@ function Lobby({ user, dbProfile, onlineUsers, mySentInvite, pendingIncomingInvi
         <div className="flex flex-col items-start justify-between gap-5 bg-gradient-to-r from-slate-800 to-slate-900 p-6 text-white sm:flex-row sm:items-center sm:px-8">
           <div>
             <h2 className="flex items-center gap-2 text-2xl font-black"><Users /> Aktif Oyuncular</h2>
-            <p className="mt-1 text-sm text-slate-400">Su anda lobide rakip bekleyen savascilar.</p>
+            <p className="mt-1 text-sm text-slate-400">Şu anda lobide rakip bekleyen savaşçılar.</p>
           </div>
           <div className="flex w-full items-center gap-3 sm:w-auto">
             <button onClick={onRefresh} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-2.5 text-sm font-bold transition hover:bg-slate-600 sm:flex-none">
@@ -597,8 +597,8 @@ function Lobby({ user, dbProfile, onlineUsers, mySentInvite, pendingIncomingInvi
           {onlineUsers.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center p-6 text-center text-gray-400">
               <Target size={48} className="mb-4 opacity-50" />
-              <p>Su an lobide senden baska kimse yok.</p>
-              <p className="mt-2 text-sm">Arkadasinla farkli cihazlardan baglanmayi deneyebilirsin.</p>
+              <p>Şu an lobide senden başka kimse yok.</p>
+              <p className="mt-2 text-sm">Arkadaşınla farklı cihazlardan bağlanmayı deneyebilirsin.</p>
             </div>
           ) : (
             onlineUsers.map((onlineUser) => {
@@ -611,16 +611,16 @@ function Lobby({ user, dbProfile, onlineUsers, mySentInvite, pendingIncomingInvi
                     <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xl font-black text-indigo-700">{onlineUser.username.charAt(0).toUpperCase()}</div>
                     <div className="truncate">
                       <h3 className="truncate text-lg font-bold text-gray-800 transition-colors group-hover:text-indigo-600">
-                        {onlineUser.username} {isMyself && <span className="text-xs font-normal text-gray-400">(Diger cihazin)</span>}
+                        {onlineUser.username} {isMyself && <span className="text-xs font-normal text-gray-400">(Diğer cihazın)</span>}
                       </h3>
                       <div className="mt-1 flex items-center gap-2">
                         <div className="flex w-fit items-center gap-1 rounded-md bg-yellow-100 px-2 py-0.5 text-xs font-bold text-yellow-600"><Trophy size={12} /> {onlineUser.wins || 0} Zafer</div>
-                        <div className="rounded-md bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-500">Bana Karsi: <span className="text-green-600">{myWinsVSHim}G</span> - <span className="text-red-500">{myLossesVSHim}M</span></div>
+                        <div className="rounded-md bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-500">Bana Karşı: <span className="text-green-600">{myWinsVSHim}G</span> - <span className="text-red-500">{myLossesVSHim}M</span></div>
                       </div>
                     </div>
                   </div>
                   <button onClick={() => onSendInvite(onlineUser.connectionId)} disabled={Boolean(mySentInvite)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3 font-bold text-white shadow-md transition hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-2.5">
-                    <Swords size={18} /> Duelloya Davet Et
+                    <Swords size={18} /> Düelloya Davet Et
                   </button>
                 </div>
               );
@@ -632,9 +632,9 @@ function Lobby({ user, dbProfile, onlineUsers, mySentInvite, pendingIncomingInvi
           <div className="flex flex-col items-center justify-between gap-4 border-t border-indigo-100 bg-indigo-50 p-4 text-center sm:flex-row sm:px-8 sm:text-left">
             <div className="flex items-center justify-center gap-3 text-sm font-medium text-indigo-800 md:text-base">
               <Loader2 className="animate-spin" size={20} />
-              Istek gonderildi, rakibin onayi bekleniyor...
+              İstek gönderildi, rakibin onayı bekleniyor...
             </div>
-            <button onClick={onCancelInvite} className="w-full rounded-lg border border-red-100 bg-white px-4 py-2 font-bold text-red-500 transition hover:bg-red-50 sm:w-auto sm:border-none sm:bg-transparent">Iptal Et</button>
+            <button onClick={onCancelInvite} className="w-full rounded-lg border border-red-100 bg-white px-4 py-2 font-bold text-red-500 transition hover:bg-red-50 sm:w-auto sm:border-none sm:bg-transparent">İptal Et</button>
           </div>
         )}
       </div>
@@ -659,7 +659,7 @@ function GameSelection({ isHost, gameDoc, onGenerate }) {
       <div className="flex min-h-[400px] h-full flex-col items-center justify-center text-center text-gray-500">
         <Loader2 className="mb-6 h-16 w-16 animate-spin text-indigo-300" />
         <h2 className="mb-2 text-2xl font-bold text-gray-800">Oda Sahibi Bekleniyor</h2>
-        <p>Rakibin oyun turunu ve TELC seviyesini seciyor...</p>
+        <p>Rakibin oyun türünü ve TELC seviyesini seçiyor...</p>
       </div>
     );
   }
@@ -667,16 +667,16 @@ function GameSelection({ isHost, gameDoc, onGenerate }) {
   const gamesList = [
     { id: "schreiben", title: "Yazma (Schreiben)", icon: PenTool, desc: "Yapay zeka konusuna gore en iyi metni kim yazacak?", color: "text-purple-600", bg: "bg-purple-100" },
     { id: "lesen_sprachbausteine", title: "Okuma & Gramer", icon: BookOpen, desc: "Okuma parcasi ve Sprachbausteine.", color: "text-blue-600", bg: "bg-blue-100" },
-    { id: "fillblank", title: "Bosluk Doldurma", icon: Edit3, desc: "10 cumle. Tum kelimeler sik olarak cikar.", color: "text-green-600", bg: "bg-green-100" },
-    { id: "syllable", title: "Hece Oyunu", icon: Puzzle, desc: "Kelimelerin hecelerini yanilticilara kanmadan bul.", color: "text-orange-600", bg: "bg-orange-100" }
+    { id: "fillblank", title: "Boşluk Doldurma", icon: Edit3, desc: "10 cümle. Tüm kelimeler şık olarak çıkar.", color: "text-green-600", bg: "bg-green-100" },
+    { id: "syllable", title: "Hece Oyunu", icon: Puzzle, desc: "Kelimelerin hecelerini yanıltıcılara kanmadan bul.", color: "text-orange-600", bg: "bg-orange-100" }
   ];
 
   return (
     <div>
       <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <h2 className="mb-2 text-3xl font-black text-gray-900">Oyun Modunu Sec</h2>
-          <p className="text-sm text-gray-500 md:text-base">Oda sahibi olarak kurallari sen belirlersin.</p>
+          <h2 className="mb-2 text-3xl font-black text-gray-900">Oyun Modunu Seç</h2>
+          <p className="text-sm text-gray-500 md:text-base">Oda sahibi olarak kuralları sen belirlersin.</p>
         </div>
         <div className="flex w-full flex-col md:w-auto">
           <label className="mb-1 text-xs font-bold uppercase tracking-wider text-gray-500">Seviye (A1-C2)</label>
@@ -696,7 +696,7 @@ function GameSelection({ isHost, gameDoc, onGenerate }) {
           </button>
         ))}
       </div>
-      {loading && <div className="mt-6 text-center text-sm font-bold text-indigo-600 md:text-base">Yapay zeka {level} seviyesine uygun oyunu hazirliyor...</div>}
+      {loading && <div className="mt-6 text-center text-sm font-bold text-indigo-600 md:text-base">Yapay zeka {level} seviyesine uygun oyunu hazırlıyor...</div>}
     </div>
   );
 }
@@ -704,8 +704,8 @@ function GameSelection({ isHost, gameDoc, onGenerate }) {
 const GameGenerating = () => (
   <div className="flex min-h-[400px] h-full flex-col items-center justify-center text-center text-gray-500">
     <RefreshCw className="mb-6 h-16 w-16 animate-spin text-indigo-600" />
-    <h2 className="mb-2 text-2xl font-bold text-gray-800">Savas Alani Hazirlaniyor</h2>
-    <p>Yapay zeka secilen seviyeye uygun yepyeni sorular uretiyor...</p>
+    <h2 className="mb-2 text-2xl font-bold text-gray-800">Savaş Alanı Hazırlanıyor</h2>
+    <p>Yapay zeka seçilen seviyeye uygun yepyeni sorular üretiyor...</p>
   </div>
 );
 
@@ -716,8 +716,8 @@ const GameEvaluating = () => (
       <div className="h-4 w-4 animate-bounce rounded-full bg-purple-600" style={{ animationDelay: "0.1s" }} />
       <div className="h-4 w-4 animate-bounce rounded-full bg-pink-600" style={{ animationDelay: "0.2s" }} />
     </div>
-    <h2 className="mb-2 text-2xl font-bold text-gray-800">Cevaplar Inceleniyor</h2>
-    <p>Yapay zeka iki oyuncunun da performansini degerlendiriyor...</p>
+    <h2 className="mb-2 text-2xl font-bold text-gray-800">Cevaplar İnceleniyor</h2>
+    <p>Yapay zeka iki oyuncunun da performansını değerlendiriyor...</p>
   </div>
 );
 
@@ -776,7 +776,7 @@ function GameLesen({ gameDoc, connectionId, ProgressHeader }) {
       <div className="space-y-6 md:space-y-8">
         {gameDoc.gameData.lesen && (
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b bg-slate-100 p-4 font-bold text-slate-700">Bolum 1: Lesen</div>
+            <div className="border-b bg-slate-100 p-4 font-bold text-slate-700">Bölüm 1: Lesen</div>
             <div className="border-b p-6 leading-relaxed text-slate-800">{gameDoc.gameData.lesen.text}</div>
             <div className="space-y-6 bg-slate-50 p-6">
               {gameDoc.gameData.lesen.questions.map((question, index) => (
@@ -794,12 +794,12 @@ function GameLesen({ gameDoc, connectionId, ProgressHeader }) {
         )}
         {gameDoc.gameData.sprach && (
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b bg-slate-100 p-4 font-bold text-slate-700">Bolum 2: Sprachbausteine</div>
+            <div className="border-b bg-slate-100 p-4 font-bold text-slate-700">Bölüm 2: Sprachbausteine</div>
             <div className="border-b whitespace-pre-wrap p-6 leading-relaxed text-slate-800">{gameDoc.gameData.sprach.text}</div>
             <div className="space-y-6 bg-slate-50 p-6">
               {gameDoc.gameData.sprach.questions.map((question) => (
                 <div key={question.id}>
-                  <p className="mb-3 font-bold text-slate-800">Bosluk {question.q}</p>
+                  <p className="mb-3 font-bold text-slate-800">Boşluk {question.q}</p>
                   <div className="flex flex-col flex-wrap gap-3 sm:flex-row">
                     {question.options.map((option, optionIndex) => (
                       <button key={option} onClick={() => setAnswers({ ...answers, [question.id]: optionIndex })} className={`rounded-lg border px-4 py-2 text-left transition-all sm:text-center ${answers[question.id] === optionIndex ? "border-indigo-600 bg-indigo-600 text-white shadow-md" : "bg-white text-slate-700 hover:bg-slate-100"}`}>{option}</button>
@@ -924,14 +924,14 @@ function GameSyllableArena({ gameDoc, connectionId, ProgressHeader }) {
       <ProgressHeader />
       <div className="flex flex-1 flex-col items-center justify-center text-center">
         <h3 className="mb-2 text-2xl font-black text-indigo-600 md:text-3xl">{currentQuestion.meaning}</h3>
-        <p className="mb-8 text-sm font-medium text-slate-500">Parcalari sirayla secerek kelimeyi olustur.</p>
+        <p className="mb-8 text-sm font-medium text-slate-500">Parçaları sırayla seçerek kelimeyi oluştur.</p>
         <div className={`mb-6 flex min-h-[70px] w-full max-w-lg flex-wrap justify-center gap-2 rounded-2xl border-2 p-4 transition-colors ${isSuccess ? "border-green-400 bg-green-50" : isFailed ? "border-red-400 bg-red-50" : "border-dashed border-slate-300 bg-slate-50"}`}>
           {selected.map((item) => (
             <button key={item.id} onClick={() => handleDeselect(item)} disabled={isSuccess || isFailed} className={`rounded-xl px-5 py-3 text-lg font-bold text-white shadow-md transition ${isSuccess ? "scale-105 bg-green-500" : isFailed ? "bg-red-500" : "bg-indigo-600 hover:bg-indigo-700"}`}>{item.text}</button>
           ))}
-          {selected.length === 0 && <span className="flex items-center text-sm text-slate-400">Heceleri buraya tikla</span>}
+          {selected.length === 0 && <span className="flex items-center text-sm text-slate-400">Heceleri buraya tıkla</span>}
         </div>
-        {isFailed && <div className="mb-4 animate-bounce font-bold text-red-600">Yanlis! Dogrusu: {currentQuestion.word}</div>}
+        {isFailed && <div className="mb-4 animate-bounce font-bold text-red-600">Yanlış! Doğrusu: {currentQuestion.word}</div>}
         <div className="flex w-full max-w-xl flex-wrap justify-center gap-4">
           {!isSuccess && !isFailed && syllables.map((item) => (
             <button key={item.id} onClick={() => handleSelect(item)} className="rounded-xl border-2 border-indigo-200 bg-white px-5 py-3 text-lg font-bold text-indigo-700 shadow-sm transition hover:border-indigo-400 hover:bg-indigo-50">{item.text}</button>
@@ -992,7 +992,7 @@ function GamePlayArea({ gameDoc, connectionId, isHost, opponentName, aiSettings 
     return (
       <div className="flex min-h-[400px] flex-col items-center justify-center px-4 text-center">
         <CheckCircle size={64} className="mb-4 text-green-500" />
-        <h3 className="mb-2 text-2xl font-bold text-gray-800">Bolumu Tamamladin</h3>
+        <h3 className="mb-2 text-2xl font-bold text-gray-800">Bölümü Tamamladın</h3>
         <p className="mb-8 text-gray-500">Rakibinin bitirmesi bekleniyor...</p>
         <div className="w-full max-w-sm"><ProgressHeader total={gameType === "syllable" ? 5 : 10} title="Rakip Bekleniyor" /></div>
       </div>
@@ -1001,8 +1001,8 @@ function GamePlayArea({ gameDoc, connectionId, isHost, opponentName, aiSettings 
 
   if (gameType === "schreiben") return <GameSchreiben gameDoc={gameDoc} connectionId={connectionId} ProgressHeader={() => <ProgressHeader total={1} title="Schreiben" />} />;
   if (gameType === "lesen_sprachbausteine") return <GameLesen gameDoc={gameDoc} connectionId={connectionId} ProgressHeader={() => <ProgressHeader total={10} title="Lesen & Gramer" />} />;
-  if (gameType === "fillblank") return <GameFillBlankArena gameDoc={gameDoc} connectionId={connectionId} ProgressHeader={() => <ProgressHeader total={10} title="Bosluk Doldurma" />} />;
-  if (gameType === "syllable") return <GameSyllableArena gameDoc={gameDoc} connectionId={connectionId} ProgressHeader={() => <ProgressHeader total={5} title="Hece Birlestirme" />} />;
+  if (gameType === "fillblank") return <GameFillBlankArena gameDoc={gameDoc} connectionId={connectionId} ProgressHeader={() => <ProgressHeader total={10} title="Boşluk Doldurma" />} />;
+  if (gameType === "syllable") return <GameSyllableArena gameDoc={gameDoc} connectionId={connectionId} ProgressHeader={() => <ProgressHeader total={5} title="Hece Birleştirme" />} />;
   return <div>Oyun bulunamadi.</div>;
 }
 
@@ -1015,20 +1015,20 @@ function GameResult({ gameDoc, user, connectionId, opponentConnectionId, onExit,
 
   if (opponentLeft) {
     amIWinner = true;
-    winReason = "Rakip arenadan cikti. Hukmen galipsin.";
+    winReason = "Rakip arenadan çıktı. Hükmen galipsin.";
   } else if (gameDoc.selectedGame === "schreiben") {
     amIWinner = me.aiScore >= opponent.aiScore;
-    winReason = amIWinner ? `Yapay zeka metnini daha yuksek puanladi (${me.aiScore} >= ${opponent.aiScore}).` : `Rakibinin metni daha yuksek puan aldi (${opponent.aiScore} > ${me.aiScore}).`;
+    winReason = amIWinner ? `Yapay zeka metnini daha yüksek puanladı (${me.aiScore} >= ${opponent.aiScore}).` : `Rakibinin metni daha yüksek puan aldı (${opponent.aiScore} > ${me.aiScore}).`;
   } else if (me.score > opponent.score) {
     amIWinner = true;
-    winReason = `Daha cok dogru cevap verdin (${me.score} > ${opponent.score}).`;
+    winReason = `Daha çok doğru cevap verdin (${me.score} > ${opponent.score}).`;
   } else if (opponent.score > me.score) {
-    winReason = `Rakibin daha cok dogru cevap verdi (${opponent.score} > ${me.score}).`;
+    winReason = `Rakibin daha çok doğru cevap verdi (${opponent.score} > ${me.score}).`;
   } else {
     const myTime = me.finishTime - gameDoc.startTime;
     const oppTime = opponent.finishTime - gameDoc.startTime;
     amIWinner = myTime <= oppTime;
-    winReason = amIWinner ? `Puanlar esitti (${me.score}), ama sen daha hizli bitirdin.` : `Puanlar esitti (${me.score}), ama rakibin daha hizli bitirdi.`;
+    winReason = amIWinner ? `Puanlar eşitti (${me.score}), ama sen daha hızlı bitirdin.` : `Puanlar eşitti (${me.score}), ama rakibin daha hızlı bitirdi.`;
   }
 
   useEffect(() => {
@@ -1059,7 +1059,7 @@ function GameResult({ gameDoc, user, connectionId, opponentConnectionId, onExit,
   return (
     <div className="flex w-full flex-col items-center justify-center p-6 text-center md:p-10">
       {amIWinner ? <Trophy size={80} className="mb-6 text-yellow-400 drop-shadow-2xl md:h-[100px] md:w-[100px]" /> : <XCircle size={80} className="mb-6 text-red-400 drop-shadow-2xl md:h-[100px] md:w-[100px]" />}
-      <h1 className={`mb-4 text-3xl font-black md:text-5xl ${amIWinner ? "text-indigo-600" : "text-slate-800"}`}>{amIWinner ? "ZAFER SENIN" : "KAYBETTIN"}</h1>
+      <h1 className={`mb-4 text-3xl font-black md:text-5xl ${amIWinner ? "text-indigo-600" : "text-slate-800"}`}>{amIWinner ? "ZAFER SENİN" : "KAYBETTİN"}</h1>
       <p className="mb-10 max-w-md text-base font-medium text-slate-500 md:text-xl">{winReason}</p>
       <div className="mb-10 grid w-full max-w-lg grid-cols-2 gap-4">
         <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-6">
@@ -1079,7 +1079,7 @@ function GameResult({ gameDoc, user, connectionId, opponentConnectionId, onExit,
           <p className="text-sm leading-relaxed text-slate-600"><strong className="text-red-500">Rakibine:</strong> {opponent.feedback}</p>
         </div>
       )}
-      <button onClick={onExit} className="w-full rounded-xl bg-slate-900 px-12 py-4 text-lg font-bold text-white shadow-xl transition hover:bg-indigo-600 sm:w-auto">Lobiye Don</button>
+      <button onClick={onExit} className="w-full rounded-xl bg-slate-900 px-12 py-4 text-lg font-bold text-white shadow-xl transition hover:bg-indigo-600 sm:w-auto">Lobiye Dön</button>
     </div>
   );
 }
@@ -1102,7 +1102,7 @@ function ActiveGameRoom({ gameId, user, connectionId, dbProfile, onExit, aiSetti
     onExit();
   };
 
-  if (!gameDoc) return <div className="flex h-full flex-col items-center justify-center"><Loader2 className="mb-4 h-12 w-12 animate-spin text-indigo-600" />Yukleniyor...</div>;
+  if (!gameDoc) return <div className="flex h-full flex-col items-center justify-center"><Loader2 className="mb-4 h-12 w-12 animate-spin text-indigo-600" />Yükleniyor...</div>;
 
   const isHost = gameDoc.hostConnectionId === connectionId;
   const opponentConnectionId = isHost ? gameDoc.guestConnectionId : gameDoc.hostConnectionId;
@@ -1288,7 +1288,7 @@ function Header({ level, setLevel, toggleSidebar, onOpenSettings }) {
             {["A1", "A2", "B1", "B2", "C1", "C2"].map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
         </div>
-        <button onClick={onOpenSettings} className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" title="AI Ayarlari"><Settings size={18} /></button>
+        <button onClick={onOpenSettings} className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" title="AI Ayarları"><Settings size={18} /></button>
       </div>
     </header>
   );
@@ -1298,7 +1298,7 @@ function Sidebar({ activeTab, setActiveTab, isOpen, closeSidebar, isDesktopOpen 
   const menu = [
     { id: "dashboard", label: "Genel Bakis", icon: <BarChart2 /> },
     { id: "vocab", label: "Kelime Hazinesi", icon: <BookOpen /> },
-    { id: "exam", label: "Sinav Simulasyonu", icon: <PenTool /> },
+    { id: "exam", label: "Sınav Simülasyonu", icon: <PenTool /> },
     { id: "tutor", label: "AI Koc", icon: <MessageCircle /> },
     { id: "strategy", label: "Strateji", icon: <Lightbulb /> }
   ];
@@ -1333,14 +1333,17 @@ function Dashboard({ level, onExecutePlan, user, aiSettings }) {
       const total = snap.docs.reduce((acc, item) => acc + (item.data().words?.length || 0), 0);
       setStats((prev) => ({ ...prev, totalWords: total, known: Math.max(0, total - prev.unknown) }));
     });
-    const unsubUnknowns = onSnapshot(unknownsCol, (snap) => setStats((prev) => ({ ...prev, unknown: snap.size, known: Math.max(0, prev.totalWords - snap.size) })));
+    const unsubUnknowns = onSnapshot(unknownsCol, (snap) => {
+      const unknownCount = snap.docs.length;
+      setStats((prev) => ({ ...prev, unknown: unknownCount, known: Math.max(0, Number(prev.totalWords || 0) - unknownCount) }));
+    });
     return () => { unsubHistory(); unsubUnknowns(); };
   }, [user]);
 
   const generatePlan = async () => {
     setLoadingPlan(true);
     try {
-      const prompt = `Almanca TELC ${level} seviyesi icin gunluk calisma plani hazirla. JSON: {"tasks":[{"title":"German Title","description":"Turkce aciklama","duration":"15 dk"}]}`;
+      const prompt = `Almanca TELC ${level} seviyesi için günlük çalışma planı hazırla. JSON: {"tasks":[{"title":"German Title","description":"Türkçe açıklama","duration":"15 dk"}]}`;
       const data = safeJSONParse(await generateContent(aiSettings, prompt, "json"));
       if (data?.tasks) setPlan(data);
     } finally {
@@ -1353,22 +1356,22 @@ function Dashboard({ level, onExecutePlan, user, aiSettings }) {
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 to-purple-700 p-8 text-white shadow-xl">
         <div className="relative z-10">
           <h1 className="mb-2 text-3xl font-bold">Willkommen</h1>
-          <p className="mb-6 text-lg opacity-90">TELC {level} hedefine bugun bir adim daha yaklas.</p>
+          <p className="mb-6 text-lg opacity-90">TELC {level} hedefine bugün bir adım daha yaklaş.</p>
           <div className="flex gap-4">
-            <button onClick={() => onExecutePlan({ title: "Kelime", description: "Vocab" })} className="flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-bold text-indigo-700 shadow-md"><BookOpen size={18} /> Kelime Calis</button>
-            <button onClick={() => onExecutePlan({ title: "Sinav", description: "Exam" })} className="flex items-center gap-2 rounded-xl border border-white/30 bg-indigo-500/40 px-6 py-3 font-bold text-white"><PenTool size={18} /> Sinav Pratigi</button>
+            <button onClick={() => onExecutePlan({ title: "Kelime", description: "Vocab" })} className="flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-bold text-indigo-700 shadow-md"><BookOpen size={18} /> Kelime Çalış</button>
+            <button onClick={() => onExecutePlan({ title: "Sınav", description: "Exam" })} className="flex items-center gap-2 rounded-xl border border-white/30 bg-indigo-500/40 px-6 py-3 font-bold text-white"><PenTool size={18} /> Sınav Pratiği</button>
           </div>
         </div>
         <div className="absolute bottom-0 right-0 opacity-10"><Globe size={200} /></div>
       </div>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"><div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100"><BookOpen className="text-blue-600" /></div><h3 className="text-lg font-bold text-gray-800">Kelime Istatistigi</h3><p className="mt-1 text-sm text-gray-500">Toplam: {stats.totalWords} Kelime</p><div className="mt-2 flex gap-3 text-xs font-bold"><span className="text-red-500">{stats.unknown} Bilinmeyen</span><span className="text-green-600">{stats.known} Bilinen</span></div></div>
-        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"><div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-purple-100"><Brain className="text-purple-600" /></div><h3 className="text-lg font-bold text-gray-800">AI Tavsiyesi</h3><p className="mt-2 text-sm italic text-gray-600">"{stats.unknown > 5 ? "Bilinmeyen kelime kutun doluyor. Bugun tekrar yapmalisin." : `${level} seviyesi icin gramer agirlikli gitmelisin.`}"</p></div>
+        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"><div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100"><BookOpen className="text-blue-600" /></div><h3 className="text-lg font-bold text-gray-800">Kelime İstatistiği</h3><p className="mt-1 text-sm text-gray-500">Toplam: {stats.totalWords} Kelime</p><div className="mt-2 flex gap-3 text-xs font-bold"><span className="text-red-500">{stats.unknown} Bilinmeyen</span><span className="text-green-600">{Number.isFinite(stats.known) ? stats.known : 0} Bilinen</span></div></div>
+        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"><div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-purple-100"><Brain className="text-purple-600" /></div><h3 className="text-lg font-bold text-gray-800">AI Tavsiyesi</h3><p className="mt-2 text-sm italic text-gray-600">"{stats.unknown > 5 ? "Bilinmeyen kelime kutun doluyor. Bugün tekrar yapmalısın." : `${level} seviyesi için gramer ağırlıklı gitmelisin.`}"</p></div>
       </div>
       <div>
-        <div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-bold text-gray-800">AI Gunluk Calisma Plani</h2><button onClick={generatePlan} disabled={loadingPlan} className="flex items-center gap-1 rounded-lg px-3 py-1 text-sm font-bold text-indigo-600 hover:bg-indigo-50"><RefreshCw size={16} className={loadingPlan ? "animate-spin" : ""} /> {plan ? "Plani Yenile" : "Plan Olustur"}</button></div>
-        {!plan && !loadingPlan && <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-10 text-center text-gray-500">Bugun icin henuz bir planin yok.</div>}
-        {loadingPlan && <div className="rounded-2xl border border-gray-100 bg-white py-10 text-center"><Loader2 className="mx-auto mb-2 h-8 w-8 animate-spin text-indigo-600" /><p className="text-gray-500">Yapay zeka planini hazirliyor...</p></div>}
+        <div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-bold text-gray-800">AI Günlük Çalışma Planı</h2><button onClick={generatePlan} disabled={loadingPlan} className="flex items-center gap-1 rounded-lg px-3 py-1 text-sm font-bold text-indigo-600 hover:bg-indigo-50"><RefreshCw size={16} className={loadingPlan ? "animate-spin" : ""} /> {plan ? "Planı Yenile" : "Plan Oluştur"}</button></div>
+        {!plan && !loadingPlan && <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-10 text-center text-gray-500">Bugün için henüz bir planın yok.</div>}
+        {loadingPlan && <div className="rounded-2xl border border-gray-100 bg-white py-10 text-center"><Loader2 className="mx-auto mb-2 h-8 w-8 animate-spin text-indigo-600" /><p className="text-gray-500">Yapay zeka planını hazırlıyor...</p></div>}
         {plan && !loadingPlan && <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">{plan.tasks.map((item, index) => <div key={`${item.title}-${index}`} onClick={() => onExecutePlan(item)} className="group flex cursor-pointer items-center justify-between border-b p-4 transition last:border-0 hover:bg-gray-50"><div className="flex items-center gap-4"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-600">{index + 1}</div><div><h4 className="font-semibold text-gray-800 group-hover:text-indigo-600">{item.title}</h4><p className="text-xs text-gray-500">{item.description}</p></div></div><div className="flex items-center gap-2"><span className="rounded bg-gray-100 px-2 py-1 text-sm font-medium text-gray-500">{item.duration}</span><ArrowRightCircle size={18} className="text-gray-300 group-hover:text-indigo-600" /></div></div>)}</div>}
       </div>
     </div>
@@ -1386,7 +1389,7 @@ function WordCard({ word, onUnknown, onKnown, isUnknownList }) {
         </div>
         {isUnknownList ? <AlertCircle size={16} className="text-red-500" /> : <ChevronDown size={16} className={`text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`} />}
       </div>
-      {expanded && <div className="mt-2 border-t border-gray-100 px-4 pb-4 pt-0"><div className="mt-2"><p className="font-medium text-gray-800">{word.meaning}</p><div className="mt-2 rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm text-gray-700"><span className="italic">"{word.example}"</span><br /><span className="mt-1 block text-xs text-gray-500">{word.translation}</span></div></div><div className="mt-4 flex gap-3">{isUnknownList ? <button onClick={(event) => { event.stopPropagation(); onKnown(); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-500 py-2 text-sm font-bold text-white"><CheckCircle size={16} /> Artik Biliyorum</button> : <><button onClick={(event) => { event.stopPropagation(); onKnown(); }} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-green-200 bg-green-50 py-2.5 text-sm font-bold text-green-700"><CheckCircle size={16} /> Biliyorum</button><button onClick={(event) => { event.stopPropagation(); onUnknown(); }} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-2.5 text-sm font-bold text-red-700"><XCircle size={16} /> Bilmiyorum</button></>}</div></div>}
+      {expanded && <div className="mt-2 border-t border-gray-100 px-4 pb-4 pt-0"><div className="mt-2"><p className="font-medium text-gray-800">{word.meaning}</p><div className="mt-2 rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm text-gray-700"><span className="italic">"{word.example}"</span><br /><span className="mt-1 block text-xs text-gray-500">{word.translation}</span></div></div><div className="mt-4 flex gap-3">{isUnknownList ? <button onClick={(event) => { event.stopPropagation(); onKnown(); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-500 py-2 text-sm font-bold text-white"><CheckCircle size={16} /> Artık Biliyorum</button> : <><button onClick={(event) => { event.stopPropagation(); onKnown(); }} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-green-200 bg-green-50 py-2.5 text-sm font-bold text-green-700"><CheckCircle size={16} /> Biliyorum</button><button onClick={(event) => { event.stopPropagation(); onUnknown(); }} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-2.5 text-sm font-bold text-red-700"><XCircle size={16} /> Bilmiyorum</button></>}</div></div>}
     </div>
   );
 }
@@ -1434,15 +1437,15 @@ function VocabTrainer({ level, user, aiSettings }) {
       <div className="mb-6 flex flex-col items-center justify-between gap-4 md:flex-row">
         <div className="flex w-full overflow-x-auto rounded-xl bg-gray-100 p-1 md:w-auto">
           <button onClick={() => setTab("new")} className={`rounded-lg px-4 py-2 text-sm font-bold ${tab === "new" ? "bg-white text-indigo-600 shadow" : "text-gray-500"}`}>Yeni Kelimeler</button>
-          <button onClick={() => setTab("history")} className={`rounded-lg px-4 py-2 text-sm font-bold ${tab === "history" ? "bg-white text-indigo-600 shadow" : "text-gray-500"}`}>Gecmis Paketler</button>
+          <button onClick={() => setTab("history")} className={`rounded-lg px-4 py-2 text-sm font-bold ${tab === "history" ? "bg-white text-indigo-600 shadow" : "text-gray-500"}`}>Geçmiş Paketler</button>
           <button onClick={() => setTab("unknowns")} className={`rounded-lg px-4 py-2 text-sm font-bold ${tab === "unknowns" ? "bg-white text-red-600 shadow" : "text-gray-500"}`}>Bilinmeyenler ({unknowns.length})</button>
         </div>
         <div className="flex w-full gap-2 md:w-auto">
-          <button onClick={() => setArenaMode(true)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-sm font-bold text-white md:w-auto"><Swords size={16} /> 1v1 Duello</button>
+          <button onClick={() => setArenaMode(true)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-sm font-bold text-white md:w-auto"><Swords size={16} /> 1v1 Düello</button>
           <button onClick={generateWords} disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white md:w-auto">{loading ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />} Yeni Paket</button>
         </div>
       </div>
-      {tab === "new" && <div className="space-y-4">{currentBatch.length === 0 && !loading ? <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-20 text-center text-gray-500">Acik paket yok.</div> : currentBatch.map((word, index) => <WordCard key={`${word.word}-${index}`} word={word} onUnknown={() => markAsUnknown(word)} onKnown={() => setCurrentBatch((prev) => prev.filter((item) => item.word !== word.word))} isUnknownList={false} />)}</div>}
+      {tab === "new" && <div className="space-y-4">{currentBatch.length === 0 && !loading ? <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-20 text-center text-gray-500">Açık paket yok.</div> : currentBatch.map((word, index) => <WordCard key={`${word.word}-${index}`} word={word} onUnknown={() => markAsUnknown(word)} onKnown={() => setCurrentBatch((prev) => prev.filter((item) => item.word !== word.word))} isUnknownList={false} />)}</div>}
       {tab === "history" && <div className="space-y-4">{history.map((batch) => <div key={batch.id} className="rounded-xl border border-gray-200 bg-white p-4"><div className="mb-2 flex items-center gap-3"><Calendar size={16} className="text-indigo-500" /><span className="text-sm font-bold text-gray-700">{new Date(batch.date).toLocaleString("tr-TR")}</span><span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600">{batch.level}</span></div>{(batch.words || []).map((word, index) => <div key={`${word.word}-${index}`} className="py-1 text-sm text-gray-700"><span className="mr-2 font-bold">{word.word}</span>{word.meaning}</div>)}</div>)}</div>}
       {tab === "unknowns" && <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{unknowns.length === 0 ? <div className="col-span-2 py-20 text-center text-gray-500">Tebrikler! Bilinmeyen kelime eklemedin.</div> : unknowns.map((word) => <WordCard key={word.firestoreId} word={word} onKnown={() => db && user && deleteDoc(doc(db, "artifacts", appId, "users", user.uid, "vocab_unknowns", word.firestoreId))} isUnknownList />)}</div>}
     </div>
@@ -1462,8 +1465,8 @@ function ExamSimulator({ level, aiSettings }) {
     setMode(type);
     try {
       const prompt = type === "lesen"
-        ? `TELC ${level} Leseverstehen sinavi hazirla. JSON: {"teil1":{"text":"...","questions":[{"id":"t1_1","question":"...","options":["Richtig","Falsch"],"correct":0,"explanation":"...","quote":"..."}]},"teil2":{"text":"...","questions":[{"id":"t2_1","question":"...","options":["A","B","C"],"correct":0,"explanation":"...","quote":"..."}]}}`
-        : `TELC ${level} Sprachbausteine gorevi hazirla. JSON: {"text":"...","questions":[{"id":"1","question":"Bosluk 1","options":["weil","denn","da"],"correct":0,"explanation":"..."}]}`;
+        ? `TELC ${level} Leseverstehen sınavı hazırla. JSON: {"teil1":{"text":"...","questions":[{"id":"t1_1","question":"...","options":["Richtig","Falsch"],"correct":0,"explanation":"...","quote":"..."}]},"teil2":{"text":"...","questions":[{"id":"t2_1","question":"...","options":["A","B","C"],"correct":0,"explanation":"...","quote":"..."}]}}`
+        : `TELC ${level} Sprachbausteine görevi hazırla. JSON: {"text":"...","questions":[{"id":"1","question":"Boşluk 1","options":["weil","denn","da"],"correct":0,"explanation":"..."}]}`;
       setExamData(safeJSONParse(await generateContent(aiSettings, prompt, "json")));
       setFeedback(null);
       setAnswers({});
@@ -1476,7 +1479,7 @@ function ExamSimulator({ level, aiSettings }) {
     setLoading(true);
     setMode("schreiben");
     try {
-      setExamData(safeJSONParse(await generateContent(aiSettings, `TELC ${level} yazma gorevi hazirla. JSON: {"title":"German Title","situation":"German Situation","points":["Point 1","Point 2","Point 3"]}`, "json")));
+      setExamData(safeJSONParse(await generateContent(aiSettings, `TELC ${level} yazma görevi hazırla. JSON: {"title":"German Title","situation":"German Situation","points":["Point 1","Point 2","Point 3"]}`, "json")));
       setFeedback(null);
       setUserAnswer("");
     } finally {
@@ -1500,7 +1503,7 @@ function ExamSimulator({ level, aiSettings }) {
     setFeedback({ score: results.filter((item) => item.isCorrect).length, total: results.length, results });
   };
 
-  if (loading) return <div className="flex h-96 flex-col items-center justify-center"><Loader2 className="mb-4 h-12 w-12 animate-spin text-indigo-600" /><p className="text-gray-500">Sinav hazirlaniyor...</p></div>;
+  if (loading) return <div className="flex h-96 flex-col items-center justify-center"><Loader2 className="mb-4 h-12 w-12 animate-spin text-indigo-600" /><p className="text-gray-500">Sınav hazırlanıyor...</p></div>;
 
   if (mode === "menu") {
     return (
@@ -1510,7 +1513,7 @@ function ExamSimulator({ level, aiSettings }) {
             <button key={item.id} onClick={() => item.id === "schreiben" ? startWriting() : startReading(item.id)} className="group rounded-2xl border border-gray-200 bg-white p-8 text-left transition hover:border-indigo-300 hover:shadow-xl">
               <item.icon size={48} className={`${item.color} mb-4 transition group-hover:scale-110`} />
               <h3 className="text-xl font-bold text-gray-800">{item.title}</h3>
-              <p className="mt-2 text-sm text-gray-500">TELC formatinda pratik yap.</p>
+              <p className="mt-2 text-sm text-gray-500">TELC formatında pratik yap.</p>
             </button>
           ))}
         </div>
@@ -1520,11 +1523,11 @@ function ExamSimulator({ level, aiSettings }) {
 
   return (
     <div className="mx-auto max-w-4xl pb-10">
-      <button onClick={() => setMode("menu")} className="mb-4 flex items-center gap-1 text-gray-500"><ChevronLeft size={16} /> Menu</button>
+      <button onClick={() => setMode("menu")} className="mb-4 flex items-center gap-1 text-gray-500"><ChevronLeft size={16} /> Menü</button>
       {mode === "schreiben" ? (
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
           <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-6"><h3 className="mb-2 text-xl font-bold text-yellow-900">{examData?.title}</h3><p className="mb-4 text-sm leading-relaxed text-yellow-800">{examData?.situation}</p><ul className="list-disc space-y-2 pl-5 text-sm text-yellow-800">{examData?.points?.map((point, index) => <li key={`${point}-${index}`}>{point}</li>)}</ul></div>
-          <div>{!feedback?.html ? <><textarea className="mb-4 h-96 w-full resize-none rounded-xl border border-gray-300 p-5 font-mono leading-relaxed text-gray-800 shadow-inner outline-none focus:ring-2 focus:ring-indigo-500" value={userAnswer} onChange={(event) => setUserAnswer(event.target.value)} placeholder="Metnini buraya yaz..." /><button onClick={evaluateWriting} disabled={userAnswer.length < 10} className="w-full rounded-xl bg-indigo-600 py-4 font-bold text-white">Degerlendir</button></> : <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"><div className="bg-indigo-600 px-6 py-4 font-bold text-white">Sinav Sonucu</div><div className="prose max-w-none p-6" dangerouslySetInnerHTML={{ __html: feedback.html }} /></div>}</div>
+          <div>{!feedback?.html ? <><textarea className="mb-4 h-96 w-full resize-none rounded-xl border border-gray-300 p-5 font-mono leading-relaxed text-gray-800 shadow-inner outline-none focus:ring-2 focus:ring-indigo-500" value={userAnswer} onChange={(event) => setUserAnswer(event.target.value)} placeholder="Metnini buraya yaz..." /><button onClick={evaluateWriting} disabled={userAnswer.length < 10} className="w-full rounded-xl bg-indigo-600 py-4 font-bold text-white">Değerlendir</button></> : <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"><div className="bg-indigo-600 px-6 py-4 font-bold text-white">Sınav Sonucu</div><div className="prose max-w-none p-6" dangerouslySetInnerHTML={{ __html: feedback.html }} /></div>}</div>
         </div>
       ) : (
         <div className="space-y-6">
@@ -1541,12 +1544,12 @@ function ExamSimulator({ level, aiSettings }) {
                   ))}
                 </div>
               </div>
-              <button onClick={finishReading} className="w-full rounded-xl bg-indigo-600 py-4 text-lg font-bold text-white">Sinavi Bitir ve Sonuclari Gor</button>
+              <button onClick={finishReading} className="w-full rounded-xl bg-indigo-600 py-4 text-lg font-bold text-white">Sınavı Bitir ve Sonuçları Gör</button>
             </>
           ) : (
             <div className="space-y-6">
-              <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-8 text-center shadow-sm"><Award size={48} className="mx-auto mb-2 text-indigo-400" /><h3 className="text-3xl font-bold text-indigo-900">Sonuc: {feedback.score} / {feedback.total}</h3></div>
-              {feedback.results.map((result, index) => <div key={`${result.id}-${index}`} className={`rounded-2xl border p-5 shadow-sm ${result.isCorrect ? "border-green-200 bg-green-50/50" : "border-red-200 bg-red-50/50"}`}><p className="mb-2 text-lg font-bold text-gray-900">Soru {result.displayNum}</p><p className="text-sm text-gray-700">Aciklama: {result.explanation}</p></div>)}
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-8 text-center shadow-sm"><Award size={48} className="mx-auto mb-2 text-indigo-400" /><h3 className="text-3xl font-bold text-indigo-900">Sonuç: {feedback.score} / {feedback.total}</h3></div>
+              {feedback.results.map((result, index) => <div key={`${result.id}-${index}`} className={`rounded-2xl border p-5 shadow-sm ${result.isCorrect ? "border-green-200 bg-green-50/50" : "border-red-200 bg-red-50/50"}`}><p className="mb-2 text-lg font-bold text-gray-900">Soru {result.displayNum}</p><p className="text-sm text-gray-700">Açıklama: {result.explanation}</p></div>)}
             </div>
           )}
         </div>
@@ -1556,7 +1559,7 @@ function ExamSimulator({ level, aiSettings }) {
 }
 
 function AICoach({ level, initialPrompt, onClearPrompt, aiSettings }) {
-  const [messages, setMessages] = useState([{ role: "ai", text: `Merhaba! TELC ${level} sinavi icin kisisel asistaninim.` }]);
+  const [messages, setMessages] = useState([{ role: "ai", text: `Merhaba! TELC ${level} sınavı için kişisel asistanınım.` }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   useEffect(() => { if (initialPrompt && !loading) { setInput(initialPrompt); onClearPrompt(); } }, [initialPrompt]);
@@ -1567,24 +1570,24 @@ function AICoach({ level, initialPrompt, onClearPrompt, aiSettings }) {
     setInput("");
     setLoading(true);
     try {
-      const data = safeJSONParse(await generateContent(aiSettings, `Almanca TELC ${level} uzmani olarak cevap ver. JSON: {"response":"Markdown cevap..."}`, "json"));
-      setMessages((prev) => [...prev, { role: "ai", text: data?.response || "Yanit alinamadi." }]);
+      const data = safeJSONParse(await generateContent(aiSettings, `Almanca TELC ${level} uzmanı olarak cevap ver. JSON: {"response":"Markdown cevap..."}`, "json"));
+      setMessages((prev) => [...prev, { role: "ai", text: data?.response || "Yanıt alınamadı." }]);
     } finally {
       setLoading(false);
     }
   };
-  return <div className="relative flex h-[80vh] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl"><div className="border-b bg-white p-4 font-bold text-gray-700">AI Tutor ({level})</div><div className="flex-1 space-y-6 overflow-y-auto bg-slate-50 p-4 md:p-8">{messages.map((message, index) => <div key={`${message.role}-${index}`} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>{message.role === "user" ? <div className="max-w-[85%] rounded-2xl rounded-tr-none bg-indigo-600 px-6 py-3 text-white">{message.text}</div> : <div className="max-w-[95%] rounded-2xl rounded-tl-none border border-indigo-100 bg-white p-6 shadow-lg">{message.text}</div>}</div>)}{loading && <div className="text-sm text-gray-500">Yanit hazirlaniyor...</div>}</div><div className="border-t bg-white p-4"><div className="flex gap-2"><input type="text" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => event.key === "Enter" && handleSend()} placeholder="Soru sor..." className="flex-1 rounded-xl border p-3 outline-none focus:ring-2 focus:ring-indigo-500" /><button onClick={() => handleSend()} className="rounded-xl bg-indigo-600 p-3 text-white"><MessageCircle /></button></div></div></div>;
+  return <div className="relative flex h-[80vh] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl"><div className="border-b bg-white p-4 font-bold text-gray-700">AI Tutor ({level})</div><div className="flex-1 space-y-6 overflow-y-auto bg-slate-50 p-4 md:p-8">{messages.map((message, index) => <div key={`${message.role}-${index}`} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>{message.role === "user" ? <div className="max-w-[85%] rounded-2xl rounded-tr-none bg-indigo-600 px-6 py-3 text-white">{message.text}</div> : <div className="max-w-[95%] rounded-2xl rounded-tl-none border border-indigo-100 bg-white p-6 shadow-lg">{message.text}</div>}</div>)}{loading && <div className="text-sm text-gray-500">Yanıt hazırlanıyor...</div>}</div><div className="border-t bg-white p-4"><div className="flex gap-2"><input type="text" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => event.key === "Enter" && handleSend()} placeholder="Soru sor..." className="flex-1 rounded-xl border p-3 outline-none focus:ring-2 focus:ring-indigo-500" /><button onClick={() => handleSend()} className="rounded-xl bg-indigo-600 p-3 text-white"><MessageCircle /></button></div></div></div>;
 }
 
 const SPOTIFY_PLAYLISTS = [{ id: "09COUWWynrmjTzuK7Zl3dq", title: "German Learning Playlist 1" }, { id: "7A6hKqEgTODNZjXD5jTaJ1", title: "German Learning Playlist 2" }];
 function StrategySection() {
   const [playlistIndex, setPlaylistIndex] = useState(0);
   const currentPlaylist = SPOTIFY_PLAYLISTS[playlistIndex];
-  return <div className="space-y-8"><div className="relative flex flex-col items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-r from-green-900 to-slate-900 p-6 text-center text-white shadow-2xl md:p-8"><div className="absolute right-4 top-4 z-10 flex gap-2"><button onClick={() => setPlaylistIndex((prev) => (prev + 1) % SPOTIFY_PLAYLISTS.length)} className="flex items-center gap-2 rounded-xl bg-white/10 p-3 text-sm font-bold text-white"><RefreshCw size={18} /> Siradaki Liste</button></div><div className="mb-4 mt-6 rounded-full bg-[#1DB954]/20 p-4"><Headphones size={48} className="text-[#1DB954]" /></div><h3 className="mb-2 text-2xl font-bold">Gunun Spotify Onerisi</h3><p className="mb-6 text-sm font-medium uppercase tracking-wide text-green-200">Almanca Dinleme Pratigi</p><div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-white/5 bg-black/40 shadow-inner"><iframe title={currentPlaylist.title} src={`https://open.spotify.com/embed/playlist/${currentPlaylist.id}?utm_source=generator&theme=0`} width="100%" height="352" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" className="bg-transparent" /></div></div><div className="grid grid-cols-1 gap-6 md:grid-cols-2"><div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"><h3 className="mb-2 flex items-center gap-2 font-bold text-gray-800"><RotateCcw className="text-[#1DB954]" /> Nasil Calismalisin?</h3><p className="text-sm text-gray-600">Podcast'i ilk seferde sadece dinle ve genel konuyu anlamaya calis.</p></div><div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"><h3 className="mb-2 flex items-center gap-2 font-bold text-gray-800"><FileText className="text-orange-500" /> Sinav Taktikleri</h3><p className="text-sm text-gray-600">Horen bolumlerinde anahtar kelimelere ve baglama odaklan.</p></div></div></div>;
+  return <div className="space-y-8"><div className="relative flex flex-col items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-r from-green-900 to-slate-900 p-6 text-center text-white shadow-2xl md:p-8"><div className="absolute right-4 top-4 z-10 flex gap-2"><button onClick={() => setPlaylistIndex((prev) => (prev + 1) % SPOTIFY_PLAYLISTS.length)} className="flex items-center gap-2 rounded-xl bg-white/10 p-3 text-sm font-bold text-white"><RefreshCw size={18} /> Sıradaki Liste</button></div><div className="mb-4 mt-6 rounded-full bg-[#1DB954]/20 p-4"><Headphones size={48} className="text-[#1DB954]" /></div><h3 className="mb-2 text-2xl font-bold">Günün Spotify Önerisi</h3><p className="mb-6 text-sm font-medium uppercase tracking-wide text-green-200">Almanca Dinleme Pratiği</p><div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-white/5 bg-black/40 shadow-inner"><iframe title={currentPlaylist.title} src={`https://open.spotify.com/embed/playlist/${currentPlaylist.id}?utm_source=generator&theme=0`} width="100%" height="352" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" className="bg-transparent" /></div></div><div className="grid grid-cols-1 gap-6 md:grid-cols-2"><div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"><h3 className="mb-2 flex items-center gap-2 font-bold text-gray-800"><RotateCcw className="text-[#1DB954]" /> Nasıl Çalışmalısın?</h3><p className="text-sm text-gray-600">Podcast'i ilk seferde sadece dinle ve genel konuyu anlamaya çalış.</p></div><div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"><h3 className="mb-2 flex items-center gap-2 font-bold text-gray-800"><FileText className="text-orange-500" /> Sınav Taktikleri</h3><p className="text-sm text-gray-600">Hören bölümlerinde anahtar kelimelere ve bağlama odaklan.</p></div></div></div>;
 }
 
 function MissingSetup({ aiSettings, onOpenSettings }) {
-  return <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center p-6"><div className="w-full rounded-3xl border border-amber-200 bg-white p-8 shadow-xl"><div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700"><AlertCircle size={32} /></div><h1 className="mb-3 text-3xl font-black text-slate-900">Kurulum Eksik</h1><p className="mb-6 text-slate-600">Uygulama localStorage ile calisiyor. Sadece Gemini API key bilgisini tamamlaman gerekiyor.</p><div className="space-y-3 rounded-2xl bg-slate-50 p-5 text-sm text-slate-700"><p className="text-green-600">Veri kaydi: localStorage hazir.</p><p className={!aiSettings.geminiApiKey ? "font-bold text-red-600" : "text-green-600"}>{!aiSettings.geminiApiKey ? "Gemini API key eksik." : "Gemini API key hazir."}</p><p>.env icin `.env.example` dosyasini baz alabilirsin.</p></div><div className="mt-6 flex gap-3"><button onClick={onOpenSettings} className="rounded-xl bg-indigo-600 px-6 py-3 font-bold text-white">AI Ayarlarini Ac</button></div></div></div>;
+  return <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center p-6"><div className="w-full rounded-3xl border border-amber-200 bg-white p-8 shadow-xl"><div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700"><AlertCircle size={32} /></div><h1 className="mb-3 text-3xl font-black text-slate-900">Kurulum Eksik</h1><p className="mb-6 text-slate-600">Uygulama localStorage ile çalışıyor. Sadece Gemini API key bilgisini tamamlaman gerekiyor.</p><div className="space-y-3 rounded-2xl bg-slate-50 p-5 text-sm text-slate-700"><p className="text-green-600">Veri kaydı: localStorage hazır.</p><p className={!aiSettings.geminiApiKey ? "font-bold text-red-600" : "text-green-600"}>{!aiSettings.geminiApiKey ? "Gemini API key eksik." : "Gemini API key hazır."}</p><p>.env için `.env.example` dosyasını baz alabilirsin.</p></div><div className="mt-6 flex gap-3"><button onClick={onOpenSettings} className="rounded-xl bg-indigo-600 px-6 py-3 font-bold text-white">AI Ayarlarını Aç</button></div></div></div>;
 }
 
 export default function TELCMasterApp() {
@@ -1612,7 +1615,7 @@ export default function TELCMasterApp() {
 
   const toggleSidebar = () => { if (window.innerWidth >= 768) setDesktopSidebarOpen((prev) => !prev); else setSidebarOpen((prev) => !prev); };
   const closeSidebar = () => setSidebarOpen(false);
-  const handleExecutePlan = (task) => { const lowerTitle = task.title.toLowerCase(); const lowerDesc = task.description.toLowerCase(); if (lowerTitle.includes("kelime") || lowerDesc.includes("kelime")) setActiveTab("vocab"); else if (lowerTitle.includes("sinav") || lowerTitle.includes("yazma") || lowerTitle.includes("schreiben")) setActiveTab("exam"); else { setActiveTab("tutor"); setAutoCoachPrompt(`Gunluk calisma planimda su gorev var: "${task.title}". Aciklamasi: "${task.description}". Bana bu konuyu anlatip calistirabilir misin?`); } };
+  const handleExecutePlan = (task) => { const lowerTitle = task.title.toLowerCase(); const lowerDesc = task.description.toLowerCase(); if (lowerTitle.includes("kelime") || lowerDesc.includes("kelime")) setActiveTab("vocab"); else if (lowerTitle.includes("sinav") || lowerTitle.includes("sınav") || lowerTitle.includes("yazma") || lowerTitle.includes("schreiben")) setActiveTab("exam"); else { setActiveTab("tutor"); setAutoCoachPrompt(`Günlük çalışma planımda şu görev var: "${task.title}". Açıklaması: "${task.description}". Bana bu konuyu anlatıp çalıştırabilir misin?`); } };
 
   const renderContent = () => {
     if (!aiSettings.geminiApiKey) return <MissingSetup aiSettings={aiSettings} onOpenSettings={() => setSettingsOpen(true)} />;
