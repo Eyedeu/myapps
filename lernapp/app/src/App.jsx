@@ -133,8 +133,8 @@ function renderRichText(text) {
   if (!text) return null;
   return String(text).split("\n").map((line, index) => {
     const trimmed = line.trim();
-    const correctOptionMatch = trimmed.match(/^(?:\[(?:x|X)\]|Dogru|DoÄŸru|Correct)\s*(.+)$/i);
-    const wrongOptionMatch = trimmed.match(/^(?:\[\s\]|Secenek|SeÃ§enek|Option)\s*(.+)$/i);
+    const correctOptionMatch = trimmed.match(/^(?:\[(?:x|X)\]|Dogru|Doğru|Correct)\s*(.+)$/i);
+    const wrongOptionMatch = trimmed.match(/^(?:\[\s\]|Secenek|Seçenek|Option)\s*(.+)$/i);
     const reasonMatch = trimmed.match(/^(Dogru cevap neden dogru|Dogru cevap aciklamasi|Aciklama|Neden)\s*:\s*(.+)$/i);
     const wrongReasonMatch = trimmed.match(/^(Diger siklar neden yanlis|Yanlis secenekler)\s*:\s*(.+)$/i);
     const progressMatch = trimmed.match(/^\d+\s*\/\s*\d+$/);
@@ -149,7 +149,7 @@ function renderRichText(text) {
     if (correctOptionMatch) {
       return (
         <div key={index} className="rt-option rt-option-correct">
-          <span className="rt-option-indicator">Dogru</span>
+          <span className="rt-option-indicator">Doğru</span>
           <div className="rt-option-text">{renderInlineMarkup(correctOptionMatch[1])}</div>
         </div>
       );
@@ -157,7 +157,7 @@ function renderRichText(text) {
     if (wrongOptionMatch) {
       return (
         <div key={index} className="rt-option">
-          <span className="rt-option-indicator muted">Secenek</span>
+          <span className="rt-option-indicator muted">Seçenek</span>
           <div className="rt-option-text">{renderInlineMarkup(wrongOptionMatch[1])}</div>
         </div>
       );
@@ -314,12 +314,12 @@ function ExamQuestion({ question, index }) {
             <div className="exam-option-row">
               <span className={`exam-choice-dot ${open && option.isCorrect ? "correct" : ""}`} />
               <div className="exam-option-main">{option.de}</div>
-              {open && option.isCorrect && <span className="exam-correct-badge">Dogru</span>}
+              {open && option.isCorrect && <span className="exam-correct-badge">Doğru</span>}
             </div>
             <div className="exam-tr">({option.tr})</div>
             {open && option.reason && (
               <div className={`exam-reason ${option.isCorrect ? "correct" : "wrong"}`}>
-                {option.isCorrect ? "Neden dogru: " : "Neden degil: "}
+                {option.isCorrect ? "Neden doğru: " : "Neden değil: "}
                 {option.reason}
               </div>
             )}
@@ -327,11 +327,11 @@ function ExamQuestion({ question, index }) {
         ))}
       </div>
       <button className="ghost" onClick={() => setOpen((current) => !current)}>
-        {open ? "CevabÄ± Gizle" : "CevabÄ± GÃ¶ster"}
+        {open ? "Cevabı Gizle" : "Cevabı Göster"}
       </button>
       {open && (
         <div className="exam-answer">
-          <strong className="exam-answer-title">Dogru Cevap:</strong> {question.answer_de} <span className="exam-tr">({question.answer_tr})</span>
+          <strong className="exam-answer-title">Doğru Cevap:</strong> {question.answer_de} <span className="exam-tr">({question.answer_tr})</span>
           <div className="exam-reason">{question.explanation}</div>
         </div>
       )}
@@ -351,12 +351,12 @@ function ContentViewer({ item, onClose, fullScreen, onToggleFullScreen }) {
             <div className="viewer-meta">
               <span>{formatDate(item.createdAt)}</span>
               <span>{item.usedModel || "-"}</span>
-              <span>{item.kindLabel || item.typeLabel || "Ä°Ã§erik"}</span>
+              <span>{item.kindLabel || item.typeLabel || "İçerik"}</span>
             </div>
           </div>
           <div className="viewer-actions">
             <button className="ghost" onClick={onToggleFullScreen}>
-              {fullScreen ? "KÃ¼Ã§Ã¼lt" : "BÃ¼yÃ¼t"}
+              {fullScreen ? "Küçült" : "Büyüt"}
             </button>
             <button className="ghost" onClick={onClose}>Kapat</button>
           </div>
@@ -409,11 +409,11 @@ function App() {
     () => state.entries.filter((entry) => entry.courseId === activeCourseId),
     [state.entries, activeCourseId]
   );
-  const homeworkEntries = courseEntries.filter((entry) => entry.kind === "homework").map((entry) => ({ ...entry, kindLabel: "Ã–dev Ã‡Ã¶zÃ¼mÃ¼" }));
-  const topicEntries = courseEntries.filter((entry) => entry.kind === "topic").map((entry) => ({ ...entry, kindLabel: "Konu AnlatÄ±mÄ±" }));
-  const translationEntries = courseEntries.filter((entry) => entry.kind === "translation").map((entry) => ({ ...entry, kindLabel: "Ã‡eviri" }));
+  const homeworkEntries = courseEntries.filter((entry) => entry.kind === "homework").map((entry) => ({ ...entry, kindLabel: "Ödev Çözümü" }));
+  const topicEntries = courseEntries.filter((entry) => entry.kind === "topic").map((entry) => ({ ...entry, kindLabel: "Konu Anlatımı" }));
+  const translationEntries = courseEntries.filter((entry) => entry.kind === "translation").map((entry) => ({ ...entry, kindLabel: "Çeviri" }));
   const courseExams = useMemo(
-    () => state.exams.filter((exam) => exam.courseId === activeCourseId).map((exam) => ({ ...exam, kindLabel: "SÄ±nav HazÄ±rlÄ±ÄŸÄ±" })),
+    () => state.exams.filter((exam) => exam.courseId === activeCourseId).map((exam) => ({ ...exam, kindLabel: "Sınav Hazırlığı" })),
     [state.exams, activeCourseId]
   );
   const courseChats = useMemo(
@@ -423,7 +423,7 @@ function App() {
         .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0))
         .map((chat) => ({
           ...chat,
-          title: chat.title || "Ä°simsiz Sohbet",
+          title: chat.title || "İsimsiz Sohbet",
           usedModel: chat.lastUsedModel || "-",
           createdAt: chat.updatedAt || chat.createdAt
         })),
@@ -486,10 +486,10 @@ function App() {
     setBusy(true);
     setStatus(
       kind === "homework"
-        ? "Ã–dev Ã§Ã¶zÃ¼mÃ¼ hazÄ±rlanÄ±yor..."
+        ? "Ödev çözümü hazırlanıyor..."
         : kind === "topic"
-          ? "Konu anlatÄ±mÄ± hazÄ±rlanÄ±yor..."
-          : "Ã‡eviri hazÄ±rlanÄ±yor..."
+          ? "Konu anlatımı hazırlanıyor..."
+          : "Çeviri hazırlanıyor..."
     );
     setError("");
     try {
@@ -510,7 +510,7 @@ function App() {
         kind,
         title: extractTitle(
           result.text,
-          kind === "homework" ? "Ã‡Ã¶zÃ¼mlÃ¼ Ã–dev" : kind === "topic" ? "Konu AnlatÄ±mÄ±" : "Ã‡eviri"
+          kind === "homework" ? "Çözümlü Ödev" : kind === "topic" ? "Konu Anlatımı" : "Çeviri"
         ),
         sourceFiles: selectedFiles.map((file) => file.name),
         output: result.text,
@@ -521,10 +521,10 @@ function App() {
       setSelectedFiles([]);
       setViewerItem({
         ...entry,
-        kindLabel: kind === "homework" ? "Ã–dev Ã‡Ã¶zÃ¼mÃ¼" : kind === "topic" ? "Konu AnlatÄ±mÄ±" : "Ã‡eviri"
+        kindLabel: kind === "homework" ? "Ödev Çözümü" : kind === "topic" ? "Konu Anlatımı" : "Çeviri"
       });
       setStatus(
-        `${kind === "homework" ? "Ã‡Ã¶zÃ¼mlÃ¼ Ã¶dev" : kind === "topic" ? "Konu anlatÄ±mÄ±" : "Ã‡eviri"} oluÅŸturuldu.${result.fallbackUsed ? ` KullanÄ±lan model: ${result.usedModel}.` : ""}`
+        `${kind === "homework" ? "Çözümlü ödev" : kind === "topic" ? "Konu anlatımı" : "Çeviri"} oluşturuldu.${result.fallbackUsed ? ` Kullanılan model: ${result.usedModel}.` : ""}`
       );
     } catch (err) {
       setError(err.message);
@@ -537,11 +537,11 @@ function App() {
   async function createExam() {
     if (!activeCourseId || (selectedFiles.length === 0 && selectedEntryIds.length === 0)) return;
     setBusy(true);
-    setStatus("SÄ±nav seti oluÅŸturuluyor...");
+    setStatus("Sınav seti oluşturuluyor...");
     setError("");
     try {
       const pickedEntries = courseEntries.filter((entry) => selectedEntryIds.includes(entry.id));
-      const contextText = pickedEntries.map((entry) => `BaÅŸlÄ±k: ${entry.title}\n${entry.output}`).join("\n\n---\n\n");
+      const contextText = pickedEntries.map((entry) => `Başlık: ${entry.title}\n${entry.output}`).join("\n\n---\n\n");
       const result = await callGemini({
         apiKey: state.settings.geminiApiKey,
         model: resolvedModel,
@@ -551,7 +551,7 @@ function App() {
       const exam = {
         id: uid(),
         courseId: activeCourseId,
-        title: parseExamJson(result.text)?.title || `SÄ±nav Seti ${courseExams.length + 1}`,
+        title: parseExamJson(result.text)?.title || `Sınav Seti ${courseExams.length + 1}`,
         output: result.text,
         questions: parseExamJson(result.text)?.questions || null,
         usedModel: result.usedModel,
@@ -562,8 +562,8 @@ function App() {
       setState((current) => ({ ...current, exams: [exam, ...current.exams] }));
       setSelectedFiles([]);
       setSelectedEntryIds([]);
-      setViewerItem({ ...exam, kindLabel: "SÄ±nav HazÄ±rlÄ±ÄŸÄ±" });
-      setStatus(`SÄ±nav seti hazÄ±r.${result.fallbackUsed ? ` KullanÄ±lan model: ${result.usedModel}.` : ""}`);
+      setViewerItem({ ...exam, kindLabel: "Sınav Hazırlığı" });
+      setStatus(`Sınav seti hazır.${result.fallbackUsed ? ` Kullanılan model: ${result.usedModel}.` : ""}`);
     } catch (err) {
       setError(err.message);
       setStatus("");
@@ -606,28 +606,28 @@ function App() {
 
     setChatInput("");
     setBusy(true);
-    setStatus("Sohbet yanÄ±tÄ± hazÄ±rlanÄ±yor...");
+    setStatus("Sohbet yanıtı hazırlanıyor...");
     setError("");
 
     try {
       const result = await callGemini({
         apiKey: state.settings.geminiApiKey,
         model: resolvedModel,
-        prompt: `Sen destekleyici bir Ausbildung asistanÃ„Â±sÃ„Â±n.
+        prompt: `Sen destekleyici bir Ausbildung asistanısın.
 Mevcut ders: ${activeCourse?.title || ""}
 Kaynak dil: ${state.settings.sourceLanguage}
 Hedef dil: ${state.settings.targetLanguage}
 Baglam:
-${context || "HenÃ¼z analiz edilmiÅŸ materyal yok."}
+${context || "Henüz analiz edilmiş materyal yok."}
 
 Kullanici sorusu:
 ${text}
 
 GOREV:
-1. KullanÄ±cÄ±ya kÄ±sa, aÃ§Ä±k, pratik ve dÃ¼zenli bir cevap ver.
-2. Gerekirse kÄ±sa baÅŸlÄ±klar, maddeler ve **kalÄ±n** vurgular kullan.
-3. Ã–nemli terimleri **kalÄ±n** yazarak Ã¶ne Ã§Ä±kar.
-4. Sohbetin ana fikrini yansÄ±tan kÄ±sa bir baÅŸlÄ±k Ã¼ret.
+1. Kullanıcıya kısa, açık, pratik ve düzenli bir cevap ver.
+2. Gerekirse kısa başlıklar, maddeler ve **kalın** vurgular kullan.
+3. Önemli terimleri **kalın** yazarak öne çıkar.
+4. Sohbetin ana fikrini yansıtan kısa bir başlık üret.
 5. CIKTIYI SADECE GECERLI JSON olarak ver.
 
 FORMAT:
@@ -658,7 +658,7 @@ FORMAT:
             : chat
         )
       }));
-      setStatus(`YanÄ±t hazÄ±r.${result.fallbackUsed ? ` KullanÄ±lan model: ${result.usedModel}.` : ""}`);
+      setStatus(`Yanıt hazır.${result.fallbackUsed ? ` Kullanılan model: ${result.usedModel}.` : ""}`);
     } catch (err) {
       setError(err.message);
       setStatus("");
@@ -676,7 +676,7 @@ FORMAT:
         const parsed = JSON.parse(String(reader.result));
         setState({ ...defaultState, ...parsed, settings: { ...defaultState.settings, ...(parsed.settings || {}) } });
       } catch {
-        setError("Ä°Ã§e aktarma dosyasÄ± geÃ§ersiz.");
+        setError("İçe aktarma dosyası geçersiz.");
       }
     };
     reader.readAsText(file);
@@ -729,9 +729,9 @@ FORMAT:
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-card">
-          <p className="eyebrow">Mesleki Ã–ÄŸrenme AlanÄ±</p>
+          <p className="eyebrow">Mesleki Öğrenme Alanı</p>
           <h1>Ausbildung<span>Pro</span></h1>
-          <p className="muted">Her ders iÃ§in konu anlatÄ±mÄ±, Ã¶dev Ã§Ã¶zÃ¼mÃ¼, sohbet ve sÄ±nav hazÄ±rlÄ±ÄŸÄ± alanlarÄ±.</p>
+          <p className="muted">Her ders için konu anlatımı, ödev çözümü, sohbet ve sınav hazırlığı alanları.</p>
           <div className="brand-actions">
             <button className="secondary wide" onClick={() => setShowSettings(true)}>Ayarlar</button>
           </div>
@@ -739,7 +739,7 @@ FORMAT:
 
         <div className="panel sidebar-panel">
           <div className="panel-title">Yeni Ders</div>
-          <input value={courseTitle} onChange={(event) => setCourseTitle(event.target.value)} placeholder="Ã–rn. WiSo" />
+          <input value={courseTitle} onChange={(event) => setCourseTitle(event.target.value)} placeholder="Örn. WiSo" />
           <button className="primary compact" onClick={addCourse}>Dersi Ekle</button>
         </div>
 
@@ -749,7 +749,7 @@ FORMAT:
             <span className="badge">{state.courses.length}</span>
           </div>
           <div className="archive-list">
-            {state.courses.length === 0 && <p className="empty">BaÅŸlamak iÃ§in soldan yeni bir ders aÃ§.</p>}
+            {state.courses.length === 0 && <p className="empty">Başlamak için soldan yeni bir ders aç.</p>}
             {state.courses.map((course) => (
               <button
                 key={course.id}
@@ -762,9 +762,9 @@ FORMAT:
                 <strong>{course.title}</strong>
                 <div className="archive-meta">
                   <span>{formatDate(course.createdAt)}</span>
-                  <span>{state.entries.filter((entry) => entry.courseId === course.id).length} iÃ§erik</span>
+                  <span>{state.entries.filter((entry) => entry.courseId === course.id).length} içerik</span>
                 </div>
-                <span className="icon-delete" onClick={(event) => { event.stopPropagation(); removeCourse(course.id); }} title="Dersi sil" aria-label="Dersi sil">gY-'</span>
+                <span className="icon-delete" onClick={(event) => { event.stopPropagation(); removeCourse(course.id); }} title="Dersi sil" aria-label="Dersi sil">{"\uD83D\uDDD1"}</span>
               </button>
             ))}
           </div>
@@ -774,16 +774,16 @@ FORMAT:
       <main className="content">
         <header className="hero-header">
           <div className="hero-copy">
-            <p className="eyebrow">Ã‡alÄ±ÅŸma AlanÄ±</p>
-            <h2>{activeCourse ? activeCourse.title : "Bir ders seÃ§"}</h2>
+            <p className="eyebrow">Çalışma Alanı</p>
+            <h2>{activeCourse ? activeCourse.title : "Bir ders seç"}</h2>
             <p className="hero-subtitle">
               {activeCourse
-                ? "Materyallerini tek yerde topla, iÃ§erik Ã¼ret ve arÅŸivden hÄ±zlÄ±ca geri aÃ§."
-                : "Bir ders seÃ§erek Ã¶dev, konu anlatÄ±mÄ±, sÄ±nav ve sohbet alanlarÄ±nÄ± kullanmaya baÅŸla."}
+                ? "Materyallerini tek yerde topla, içerik üret ve arşivden hızlıca geri aç."
+                : "Bir ders seçerek ödev, konu anlatımı, sınav ve sohbet alanlarını kullanmaya başla."}
             </p>
           </div>
           <div className="top-actions">
-            <div className="lang-pill">Almanca â€¢ TÃ¼rkÃ§e</div>
+            <div className="lang-pill">Almanca → Türkçe</div>
           </div>
         </header>
 
@@ -791,10 +791,10 @@ FORMAT:
           <div className="workspace-nav">
             <div className="tab-strip">
               {[
-                ["homework", "Ã–dev Ã‡Ã¶zÃ¼mÃ¼"],
-                ["topic", "Konu AnlatÄ±mÄ±"],
-                ["translation", "Ã‡eviri"],
-                ["exam", "SÄ±nav HazÄ±rlÄ±ÄŸÄ±"],
+                ["homework", "Ödev Çözümü"],
+                ["topic", "Konu Anlatımı"],
+                ["translation", "Çeviri"],
+                ["exam", "Sınav Hazırlığı"],
                 ["chat", "Sohbet"]
               ].map((item) => (
                 <button key={item[0]} className={activeTab === item[0] ? "tab active" : "tab"} onClick={() => setActiveTab(item[0])}>
@@ -808,8 +808,8 @@ FORMAT:
         {!activeCourse && (
           <section className="welcome-card">
             <div className="welcome-copy">
-              <div className="panel-title">Yeni Ders OluÅŸtur</div>
-              <p>Her ders aÃ§Ä±ldÄ±ÄŸÄ±nda Ã¶dev Ã§Ã¶zÃ¼mÃ¼, konu anlatÄ±mÄ±, sohbet ve sÄ±nav hazÄ±rlÄ±ÄŸÄ± alanlarÄ± otomatik hazÄ±r olur.</p>
+              <div className="panel-title">Yeni Ders Oluştur</div>
+              <p>Her ders açıldığında ödev çözümü, konu anlatımı, sohbet ve sınav hazırlığı alanları otomatik hazır olur.</p>
             </div>
           </section>
         )}
@@ -817,57 +817,57 @@ FORMAT:
         {activeCourse && activeTab === "homework" && (
           <section className="workspace-grid">
             <div className="panel emphasis">
-              <div className="panel-title">Ã–dev Ã‡Ã¶zÃ¼mÃ¼</div>
-              <p className="section-copy">YÃ¼klediÄŸin sayfalarÄ± aynÄ± akÄ±ÅŸla, Ã§Ã¶zÃ¼mleri doÄŸru yerde olacak ÅŸekilde hazÄ±rlar.</p>
-              <label>Dosya YÃ¼kle</label>
+              <div className="panel-title">Ödev Çözümü</div>
+              <p className="section-copy">Yüklediğin sayfaları aynı akışla, çözümleri doğru yerde olacak şekilde hazırlar.</p>
+              <label>Dosya Yükle</label>
               <input type="file" multiple accept=".pdf,image/*" onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))} />
               <div className="file-list">
-                {selectedFiles.length === 0 && <p className="empty">HenÃ¼z dosya seÃ§medin.</p>}
+                {selectedFiles.length === 0 && <p className="empty">Henüz dosya seçmedin.</p>}
                 {selectedFiles.map((file) => <div key={`${file.name}-${file.size}`} className="file-chip">{file.name}</div>)}
               </div>
               <button className="primary" disabled={busy} onClick={() => createEntry("homework")}>
-                {busy ? "HazÄ±rlanÄ±yor..." : "Ã‡Ã¶zÃ¼mlÃ¼ Ã–dev OluÅŸtur"}
+                {busy ? "Hazırlanıyor..." : "Çözümlü Ödev Oluştur"}
               </button>
             </div>
-            <ArchiveList title="Ã–dev ArÅŸivi" items={homeworkEntries} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "entries" })} emptyText="Bu derste henÃ¼z Ã§Ã¶zÃ¼mlÃ¼ Ã¶dev yok." />
+            <ArchiveList title="Ödev Arşivi" items={homeworkEntries} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "entries" })} emptyText="Bu derste henüz çözümlü ödev yok." />
           </section>
         )}
 
         {activeCourse && activeTab === "topic" && (
           <section className="workspace-grid">
             <div className="panel emphasis">
-              <div className="panel-title">Konu AnlatÄ±mÄ±</div>
-              <p className="section-copy">BaÅŸlÄ±klÄ±, Ã¶zetli ve daha okunabilir bÃ¶lÃ¼mlere ayrÄ±lmÄ±ÅŸ anlatÄ±m oluÅŸturur.</p>
-              <label>Dosya YÃ¼kle</label>
+              <div className="panel-title">Konu Anlatımı</div>
+              <p className="section-copy">Başlıklı, özetli ve daha okunabilir bölümlere ayrılmış anlatım oluşturur.</p>
+              <label>Dosya Yükle</label>
               <input type="file" multiple accept=".pdf,image/*" onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))} />
               <div className="file-list">
-                {selectedFiles.length === 0 && <p className="empty">HenÃ¼z dosya seÃ§medin.</p>}
+                {selectedFiles.length === 0 && <p className="empty">Henüz dosya seçmedin.</p>}
                 {selectedFiles.map((file) => <div key={`${file.name}-${file.size}`} className="file-chip">{file.name}</div>)}
               </div>
               <button className="primary" disabled={busy} onClick={() => createEntry("topic")}>
-                {busy ? "HazÄ±rlanÄ±yor..." : "Konu AnlatÄ±mÄ± Ãœret"}
+                {busy ? "Hazırlanıyor..." : "Konu Anlatımı Üret"}
               </button>
             </div>
-            <ArchiveList title="AnlatÄ±m ArÅŸivi" items={topicEntries} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "entries" })} emptyText="Bu derste henÃ¼z konu anlatÄ±mÄ± yok." />
+            <ArchiveList title="Anlatım Arşivi" items={topicEntries} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "entries" })} emptyText="Bu derste henüz konu anlatımı yok." />
           </section>
         )}
 
         {activeCourse && activeTab === "translation" && (
           <section className="workspace-grid">
             <div className="panel emphasis">
-              <div className="panel-title">Ã‡eviri</div>
-              <p className="section-copy">YÃ¼klediÄŸin PDF veya gÃ¶rselleri sayfa dÃ¼zenini koruyarak birebir TÃ¼rkÃ§eye Ã§evirir.</p>
-              <label>Dosya YÃ¼kle</label>
+              <div className="panel-title">Çeviri</div>
+              <p className="section-copy">Yüklediğin PDF veya görselleri sayfa düzenini koruyarak birebir Türkçeye çevirir.</p>
+              <label>Dosya Yükle</label>
               <input type="file" multiple accept=".pdf,image/*" onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))} />
               <div className="file-list">
-                {selectedFiles.length === 0 && <p className="empty">HenÃ¼z dosya seÃ§medin.</p>}
+                {selectedFiles.length === 0 && <p className="empty">Henüz dosya seçmedin.</p>}
                 {selectedFiles.map((file) => <div key={`${file.name}-${file.size}`} className="file-chip">{file.name}</div>)}
               </div>
               <button className="primary" disabled={busy} onClick={() => createEntry("translation")}>
-                {busy ? "HazÄ±rlanÄ±yor..." : "Ã‡eviriyi OluÅŸtur"}
+                {busy ? "Hazırlanıyor..." : "Çeviriyi Oluştur"}
               </button>
             </div>
-            <ArchiveList title="Ã‡eviri ArÅŸivi" items={translationEntries} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "entries" })} emptyText="Bu derste henÃ¼z Ã§eviri yok." />
+            <ArchiveList title="Çeviri Arşivi" items={translationEntries} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "entries" })} emptyText="Bu derste henüz çeviri yok." />
           </section>
         )}
 
@@ -910,19 +910,19 @@ FORMAT:
               <div className="chat-toolbar">
                 <div>
                   <div className="panel-title">Ders Sohbeti</div>
-                  <p className="section-copy">Her sohbet ayrÃ„Â± bir oturum olarak kaydedilir. Ã„Â°stediÃ¯Â¿Â½Yin zaman eski sohbetleri yeniden aÃƒÂ§abilirsin.</p>
+                  <p className="section-copy">Her sohbet ayrı bir oturum olarak kaydedilir. İstediğin zaman eski sohbetleri yeniden açabilirsin.</p>
                 </div>
                 <div className="chat-toolbar-actions">
-                  <span className="source-pill">{resolvedModel || "Model seÃƒÂ§"}</span>
+                  <span className="source-pill">{resolvedModel || "Model seç"}</span>
                   <button className="secondary" onClick={startNewChat}>Yeni Sohbet</button>
                   <button className="ghost" onClick={() => setChatFullScreen((current) => !current)}>
-                    {chatFullScreen ? "KÃƒÂ¼ÃƒÂ§ÃƒÂ¼lt" : "BÃƒÂ¼yÃƒÂ¼t"}
+                    {chatFullScreen ? "Küçült" : "Büyüt"}
                   </button>
                 </div>
               </div>
               <div className="chat-box">
-                {!activeChat && <p className="empty">HenÃƒÂ¼z sohbet yok. Yeni sohbet baÃ¯Â¿Â½Ylatarak baÃ¯Â¿Â½Ylayabilirsin.</p>}
-                {activeChat && (activeChat.messages || []).length === 0 && <p className="empty">Bu sohbet henÃƒÂ¼z boÃ¯Â¿Â½Y. Ã„Â°lk mesajÃ„Â±nÃ„Â± gÃƒÂ¶ndererek baÃ¯Â¿Â½Ylayabilirsin.</p>}
+                {!activeChat && <p className="empty">Henüz sohbet yok. Yeni sohbet başlatarak başlayabilirsin.</p>}
+                {activeChat && (activeChat.messages || []).length === 0 && <p className="empty">Bu sohbet henüz boş. İlk mesajını göndererek başlayabilirsin.</p>}
                 {(activeChat?.messages || []).map((message) => (
                   <div key={message.id} className={`chat-message ${message.role === "user" ? "user" : "model"}`}>
                     <div className="chat-message-head">
@@ -943,7 +943,7 @@ FORMAT:
               <div className="chat-composer">
                 <textarea rows="4" value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Dersle ilgili soru sor..." />
                 <button className="primary" disabled={busy} onClick={sendChatMessage}>
-                  {busy ? "GÃƒÂ¶nderiliyor..." : "MesajÃ„Â± GÃƒÂ¶nder"}
+                  {busy ? "Gönderiliyor..." : "Mesajı Gönder"}
                 </button>
               </div>
             </div>
@@ -952,7 +952,7 @@ FORMAT:
               items={courseChats}
               onOpen={(item) => setActiveChatId(item.id)}
               onDelete={(item) => setDeleteTarget({ id: item.id, collection: "chats" })}
-              emptyText="Bu derste henÃƒÂ¼z kayÃ„Â±tlÃ„Â± sohbet yok."
+              emptyText="Bu derste henüz kayıtlı sohbet yok."
               activeId={activeChat?.id || null}
             />
           </section>
@@ -975,19 +975,19 @@ FORMAT:
               <h3>Ayarlar</h3>
               <button className="ghost" onClick={() => setShowSettings(false)}>Kapat</button>
             </div>
-            <label>Gemini API AnahtarÃ„Â±</label>
-            <input type="password" value={state.settings.geminiApiKey} onChange={(event) => updateSettings({ geminiApiKey: event.target.value.trim() })} placeholder="API anahtarÃ„Â±nÃ„Â± gir" />
+            <label>Gemini API Anahtarı</label>
+            <input type="password" value={state.settings.geminiApiKey} onChange={(event) => updateSettings({ geminiApiKey: event.target.value.trim() })} placeholder="API anahtarını gir" />
             <label>Model</label>
             <select value={state.settings.model} onChange={(event) => updateSettings({ model: event.target.value })}>
               {MODEL_OPTIONS.map((item) => <option key={item[0]} value={item[0]}>{item[1]}</option>)}
             </select>
             <p className="muted">
-              VarsayÃ„Â±lan model `Gemini 3.1 Flash Lite` olarak ayarlandÃ„Â±. Uygulama ÃƒÂ¶nce bu modeli dener; yoÃ¯Â¿Â½Yunluk veya zaman aÃ¯Â¿Â½YÃ„Â±mÃ„Â± olursa hÃ„Â±zlÃ„Â± bir yedek modele otomatik geÃƒÂ§er.
+              Varsayılan model `Gemini 3.1 Flash Lite` olarak ayarlandı. Uygulama önce bu modeli dener; yoğunluk veya zaman aşımı olursa hızlı bir yedek modele otomatik geçer.
             </p>
             {state.settings.model === "custom" && (
               <>
-                <label>Ã¯Â¿Â½-zel Model KimliÃ¯Â¿Â½Yi</label>
-                <input value={state.settings.customModel} onChange={(event) => updateSettings({ customModel: event.target.value })} placeholder="API model kimliÃ¯Â¿Â½Yini buraya yaz" />
+                <label>Özel Model Kimliği</label>
+                <input value={state.settings.customModel} onChange={(event) => updateSettings({ customModel: event.target.value })} placeholder="API model kimliğini buraya yaz" />
                 <div className="field-grid">
                   <button className="ghost" onClick={() => updateSettings({ customModel: "gemini-3.1-flash-lite-preview" })}>3.1 Flash Lite Dene</button>
                   <button className="ghost" onClick={() => updateSettings({ customModel: "gemini-2.5-flash-lite" })}>2.5 Flash Lite Dene</button>
@@ -995,10 +995,10 @@ FORMAT:
               </>
             )}
             <div className="settings-tools">
-              <button className="secondary" onClick={() => downloadJson("ausbildung-backup.json", state)}>DÃ„Â±Ã¯Â¿Â½Ya Aktar</button>
-              <label className="secondary file-button">Ã„Â°ÃƒÂ§e Aktar<input type="file" accept=".json" onChange={importData} /></label>
+              <button className="secondary" onClick={() => downloadJson("ausbildung-backup.json", state)}>Dışa Aktar</button>
+              <label className="secondary file-button">İçe Aktar<input type="file" accept=".json" onChange={importData} /></label>
             </div>
-            <p className="muted">Bu uygulama Almanca materyalleri TÃƒÂ¼rkÃƒÂ§e anlatÃ„Â±m ÃƒÂ¼zerine optimize edildi.</p>
+            <p className="muted">Bu uygulama Almanca materyalleri Türkçe anlatım üzerine optimize edildi.</p>
           </div>
         </div>
       )}
@@ -1006,10 +1006,10 @@ FORMAT:
       {deleteTarget && (
         <div className="modal-backdrop" onClick={() => setDeleteTarget(null)}>
           <div className="modal" onClick={(event) => event.stopPropagation()}>
-            <h3>Silmek istediÃ¯Â¿Â½Yine emin misin?</h3>
-            <p className="muted">Bu iÃ¯Â¿Â½Ylem geri alÃ„Â±namaz.</p>
+            <h3>Silmek istediğine emin misin?</h3>
+            <p className="muted">Bu işlem geri alınamaz.</p>
             <div className="row">
-              <button className="ghost" onClick={() => setDeleteTarget(null)}>VazgeÃƒÂ§</button>
+              <button className="ghost" onClick={() => setDeleteTarget(null)}>Vazgeç</button>
               <button className="primary" onClick={confirmDelete}>Sil</button>
             </div>
           </div>
