@@ -7,7 +7,9 @@ import {
   Check,
   Copy,
   ExternalLink,
+  Grip,
   MapPin,
+  PencilLine,
   Plus,
   Search,
   Trash2,
@@ -50,50 +52,53 @@ const palette = {
 function maxVisibleItems() {
   const family = config.widgetFamily || "medium";
   if (family === "small") return 1;
-  if (family === "large") return 8;
-  return 5;
+  if (family === "large") return 6;
+  return 4;
 }
 
-function addRow(widget, location, index) {
-  const row = widget.addStack();
-  row.layoutHorizontally();
-  row.centerAlignContent();
-  row.backgroundColor = palette.card;
-  row.cornerRadius = 14;
-  row.borderColor = palette.border;
-  row.borderWidth = 1;
-  row.setPadding(10, 12, 10, 12);
-  row.url = location.url;
+function addCard(parent, location, index, compact) {
+  const card = parent.addStack();
+  card.layoutVertically();
+  card.backgroundColor = palette.card;
+  card.cornerRadius = compact ? 18 : 20;
+  card.borderColor = palette.border;
+  card.borderWidth = 1;
+  card.setPadding(compact ? 12 : 14, compact ? 12 : 14, compact ? 12 : 14, compact ? 12 : 14);
+  card.url = location.url;
+  card.spacing = compact ? 8 : 10;
 
-  const badge = row.addStack();
-  badge.size = new Size(22, 22);
-  badge.cornerRadius = 11;
+  const top = card.addStack();
+  top.layoutHorizontally();
+  top.centerAlignContent();
+
+  const badge = top.addStack();
+  badge.size = new Size(compact ? 22 : 24, compact ? 22 : 24);
+  badge.cornerRadius = compact ? 11 : 12;
   badge.backgroundColor = palette.accentSoft;
   badge.centerAlignContent();
   const badgeText = badge.addText(String(index + 1));
   badgeText.font = Font.boldSystemFont(11);
   badgeText.textColor = palette.accent;
 
-  row.addSpacer(10);
+  top.addSpacer();
 
-  const textStack = row.addStack();
+  const icon = top.addText(">");
+  icon.font = Font.boldSystemFont(compact ? 15 : 17);
+  icon.textColor = palette.accent;
+
+  const textStack = card.addStack();
   textStack.layoutVertically();
-  textStack.spacing = 2;
+  textStack.spacing = 3;
   const title = textStack.addText(location.name);
-  title.font = Font.semiboldSystemFont(13);
+  title.font = Font.semiboldSystemFont(compact ? 13 : 14);
   title.textColor = palette.text;
-  title.lineLimit = 1;
+  title.lineLimit = compact ? 2 : 3;
 
-  const subtitle = textStack.addText("Google Maps'te rota ac");
-  subtitle.font = Font.systemFont(10);
-  subtitle.textColor = palette.muted;
-  subtitle.lineLimit = 1;
+  const coords = textStack.addText(location.lat.toFixed(3) + ", " + location.lng.toFixed(3));
+  coords.font = Font.systemFont(compact ? 9 : 10);
+  coords.textColor = palette.muted;
+  coords.lineLimit = 1;
 
-  row.addSpacer();
-
-  const arrow = row.addText(">");
-  arrow.font = Font.boldSystemFont(18);
-  arrow.textColor = palette.accent;
 }
 
 const widget = new ListWidget();
@@ -131,10 +136,35 @@ countText.textColor = palette.accent;
 widget.addSpacer(12);
 
 const visibleLocations = LOCATIONS.slice(0, maxVisibleItems());
-visibleLocations.forEach((location, index) => {
-  addRow(widget, location, index);
-  if (index < visibleLocations.length - 1) widget.addSpacer(8);
-});
+const family = config.widgetFamily || "medium";
+
+if (family === "small") {
+  if (visibleLocations[0]) addCard(widget, visibleLocations[0], 0, false);
+} else if (family === "large") {
+  for (let rowIndex = 0; rowIndex < visibleLocations.length; rowIndex += 2) {
+    const row = widget.addStack();
+    row.layoutHorizontally();
+    row.spacing = 10;
+    addCard(row, visibleLocations[rowIndex], rowIndex, false);
+    if (visibleLocations[rowIndex + 1]) {
+      row.addSpacer(10);
+      addCard(row, visibleLocations[rowIndex + 1], rowIndex + 1, false);
+    }
+    if (rowIndex + 2 < visibleLocations.length) widget.addSpacer(10);
+  }
+} else {
+  for (let rowIndex = 0; rowIndex < visibleLocations.length; rowIndex += 2) {
+    const row = widget.addStack();
+    row.layoutHorizontally();
+    row.spacing = 10;
+    addCard(row, visibleLocations[rowIndex], rowIndex, true);
+    if (visibleLocations[rowIndex + 1]) {
+      row.addSpacer(10);
+      addCard(row, visibleLocations[rowIndex + 1], rowIndex + 1, true);
+    }
+    if (rowIndex + 2 < visibleLocations.length) widget.addSpacer(10);
+  }
+}
 
 if (visibleLocations.length === 0) {
   const empty = widget.addText("Bu script icin once konum ekle.");
@@ -168,6 +198,7 @@ function App() {
   const [statusMessage, setStatusMessage] = useState(
     "Haritadan sec ya da arama yapip listene ekle.",
   );
+  const [renameDrafts, setRenameDrafts] = useState({});
 
   useEffect(() => {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -179,6 +210,7 @@ function App() {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
         setSavedLocations(parsed);
+        setRenameDrafts(Object.fromEntries(parsed.map((item) => [item.id, item.name])));
       }
     } catch {
       window.localStorage.removeItem(STORAGE_KEY);
@@ -213,13 +245,34 @@ function App() {
       maxZoom: 19,
     }).addTo(map);
 
+    const focusRing = L.circle([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], {
+      radius: 140,
+      color: "#0ea5e9",
+      weight: 1,
+      fillColor: "#38bdf8",
+      fillOpacity: 0.14,
+    }).addTo(map);
+
+    const selectedIcon = L.divIcon({
+      className: "selection-pin",
+      html: `
+        <div class="selection-pin__shell">
+          <div class="selection-pin__core"></div>
+        </div>
+      `,
+      iconSize: [30, 30],
+      iconAnchor: [15, 15],
+    });
+
     const marker = L.marker([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], {
       draggable: true,
+      icon: selectedIcon,
     }).addTo(map);
     markerRef.current = marker;
 
     const handlePositionUpdate = async (lat, lng, nextMessage) => {
       marker.setLatLng([lat, lng]);
+      focusRing.setLatLng([lat, lng]);
       setSelectedCoords({ lat, lng });
       setStatusMessage(nextMessage);
       await reverseGeocode(lat, lng);
@@ -349,11 +402,17 @@ function App() {
     };
 
     setSavedLocations((current) => [...current, nextLocation]);
+    setRenameDrafts((current) => ({ ...current, [nextLocation.id]: nextLocation.name }));
     setStatusMessage("Konum widget listesine eklendi.");
   }
 
   function removeLocation(id) {
     setSavedLocations((current) => current.filter((item) => item.id !== id));
+    setRenameDrafts((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
   }
 
   function moveLocation(id, direction) {
@@ -376,7 +435,14 @@ function App() {
 
   function clearLocations() {
     setSavedLocations([]);
+    setRenameDrafts({});
     setStatusMessage("Kayitli konumlar temizlendi.");
+  }
+
+  function updateLocationName(id, name) {
+    setSavedLocations((current) =>
+      current.map((item) => (item.id === id ? { ...item, name: name || item.name } : item)),
+    );
   }
 
   async function copyCode() {
@@ -394,7 +460,7 @@ function App() {
       return "Widget olusturmak icin en az 1 konum ekle.";
     }
 
-    return "Medium widget ilk 5 konumu, large widget ilk 8 konumu gosterir.";
+    return "Medium widget 4 buyuk kart, large widget 6 buyuk kart gosterir.";
   }, [savedLocations.length]);
 
   return (
@@ -415,12 +481,12 @@ function App() {
             <span>kayitli konum</span>
           </div>
           <div>
-            <strong>5</strong>
-            <span>medium widget satiri</span>
+            <strong>4</strong>
+            <span>medium widget karti</span>
           </div>
           <div>
-            <strong>8</strong>
-            <span>large widget satiri</span>
+            <strong>6</strong>
+            <span>large widget karti</span>
           </div>
         </div>
       </div>
@@ -439,6 +505,17 @@ function App() {
               {isSearching ? "Araniyor" : "Bul"}
             </button>
           </form>
+
+          <div className="map-toolbar">
+            <div className="map-chip">
+              <Grip size={16} />
+              <span>Haritada tikla veya pini surukle</span>
+            </div>
+            <div className="map-chip accent">
+              <PencilLine size={16} />
+              <span>Listeye ekledikten sonra isim duzenlenebilir</span>
+            </div>
+          </div>
 
           <div className="map-wrap">
             <div ref={mapElementRef} className="map-canvas" />
@@ -506,7 +583,27 @@ function App() {
                   <div className="saved-item" key={location.id}>
                     <div className="saved-index">{index + 1}</div>
                     <div className="saved-copy">
-                      <strong>{location.name}</strong>
+                      <label className="rename-field">
+                        <span>Widget adi</span>
+                        <input
+                          type="text"
+                          value={renameDrafts[location.id] ?? location.name}
+                          onChange={(event) =>
+                            setRenameDrafts((current) => ({
+                              ...current,
+                              [location.id]: event.target.value,
+                            }))
+                          }
+                          onBlur={(event) => updateLocationName(location.id, event.target.value.trim())}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              event.currentTarget.blur();
+                            }
+                          }}
+                          placeholder="Widgette gorunecek ad"
+                        />
+                      </label>
                       <span>
                         {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
                       </span>
