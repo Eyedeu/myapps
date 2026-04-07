@@ -37,41 +37,170 @@ import {
   X,
   XCircle
 } from "lucide-react";
-import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  onSnapshot,
-  setDoc,
-  updateDoc
-} from "firebase/firestore";
-
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || ""
-};
-
-const hasFirebaseConfig = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId);
-const firebaseApp = hasFirebaseConfig ? initializeApp(firebaseConfig) : null;
-const auth = firebaseApp ? getAuth(firebaseApp) : null;
-const db = firebaseApp ? getFirestore(firebaseApp) : null;
+const LOCAL_DB_KEY = "deutsch-battles-db";
+const LOCAL_USER_KEY = "deutsch-battles-user";
 const appId = import.meta.env.VITE_FIREBASE_DATA_APP_ID || "deutsch-battles";
+const db = { kind: "local-db" };
+
+const localSubscribers = new Map();
+
+function createLocalId() {
+  return typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `local_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
+}
+
+function readLocalDb() {
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_DB_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function writeLocalDb(data) {
+  localStorage.setItem(LOCAL_DB_KEY, JSON.stringify(data));
+}
+
+function normalizePath(parts) {
+  return parts.filter(Boolean).join("/");
+}
+
+function collection(...parts) {
+  const pathParts = parts[0]?.kind ? parts.slice(1) : parts;
+  return { kind: "collection", path: normalizePath(pathParts) };
+}
+
+function doc(...parts) {
+  if (parts[0]?.kind === "collection") {
+    return { kind: "doc", path: normalizePath([parts[0].path, ...parts.slice(1)]) };
+  }
+  const pathParts = parts[0]?.kind ? parts.slice(1) : parts;
+  return { kind: "doc", path: normalizePath(pathParts) };
+}
+
+function getCollectionDocs(path) {
+  const store = readLocalDb();
+  const prefix = `${path}/`;
+  return Object.entries(store)
+    .filter(([key]) => key.startsWith(prefix) && key.slice(prefix.length).split("/").length === 1)
+    .map(([key, value]) => ({
+      id: key.split("/").at(-1),
+      data: () => value,
+      ref: { kind: "doc", path: key }
+    }));
+}
+
+function getDocSnapshot(path) {
+  const store = readLocalDb();
+  const value = store[path];
+  return {
+    exists: () => value !== undefined,
+    data: () => value
+  };
+}
+
+function notifyPath(path) {
+  const docCallbackSet = localSubscribers.get(path);
+  if (docCallbackSet) {
+    const snap = getDocSnapshot(path);
+    docCallbackSet.forEach((callback) => callback(snap));
+  }
+  const segments = path.split("/");
+  segments.pop();
+  while (segments.length) {
+    const collectionPath = segments.join("/");
+    const collectionCallbackSet = localSubscribers.get(collectionPath);
+    if (collectionCallbackSet) {
+      const snap = { docs: getCollectionDocs(collectionPath) };
+      collectionCallbackSet.forEach((callback) => callback(snap));
+    }
+    segments.pop();
+  }
+}
+
+async function addDoc(collectionRef, data) {
+  const id = createLocalId();
+  const ref = doc(collectionRef, id);
+  await setDoc(ref, data);
+  return ref;
+}
+
+async function setDoc(docRef, data, options = {}) {
+  const store = readLocalDb();
+  store[docRef.path] = options.merge && store[docRef.path] ? { ...store[docRef.path], ...data } : data;
+  writeLocalDb(store);
+  notifyPath(docRef.path);
+}
+
+function setNestedValue(target, path, value) {
+  const keys = path.split(".");
+  let cursor = target;
+  for (let index = 0; index < keys.length - 1; index += 1) {
+    const key = keys[index];
+    if (typeof cursor[key] !== "object" || cursor[key] === null) cursor[key] = {};
+    cursor = cursor[key];
+  }
+  cursor[keys.at(-1)] = value;
+}
+
+async function updateDoc(docRef, updates) {
+  const store = readLocalDb();
+  const current = { ...(store[docRef.path] || {}) };
+  Object.entries(updates).forEach(([key, value]) => {
+    if (key.includes(".")) setNestedValue(current, key, value);
+    else current[key] = value;
+  });
+  store[docRef.path] = current;
+  writeLocalDb(store);
+  notifyPath(docRef.path);
+}
+
+async function deleteDoc(docRef) {
+  const store = readLocalDb();
+  delete store[docRef.path];
+  writeLocalDb(store);
+  notifyPath(docRef.path);
+}
+
+async function getDoc(docRef) {
+  return getDocSnapshot(docRef.path);
+}
+
+async function getDocs(collectionRef) {
+  return {
+    docs: getCollectionDocs(collectionRef.path),
+    forEach(callback) {
+      this.docs.forEach(callback);
+    }
+  };
+}
+
+function onSnapshot(ref, callback) {
+  const key = ref.path;
+  if (!localSubscribers.has(key)) localSubscribers.set(key, new Set());
+  localSubscribers.get(key).add(callback);
+  if (ref.kind === "doc") callback(getDocSnapshot(ref.path));
+  else callback({ docs: getCollectionDocs(ref.path) });
+
+  const handleStorage = (event) => {
+    if (event.key === LOCAL_DB_KEY) {
+      if (ref.kind === "doc") callback(getDocSnapshot(ref.path));
+      else callback({ docs: getCollectionDocs(ref.path) });
+    }
+  };
+  window.addEventListener("storage", handleStorage);
+
+  return () => {
+    localSubscribers.get(key)?.delete(callback);
+    window.removeEventListener("storage", handleStorage);
+  };
+}
 
 const AI_STORAGE_KEY = "deutsch-battles-ai-settings";
 const defaultAiSettings = {
   geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
-  model: import.meta.env.VITE_GEMINI_MODEL || "gemini-2.5-flash"
+  model: import.meta.env.VITE_GEMINI_MODEL || "gemini-3.1-flash-lite-preview"
 };
 
 function loadAiSettings() {
@@ -306,10 +435,11 @@ function SettingsModal({ isOpen, onClose, aiSettings, setAiSettings }) {
               <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
               <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
               <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+              <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite Preview</option>
             </select>
           </label>
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            Firebase bilgileri `.env` icinden geliyor. Gemini anahtarini ister `.env`, ister bu pencere uzerinden verebilirsin.
+            Uygulama artik tum verileri tarayicidaki localStorage icinde tutuyor. Gemini anahtarini ister `.env`, ister bu pencere uzerinden verebilirsin.
           </div>
         </div>
         <div className="mt-6 flex gap-3">
@@ -1454,7 +1584,7 @@ function StrategySection() {
 }
 
 function MissingSetup({ aiSettings, onOpenSettings }) {
-  return <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center p-6"><div className="w-full rounded-3xl border border-amber-200 bg-white p-8 shadow-xl"><div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700"><AlertCircle size={32} /></div><h1 className="mb-3 text-3xl font-black text-slate-900">Kurulum Eksik</h1><p className="mb-6 text-slate-600">Kullanmadan once Firebase `.env` alanlarini ve Gemini API key bilgisini tamamla.</p><div className="space-y-3 rounded-2xl bg-slate-50 p-5 text-sm text-slate-700"><p className={!hasFirebaseConfig ? "font-bold text-red-600" : "text-green-600"}>{!hasFirebaseConfig ? "Firebase .env ayarlari eksik." : "Firebase ayarlari hazir."}</p><p className={!aiSettings.geminiApiKey ? "font-bold text-red-600" : "text-green-600"}>{!aiSettings.geminiApiKey ? "Gemini API key eksik." : "Gemini API key hazir."}</p><p>.env icin `.env.example` dosyasini baz alabilirsin.</p></div><div className="mt-6 flex gap-3"><button onClick={onOpenSettings} className="rounded-xl bg-indigo-600 px-6 py-3 font-bold text-white">AI Ayarlarini Ac</button></div></div></div>;
+  return <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center p-6"><div className="w-full rounded-3xl border border-amber-200 bg-white p-8 shadow-xl"><div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700"><AlertCircle size={32} /></div><h1 className="mb-3 text-3xl font-black text-slate-900">Kurulum Eksik</h1><p className="mb-6 text-slate-600">Uygulama localStorage ile calisiyor. Sadece Gemini API key bilgisini tamamlaman gerekiyor.</p><div className="space-y-3 rounded-2xl bg-slate-50 p-5 text-sm text-slate-700"><p className="text-green-600">Veri kaydi: localStorage hazir.</p><p className={!aiSettings.geminiApiKey ? "font-bold text-red-600" : "text-green-600"}>{!aiSettings.geminiApiKey ? "Gemini API key eksik." : "Gemini API key hazir."}</p><p>.env icin `.env.example` dosyasini baz alabilirsin.</p></div><div className="mt-6 flex gap-3"><button onClick={onOpenSettings} className="rounded-xl bg-indigo-600 px-6 py-3 font-bold text-white">AI Ayarlarini Ac</button></div></div></div>;
 }
 
 export default function TELCMasterApp() {
@@ -1466,14 +1596,18 @@ export default function TELCMasterApp() {
   const [autoCoachPrompt, setAutoCoachPrompt] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [aiSettings, setAiSettings] = useState(loadAiSettings);
-  const [authError, setAuthError] = useState("");
 
   useEffect(() => { storageObj.set(AI_STORAGE_KEY, JSON.stringify(aiSettings)); }, [aiSettings]);
   useEffect(() => {
-    if (!auth) return undefined;
-    const initAuth = async () => { try { await signInAnonymously(auth); } catch (error) { setAuthError(error.message || "Firebase girisi basarisiz."); } };
-    initAuth();
-    return onAuthStateChanged(auth, setUser);
+    const savedUser = storageObj.get(LOCAL_USER_KEY);
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+      return undefined;
+    }
+    const localUser = { uid: createLocalId(), isLocal: true };
+    storageObj.set(LOCAL_USER_KEY, JSON.stringify(localUser));
+    setUser(localUser);
+    return undefined;
   }, []);
 
   const toggleSidebar = () => { if (window.innerWidth >= 768) setDesktopSidebarOpen((prev) => !prev); else setSidebarOpen((prev) => !prev); };
@@ -1481,8 +1615,7 @@ export default function TELCMasterApp() {
   const handleExecutePlan = (task) => { const lowerTitle = task.title.toLowerCase(); const lowerDesc = task.description.toLowerCase(); if (lowerTitle.includes("kelime") || lowerDesc.includes("kelime")) setActiveTab("vocab"); else if (lowerTitle.includes("sinav") || lowerTitle.includes("yazma") || lowerTitle.includes("schreiben")) setActiveTab("exam"); else { setActiveTab("tutor"); setAutoCoachPrompt(`Gunluk calisma planimda su gorev var: "${task.title}". Aciklamasi: "${task.description}". Bana bu konuyu anlatip calistirabilir misin?`); } };
 
   const renderContent = () => {
-    if (!hasFirebaseConfig || !aiSettings.geminiApiKey) return <MissingSetup aiSettings={aiSettings} onOpenSettings={() => setSettingsOpen(true)} />;
-    if (authError) return <div className="rounded-3xl border border-red-200 bg-red-50 p-8 text-red-700">Firebase baglanti hatasi: {authError}</div>;
+    if (!aiSettings.geminiApiKey) return <MissingSetup aiSettings={aiSettings} onOpenSettings={() => setSettingsOpen(true)} />;
     if (!user) return <div className="flex h-full items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-indigo-600" /></div>;
     if (activeTab === "dashboard") return <Dashboard level={level} onExecutePlan={handleExecutePlan} user={user} aiSettings={aiSettings} />;
     if (activeTab === "vocab") return <VocabTrainer level={level} user={user} aiSettings={aiSettings} />;
