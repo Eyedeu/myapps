@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from "react";
-import { FAST_PRIMARY_MODEL, callGemini } from "@shared/gemini-client.js";
+import { FAST_PRIMARY_MODEL, callGemini } from "./gemini.js";
 
 const STORAGE_KEY = "ausbildung-webapp-v3";
 
@@ -133,8 +133,8 @@ function renderRichText(text) {
   if (!text) return null;
   return String(text).split("\n").map((line, index) => {
     const trimmed = line.trim();
-    const correctOptionMatch = trimmed.match(/^(?:\[(?:x|X)\]|[â—‰â—âŠ™]|âœ…)\s*(.+)$/);
-    const wrongOptionMatch = trimmed.match(/^(?:\[\s\]|[â—‹â—Œâ—¯])\s*(.+)$/);
+    const correctOptionMatch = trimmed.match(/^(?:\[(?:x|X)\]|Dogru|DoÄŸru|Correct)\s*(.+)$/i);
+    const wrongOptionMatch = trimmed.match(/^(?:\[\s\]|Secenek|SeÃ§enek|Option)\s*(.+)$/i);
     const reasonMatch = trimmed.match(/^(Dogru cevap neden dogru|Dogru cevap aciklamasi|Aciklama|Neden)\s*:\s*(.+)$/i);
     const wrongReasonMatch = trimmed.match(/^(Diger siklar neden yanlis|Yanlis secenekler)\s*:\s*(.+)$/i);
     const progressMatch = trimmed.match(/^\d+\s*\/\s*\d+$/);
@@ -227,7 +227,7 @@ TALIMATLAR:
 0. Ilk satirda, cevirinin ana fikrini yansitan kisa ve anlamli bir # Baslik yaz.
 1. Gorselleri veya PDF sayfalarini analiz et.
 2. ORIJINAL SAYFA YAPISI: Basliklari, alt basliklari, tablo akisini, soru siralarini, madde yapisini ve sayfa bolumlerini olabildigince ayni sirada koru.
-3. METINLERI DOGRUDAN CEVIR: Icerigi ozetleme, yorumlama, sadeleÅŸtirme veya yeniden yazma yapma.
+3. METINLERI DOGRUDAN CEVIR: Icerigi ozetleme, yorumlama, sadelestirme veya yeniden yazma yapma.
 4. Tum Almanca icerigi Turkceye cevir.
 5. KULLANICIYA sureci aciklama, "bunu yaptim" gibi meta yorumlar, teknik notlar veya kontrol notlari yazma.
 6. Sadece nihai ceviri icerigini ver.
@@ -613,7 +613,7 @@ function App() {
       const result = await callGemini({
         apiKey: state.settings.geminiApiKey,
         model: resolvedModel,
-        prompt: `Sen destekleyici bir Ausbildung asistanÄ±sÄ±n.
+        prompt: `Sen destekleyici bir Ausbildung asistanÃ„Â±sÃ„Â±n.
 Mevcut ders: ${activeCourse?.title || ""}
 Kaynak dil: ${state.settings.sourceLanguage}
 Hedef dil: ${state.settings.targetLanguage}
@@ -764,7 +764,7 @@ FORMAT:
                   <span>{formatDate(course.createdAt)}</span>
                   <span>{state.entries.filter((entry) => entry.courseId === course.id).length} iÃ§erik</span>
                 </div>
-                <span className="icon-delete" onClick={(event) => { event.stopPropagation(); removeCourse(course.id); }} title="Dersi sil" aria-label="Dersi sil">ğŸ—‘</span>
+                <span className="icon-delete" onClick={(event) => { event.stopPropagation(); removeCourse(course.id); }} title="Dersi sil" aria-label="Dersi sil">gY-'</span>
               </button>
             ))}
           </div>
@@ -783,7 +783,7 @@ FORMAT:
             </p>
           </div>
           <div className="top-actions">
-            <div className="lang-pill">Almanca â†’ TÃ¼rkÃ§e</div>
+            <div className="lang-pill">Almanca â€¢ TÃ¼rkÃ§e</div>
           </div>
         </header>
 
@@ -874,13 +874,13 @@ FORMAT:
         {activeCourse && activeTab === "exam" && (
           <section className="workspace-grid">
             <div className="panel emphasis">
-              <div className="panel-title">SÄ±nav HazÄ±rlÄ±ÄŸÄ±</div>
-              <p className="section-copy">Yeni dosya yÃ¼kleyebilir veya Ã¶nceki iÃ§erikleri seÃ§ip sÄ±nav seti oluÅŸturabilirsin.</p>
-              <label>Yeni Dosya YÃ¼kle</label>
+              <div className="panel-title">Sınav Hazırlığı</div>
+              <p className="section-copy">Yeni dosya yükleyebilir veya önceki içerikleri seçip sınav seti oluşturabilirsin.</p>
+              <label>Yeni Dosya Yükle</label>
               <input type="file" multiple accept=".pdf,image/*" onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))} />
-              <label>Ã–nceden Ãœretilen Ä°Ã§erikler</label>
+              <label>Önceden Üretilen İçerikler</label>
               <div className="selection-list">
-                {courseEntries.length === 0 && <p className="empty">SeÃ§ilebilir Ã¶nceki iÃ§erik yok.</p>}
+                {courseEntries.length === 0 && <p className="empty">Seçilebilir önceki içerik yok.</p>}
                 {courseEntries.map((entry) => (
                   <label key={entry.id} className="selection-item">
                     <input
@@ -897,10 +897,10 @@ FORMAT:
                 ))}
               </div>
               <button className="primary" disabled={busy} onClick={createExam}>
-                {busy ? "HazÄ±rlanÄ±yor..." : "SÄ±nav Seti OluÅŸtur"}
+                {busy ? "Hazırlanıyor..." : "Sınav Seti Oluştur"}
               </button>
             </div>
-            <ArchiveList title="SÄ±nav ArÅŸivi" items={courseExams} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "exams" })} emptyText="Bu derste henÃ¼z sÄ±nav seti yok." />
+            <ArchiveList title="Sınav Arşivi" items={courseExams} onOpen={setViewerItem} onDelete={(item) => setDeleteTarget({ id: item.id, collection: "exams" })} emptyText="Bu derste henüz sınav seti yok." />
           </section>
         )}
 
@@ -910,19 +910,19 @@ FORMAT:
               <div className="chat-toolbar">
                 <div>
                   <div className="panel-title">Ders Sohbeti</div>
-                  <p className="section-copy">Her sohbet ayrÄ± bir oturum olarak kaydedilir. Ä°stediÄŸin zaman eski sohbetleri yeniden aÃ§abilirsin.</p>
+                  <p className="section-copy">Her sohbet ayrÃ„Â± bir oturum olarak kaydedilir. Ã„Â°stediÃ¯Â¿Â½Yin zaman eski sohbetleri yeniden aÃƒÂ§abilirsin.</p>
                 </div>
                 <div className="chat-toolbar-actions">
-                  <span className="source-pill">{resolvedModel || "Model seÃ§"}</span>
+                  <span className="source-pill">{resolvedModel || "Model seÃƒÂ§"}</span>
                   <button className="secondary" onClick={startNewChat}>Yeni Sohbet</button>
                   <button className="ghost" onClick={() => setChatFullScreen((current) => !current)}>
-                    {chatFullScreen ? "KÃ¼Ã§Ã¼lt" : "BÃ¼yÃ¼t"}
+                    {chatFullScreen ? "KÃƒÂ¼ÃƒÂ§ÃƒÂ¼lt" : "BÃƒÂ¼yÃƒÂ¼t"}
                   </button>
                 </div>
               </div>
               <div className="chat-box">
-                {!activeChat && <p className="empty">HenÃ¼z sohbet yok. Yeni sohbet baÅŸlatarak baÅŸlayabilirsin.</p>}
-                {activeChat && (activeChat.messages || []).length === 0 && <p className="empty">Bu sohbet henÃ¼z boÅŸ. Ä°lk mesajÄ±nÄ± gÃ¶ndererek baÅŸlayabilirsin.</p>}
+                {!activeChat && <p className="empty">HenÃƒÂ¼z sohbet yok. Yeni sohbet baÃ¯Â¿Â½Ylatarak baÃ¯Â¿Â½Ylayabilirsin.</p>}
+                {activeChat && (activeChat.messages || []).length === 0 && <p className="empty">Bu sohbet henÃƒÂ¼z boÃ¯Â¿Â½Y. Ã„Â°lk mesajÃ„Â±nÃ„Â± gÃƒÂ¶ndererek baÃ¯Â¿Â½Ylayabilirsin.</p>}
                 {(activeChat?.messages || []).map((message) => (
                   <div key={message.id} className={`chat-message ${message.role === "user" ? "user" : "model"}`}>
                     <div className="chat-message-head">
@@ -943,7 +943,7 @@ FORMAT:
               <div className="chat-composer">
                 <textarea rows="4" value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Dersle ilgili soru sor..." />
                 <button className="primary" disabled={busy} onClick={sendChatMessage}>
-                  {busy ? "GÃ¶nderiliyor..." : "MesajÄ± GÃ¶nder"}
+                  {busy ? "GÃƒÂ¶nderiliyor..." : "MesajÃ„Â± GÃƒÂ¶nder"}
                 </button>
               </div>
             </div>
@@ -952,7 +952,7 @@ FORMAT:
               items={courseChats}
               onOpen={(item) => setActiveChatId(item.id)}
               onDelete={(item) => setDeleteTarget({ id: item.id, collection: "chats" })}
-              emptyText="Bu derste henÃ¼z kayÄ±tlÄ± sohbet yok."
+              emptyText="Bu derste henÃƒÂ¼z kayÃ„Â±tlÃ„Â± sohbet yok."
               activeId={activeChat?.id || null}
             />
           </section>
@@ -975,19 +975,19 @@ FORMAT:
               <h3>Ayarlar</h3>
               <button className="ghost" onClick={() => setShowSettings(false)}>Kapat</button>
             </div>
-            <label>Gemini API AnahtarÄ±</label>
-            <input type="password" value={state.settings.geminiApiKey} onChange={(event) => updateSettings({ geminiApiKey: event.target.value.trim() })} placeholder="API anahtarÄ±nÄ± gir" />
+            <label>Gemini API AnahtarÃ„Â±</label>
+            <input type="password" value={state.settings.geminiApiKey} onChange={(event) => updateSettings({ geminiApiKey: event.target.value.trim() })} placeholder="API anahtarÃ„Â±nÃ„Â± gir" />
             <label>Model</label>
             <select value={state.settings.model} onChange={(event) => updateSettings({ model: event.target.value })}>
               {MODEL_OPTIONS.map((item) => <option key={item[0]} value={item[0]}>{item[1]}</option>)}
             </select>
             <p className="muted">
-              VarsayÄ±lan model `Gemini 3.1 Flash Lite` olarak ayarlandÄ±. Uygulama Ã¶nce bu modeli dener; yoÄŸunluk veya zaman aÅŸÄ±mÄ± olursa hÄ±zlÄ± bir yedek modele otomatik geÃ§er.
+              VarsayÃ„Â±lan model `Gemini 3.1 Flash Lite` olarak ayarlandÃ„Â±. Uygulama ÃƒÂ¶nce bu modeli dener; yoÃ¯Â¿Â½Yunluk veya zaman aÃ¯Â¿Â½YÃ„Â±mÃ„Â± olursa hÃ„Â±zlÃ„Â± bir yedek modele otomatik geÃƒÂ§er.
             </p>
             {state.settings.model === "custom" && (
               <>
-                <label>Ã–zel Model KimliÄŸi</label>
-                <input value={state.settings.customModel} onChange={(event) => updateSettings({ customModel: event.target.value })} placeholder="API model kimliÄŸini buraya yaz" />
+                <label>Ã¯Â¿Â½-zel Model KimliÃ¯Â¿Â½Yi</label>
+                <input value={state.settings.customModel} onChange={(event) => updateSettings({ customModel: event.target.value })} placeholder="API model kimliÃ¯Â¿Â½Yini buraya yaz" />
                 <div className="field-grid">
                   <button className="ghost" onClick={() => updateSettings({ customModel: "gemini-3.1-flash-lite-preview" })}>3.1 Flash Lite Dene</button>
                   <button className="ghost" onClick={() => updateSettings({ customModel: "gemini-2.5-flash-lite" })}>2.5 Flash Lite Dene</button>
@@ -995,10 +995,10 @@ FORMAT:
               </>
             )}
             <div className="settings-tools">
-              <button className="secondary" onClick={() => downloadJson("ausbildung-backup.json", state)}>DÄ±ÅŸa Aktar</button>
-              <label className="secondary file-button">Ä°Ã§e Aktar<input type="file" accept=".json" onChange={importData} /></label>
+              <button className="secondary" onClick={() => downloadJson("ausbildung-backup.json", state)}>DÃ„Â±Ã¯Â¿Â½Ya Aktar</button>
+              <label className="secondary file-button">Ã„Â°ÃƒÂ§e Aktar<input type="file" accept=".json" onChange={importData} /></label>
             </div>
-            <p className="muted">Bu uygulama Almanca materyalleri TÃ¼rkÃ§e anlatÄ±m Ã¼zerine optimize edildi.</p>
+            <p className="muted">Bu uygulama Almanca materyalleri TÃƒÂ¼rkÃƒÂ§e anlatÃ„Â±m ÃƒÂ¼zerine optimize edildi.</p>
           </div>
         </div>
       )}
@@ -1006,10 +1006,10 @@ FORMAT:
       {deleteTarget && (
         <div className="modal-backdrop" onClick={() => setDeleteTarget(null)}>
           <div className="modal" onClick={(event) => event.stopPropagation()}>
-            <h3>Silmek istediÄŸine emin misin?</h3>
-            <p className="muted">Bu iÅŸlem geri alÄ±namaz.</p>
+            <h3>Silmek istediÃ¯Â¿Â½Yine emin misin?</h3>
+            <p className="muted">Bu iÃ¯Â¿Â½Ylem geri alÃ„Â±namaz.</p>
             <div className="row">
-              <button className="ghost" onClick={() => setDeleteTarget(null)}>VazgeÃ§</button>
+              <button className="ghost" onClick={() => setDeleteTarget(null)}>VazgeÃƒÂ§</button>
               <button className="primary" onClick={confirmDelete}>Sil</button>
             </div>
           </div>
@@ -1020,4 +1020,5 @@ FORMAT:
 }
 
 export default App;
+
 

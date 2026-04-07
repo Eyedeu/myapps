@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+﻿import React, { useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   ArrowRightCircle,
@@ -37,12 +37,7 @@ import {
   X,
   XCircle
 } from "lucide-react";
-import {
-  FAST_PRIMARY_MODEL,
-  callGemini,
-  readStoredJson,
-  resolveSharedGeminiApiKey as resolveSharedGeminiApiKeyFromStorage
-} from "@shared/gemini-client.js";
+import { FAST_PRIMARY_MODEL, callGemini, readStoredJson, resolveStoredGeminiApiKey } from "./gemini.js";
 const LOCAL_DB_KEY = "deutsch-battles-db";
 const LOCAL_USER_KEY = "deutsch-battles-user";
 const appId = import.meta.env.VITE_FIREBASE_DATA_APP_ID || "deutsch-battles";
@@ -204,14 +199,16 @@ function onSnapshot(ref, callback) {
 }
 
 const AI_STORAGE_KEY = "deutsch-battles-ai-settings";
-const SHARED_AI_STORAGE_KEYS = [AI_STORAGE_KEY, "ausbildung-webapp-v3"];
+const SHARED_AI_STORAGE_KEYS = [AI_STORAGE_KEY];
 const defaultAiSettings = {
   geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
   model: FAST_PRIMARY_MODEL
 };
 
 function resolveSharedGeminiApiKey() {
-  return resolveSharedGeminiApiKeyFromStorage(SHARED_AI_STORAGE_KEYS, defaultAiSettings.geminiApiKey);
+  return SHARED_AI_STORAGE_KEYS
+    .map((key) => resolveStoredGeminiApiKey(key, defaultAiSettings.geminiApiKey))
+    .find(Boolean) || "";
 }
 
 function normalizeAiSettings(settings = {}) {
@@ -244,6 +241,10 @@ function safeJSONParse(text) {
   } catch {
     return null;
   }
+}
+
+function normalizeWordKey(value) {
+  return String(value || "").trim().toLocaleLowerCase("de-DE");
 }
 
 async function generateContent(settings, prompt, type = "text") {
@@ -318,7 +319,7 @@ function shuffleOptionItem(question) {
 function createGameGenerators(aiSettings) {
   return {
     schreiben: async (level) => {
-      const prompt = `TELC ${level} seviyesi için iki oyuncunun birbirine karşı yarıştığı Almanca yazma görevi üret. JSON formatında dön: {"title":"Görev Başlığı (Almanca)","situation":"Durum ve istenenler (Almanca)"}`;
+      const prompt = `TELC ${level} seviyesi için iki oyuncunun birbirine karşı yarıştığı bir Almanca yazma görevi üret. JSON formatında dön: {"title":"Görev Başlığı (Almanca)","situation":"Durum ve istenenler (Almanca)"}`;
       const res = await generateContent(aiSettings, prompt, "json");
       return safeJSONParse(res) || { title: "Einladung schreiben", situation: "Schreiben Sie eine Einladung zu Ihrer Geburtstagsparty." };
     },
@@ -326,7 +327,7 @@ function createGameGenerators(aiSettings) {
       const prompt = `TELC ${level} seviyesi için tam 10 soruluk sınav üret.
 Bölüm 1 (Lesen): Yaklaşık 200 kelimelik bir metin ve 5 adet çoktan seçmeli Almanca soru.
 Bölüm 2 (Sprachbausteine): Yaklaşık 150 kelimelik, 5 boşluklu bir metin ve her boşluk için 3 Almanca seçenek.
-JSON formatı:
+JSON formati:
 {"lesen":{"text":"...","questions":[{"id":"l1","q":"...","options":["A","B","C"],"correct":0}]},"sprach":{"text":"... [1] ...","questions":[{"id":"s1","q":"[1]","options":["A","B","C"],"correct":0}]}}`;
       const parsed = safeJSONParse(await generateContent(aiSettings, prompt, "json"));
       if (parsed) {
@@ -391,7 +392,7 @@ function ConfirmModal({ isOpen, onClose, onConfirm, message }) {
             <Trash2 className="text-red-600" size={24} />
           </div>
           <h3 className="mb-2 text-lg font-bold text-gray-900">Silmek istiyor musunuz?</h3>
-          <p className="mb-6 text-sm text-gray-500">{message || "Bu işlem geri alınamaz."}</p>
+          <p className="mb-6 text-sm text-gray-500">{message || "Bu islem geri alinamaz."}</p>
           <div className="flex w-full gap-3">
             <button onClick={onClose} className="flex-1 rounded-xl bg-gray-100 py-2.5 font-bold text-gray-700 transition hover:bg-gray-200">Vazgeç</button>
             <button onClick={onConfirm} className="flex-1 rounded-xl bg-red-600 py-2.5 font-bold text-white transition hover:bg-red-700">Sil</button>
@@ -424,7 +425,7 @@ function SettingsModal({ isOpen, onClose, aiSettings, setAiSettings }) {
         <div className="mb-5 flex items-start justify-between">
           <div>
             <h2 className="text-2xl font-black text-slate-900">AI Ayarları</h2>
-            <p className="mt-1 text-sm text-slate-500">Gemini anahtarı diğer uygulamalarından otomatik alınabilir. Uygulama önce Gemini 3.1 Flash Lite Preview kullanır, yoğunluk olursa otomatik olarak hızlı bir yedek modele geçer.</p>
+            <p className="mt-1 text-sm text-slate-500">Uygulama önce Gemini 3.1 Flash Lite Preview kullanır. Yoğunluk olursa otomatik olarak hızlı bir yedek modele geçer.</p>
           </div>
           <button onClick={onClose} className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
             <X size={20} />
@@ -440,11 +441,11 @@ function SettingsModal({ isOpen, onClose, aiSettings, setAiSettings }) {
             <input value={FAST_MODEL_ID} disabled className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-600 outline-none" />
           </label>
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            Uygulama tüm verileri tarayıcıdaki localStorage içinde tutuyor. Gemini anahtarını istersen burada saklayabilir, istersen aynı alan adındaki diğer uygulamalardan otomatik kullanabilirsin.
+            Uygulama tüm verileri tarayıcıdaki localStorage içinde tutuyor. Gemini anahtarını burada saklayabilirsin.
           </div>
         </div>
         <div className="mt-6 flex gap-3">
-          <button onClick={onClose} className="flex-1 rounded-xl bg-slate-100 py-3 font-bold text-slate-700 transition hover:bg-slate-200">İptal</button>
+          <button onClick={onClose} className="flex-1 rounded-xl bg-slate-100 py-3 font-bold text-slate-700 transition hover:bg-slate-200">Iptal</button>
           <button onClick={save} className="flex-1 rounded-xl bg-indigo-600 py-3 font-bold text-white transition hover:bg-indigo-700">Kaydet</button>
         </div>
       </div>
@@ -465,7 +466,7 @@ function HighlightedText({ text, questions, title }) {
   return (
     <div className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
       <div className="flex items-center gap-2 border-b border-indigo-100 bg-indigo-50 p-4 font-bold text-indigo-900">
-        <BookOpen size={18} /> {title} - Metin Kaynağı
+        <BookOpen size={18} /> {title} - Metin Kaynagi
       </div>
       <div className="prose max-w-none whitespace-pre-line p-6 text-lg leading-relaxed text-gray-800" dangerouslySetInnerHTML={{ __html: highlighted }} />
     </div>
@@ -503,18 +504,18 @@ function UsernamePrompt({ user, onClose, onSave }) {
         <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-indigo-100">
           <User size={40} className="text-indigo-600" />
         </div>
-        <h2 className="mb-2 text-2xl font-bold text-gray-800">Arenaya Hoş Geldin</h2>
+        <h2 className="mb-2 text-2xl font-bold text-gray-800">Arenaya Hos Geldin</h2>
         <p className="mb-6 text-sm text-gray-500">Rakiplerinin seni tanıyabilmesi için bir kullanıcı adı belirle.</p>
         {storageIsBlocked && (
           <div className="mb-4 rounded-xl border border-red-100 bg-red-50 p-4 text-left text-xs text-red-600">
             <AlertCircle size={16} className="mb-1 mr-1 inline-block" />
-            Tarayıcı gizlilik ayarları yerel depolamayı engelliyor olabilir.
+            Tarayici gizlilik ayarlari yerel depolamayi engelliyor olabilir.
           </div>
         )}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <input type="text" value={name} onChange={(event) => setName(event.target.value)} placeholder="Kullanıcı Adı" maxLength={15} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-center text-lg font-bold outline-none focus:ring-2 focus:ring-indigo-500" />
+          <input type="text" value={name} onChange={(event) => setName(event.target.value)} placeholder="Kullanici Adi" maxLength={15} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-center text-lg font-bold outline-none focus:ring-2 focus:ring-indigo-500" />
           <button disabled={name.trim().length < 3 || loading} type="submit" className="w-full rounded-xl bg-indigo-600 py-4 font-bold text-white shadow-lg transition hover:bg-indigo-700 disabled:opacity-50">
-            {loading ? <Loader2 className="mx-auto animate-spin" /> : "Savaşa Katıl"}
+            {loading ? <Loader2 className="mx-auto animate-spin" /> : "Savasa Katil"}
           </button>
         </form>
       </div>
@@ -541,11 +542,11 @@ function EditUsernameModal({ user, currentName, onClose, onSave }) {
   return (
     <div className="absolute inset-0 z-[100] flex items-center justify-center rounded-3xl bg-slate-900/60 p-4 backdrop-blur-sm">
       <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl md:p-8">
-        <h2 className="mb-4 text-xl font-bold text-gray-800">İsmini Değiştir</h2>
+        <h2 className="mb-4 text-xl font-bold text-gray-800">Ismini Degistir</h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <input type="text" value={name} onChange={(event) => setName(event.target.value)} placeholder="Yeni Kullanıcı Adı" maxLength={15} autoFocus className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-center text-lg font-bold outline-none focus:ring-2 focus:ring-indigo-500" />
+          <input type="text" value={name} onChange={(event) => setName(event.target.value)} placeholder="Yeni Kullanici Adi" maxLength={15} autoFocus className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-center text-lg font-bold outline-none focus:ring-2 focus:ring-indigo-500" />
           <div className="flex gap-2">
-            <button type="button" onClick={onClose} className="flex-1 rounded-xl bg-gray-100 py-3 font-bold text-gray-700 transition hover:bg-gray-200">İptal</button>
+            <button type="button" onClick={onClose} className="flex-1 rounded-xl bg-gray-100 py-3 font-bold text-gray-700 transition hover:bg-gray-200">Iptal</button>
             <button disabled={name.trim().length < 3 || loading} type="submit" className="flex-1 rounded-xl bg-indigo-600 py-3 font-bold text-white transition hover:bg-indigo-700 disabled:opacity-50">
               {loading ? <Loader2 className="mx-auto animate-spin" /> : "Kaydet"}
             </button>
@@ -598,8 +599,8 @@ function Lobby({ user, dbProfile, onlineUsers, mySentInvite, pendingIncomingInvi
           {onlineUsers.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center p-6 text-center text-gray-400">
               <Target size={48} className="mb-4 opacity-50" />
-              <p>Şu an lobide senden başka kimse yok.</p>
-              <p className="mt-2 text-sm">Arkadaşınla farklı cihazlardan bağlanmayı deneyebilirsin.</p>
+              <p>Su an lobide senden baska kimse yok.</p>
+              <p className="mt-2 text-sm">Arkadasinla farkli cihazlardan baglanmayi deneyebilirsin.</p>
             </div>
           ) : (
             onlineUsers.map((onlineUser) => {
@@ -612,16 +613,16 @@ function Lobby({ user, dbProfile, onlineUsers, mySentInvite, pendingIncomingInvi
                     <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xl font-black text-indigo-700">{onlineUser.username.charAt(0).toUpperCase()}</div>
                     <div className="truncate">
                       <h3 className="truncate text-lg font-bold text-gray-800 transition-colors group-hover:text-indigo-600">
-                        {onlineUser.username} {isMyself && <span className="text-xs font-normal text-gray-400">(Diğer cihazın)</span>}
+                        {onlineUser.username} {isMyself && <span className="text-xs font-normal text-gray-400">(Diger cihazin)</span>}
                       </h3>
                       <div className="mt-1 flex items-center gap-2">
                         <div className="flex w-fit items-center gap-1 rounded-md bg-yellow-100 px-2 py-0.5 text-xs font-bold text-yellow-600"><Trophy size={12} /> {onlineUser.wins || 0} Zafer</div>
-                        <div className="rounded-md bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-500">Bana Karşı: <span className="text-green-600">{myWinsVSHim}G</span> - <span className="text-red-500">{myLossesVSHim}M</span></div>
+                        <div className="rounded-md bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-500">Bana Karsi: <span className="text-green-600">{myWinsVSHim}G</span> - <span className="text-red-500">{myLossesVSHim}M</span></div>
                       </div>
                     </div>
                   </div>
                   <button onClick={() => onSendInvite(onlineUser.connectionId)} disabled={Boolean(mySentInvite)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3 font-bold text-white shadow-md transition hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-2.5">
-                    <Swords size={18} /> Düelloya Davet Et
+                    <Swords size={18} /> DÃ¯Â¿Â½elloya Davet Et
                   </button>
                 </div>
               );
@@ -635,7 +636,7 @@ function Lobby({ user, dbProfile, onlineUsers, mySentInvite, pendingIncomingInvi
               <Loader2 className="animate-spin" size={20} />
               İstek gönderildi, rakibin onayı bekleniyor...
             </div>
-            <button onClick={onCancelInvite} className="w-full rounded-lg border border-red-100 bg-white px-4 py-2 font-bold text-red-500 transition hover:bg-red-50 sm:w-auto sm:border-none sm:bg-transparent">İptal Et</button>
+            <button onClick={onCancelInvite} className="w-full rounded-lg border border-red-100 bg-white px-4 py-2 font-bold text-red-500 transition hover:bg-red-50 sm:w-auto sm:border-none sm:bg-transparent">Iptal Et</button>
           </div>
         )}
       </div>
@@ -669,7 +670,7 @@ function GameSelection({ isHost, gameDoc, onGenerate }) {
     { id: "schreiben", title: "Yazma (Schreiben)", icon: PenTool, desc: "Yapay zeka konusuna gore en iyi metni kim yazacak?", color: "text-purple-600", bg: "bg-purple-100" },
     { id: "lesen_sprachbausteine", title: "Okuma & Gramer", icon: BookOpen, desc: "Okuma parcasi ve Sprachbausteine.", color: "text-blue-600", bg: "bg-blue-100" },
     { id: "fillblank", title: "Boşluk Doldurma", icon: Edit3, desc: "10 cümle. Tüm kelimeler şık olarak çıkar.", color: "text-green-600", bg: "bg-green-100" },
-    { id: "syllable", title: "Hece Oyunu", icon: Puzzle, desc: "Kelimelerin hecelerini yanıltıcılara kanmadan bul.", color: "text-orange-600", bg: "bg-orange-100" }
+    { id: "syllable", title: "Hece Oyunu", icon: Puzzle, desc: "Kelimelerin hecelerini yanilticilara kanmadan bul.", color: "text-orange-600", bg: "bg-orange-100" }
   ];
 
   return (
@@ -677,7 +678,7 @@ function GameSelection({ isHost, gameDoc, onGenerate }) {
       <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
         <div>
           <h2 className="mb-2 text-3xl font-black text-gray-900">Oyun Modunu Seç</h2>
-          <p className="text-sm text-gray-500 md:text-base">Oda sahibi olarak kuralları sen belirlersin.</p>
+          <p className="text-sm text-gray-500 md:text-base">Oda sahibi olarak kurallari sen belirlersin.</p>
         </div>
         <div className="flex w-full flex-col md:w-auto">
           <label className="mb-1 text-xs font-bold uppercase tracking-wider text-gray-500">Seviye (A1-C2)</label>
@@ -697,7 +698,7 @@ function GameSelection({ isHost, gameDoc, onGenerate }) {
           </button>
         ))}
       </div>
-      {loading && <div className="mt-6 text-center text-sm font-bold text-indigo-600 md:text-base">Yapay zeka {level} seviyesine uygun oyunu hazırlıyor...</div>}
+      {loading && <div className="mt-6 text-center text-sm font-bold text-indigo-600 md:text-base">Yapay zeka {level} seviyesine uygun oyunu hazirliyor...</div>}
     </div>
   );
 }
@@ -705,7 +706,7 @@ function GameSelection({ isHost, gameDoc, onGenerate }) {
 const GameGenerating = () => (
   <div className="flex min-h-[400px] h-full flex-col items-center justify-center text-center text-gray-500">
     <RefreshCw className="mb-6 h-16 w-16 animate-spin text-indigo-600" />
-    <h2 className="mb-2 text-2xl font-bold text-gray-800">Savaş Alanı Hazırlanıyor</h2>
+    <h2 className="mb-2 text-2xl font-bold text-gray-800">Savas Alani Hazirlaniyor</h2>
     <p>Yapay zeka seçilen seviyeye uygun yepyeni sorular üretiyor...</p>
   </div>
 );
@@ -717,8 +718,8 @@ const GameEvaluating = () => (
       <div className="h-4 w-4 animate-bounce rounded-full bg-purple-600" style={{ animationDelay: "0.1s" }} />
       <div className="h-4 w-4 animate-bounce rounded-full bg-pink-600" style={{ animationDelay: "0.2s" }} />
     </div>
-    <h2 className="mb-2 text-2xl font-bold text-gray-800">Cevaplar İnceleniyor</h2>
-    <p>Yapay zeka iki oyuncunun da performansını değerlendiriyor...</p>
+    <h2 className="mb-2 text-2xl font-bold text-gray-800">Cevaplar Inceleniyor</h2>
+    <p>Yapay zeka iki oyuncunun da performansini degerlendiriyor...</p>
   </div>
 );
 
@@ -800,7 +801,7 @@ function GameLesen({ gameDoc, connectionId, ProgressHeader }) {
             <div className="space-y-6 bg-slate-50 p-6">
               {gameDoc.gameData.sprach.questions.map((question) => (
                 <div key={question.id}>
-                  <p className="mb-3 font-bold text-slate-800">Boşluk {question.q}</p>
+                  <p className="mb-3 font-bold text-slate-800">Bosluk {question.q}</p>
                   <div className="flex flex-col flex-wrap gap-3 sm:flex-row">
                     {question.options.map((option, optionIndex) => (
                       <button key={option} onClick={() => setAnswers({ ...answers, [question.id]: optionIndex })} className={`rounded-lg border px-4 py-2 text-left transition-all sm:text-center ${answers[question.id] === optionIndex ? "border-indigo-600 bg-indigo-600 text-white shadow-md" : "bg-white text-slate-700 hover:bg-slate-100"}`}>{option}</button>
@@ -930,9 +931,9 @@ function GameSyllableArena({ gameDoc, connectionId, ProgressHeader }) {
           {selected.map((item) => (
             <button key={item.id} onClick={() => handleDeselect(item)} disabled={isSuccess || isFailed} className={`rounded-xl px-5 py-3 text-lg font-bold text-white shadow-md transition ${isSuccess ? "scale-105 bg-green-500" : isFailed ? "bg-red-500" : "bg-indigo-600 hover:bg-indigo-700"}`}>{item.text}</button>
           ))}
-          {selected.length === 0 && <span className="flex items-center text-sm text-slate-400">Heceleri buraya tıkla</span>}
+          {selected.length === 0 && <span className="flex items-center text-sm text-slate-400">Heceleri buraya tikla</span>}
         </div>
-        {isFailed && <div className="mb-4 animate-bounce font-bold text-red-600">Yanlış! Doğrusu: {currentQuestion.word}</div>}
+        {isFailed && <div className="mb-4 animate-bounce font-bold text-red-600">Yanlis! Dogrusu: {currentQuestion.word}</div>}
         <div className="flex w-full max-w-xl flex-wrap justify-center gap-4">
           {!isSuccess && !isFailed && syllables.map((item) => (
             <button key={item.id} onClick={() => handleSelect(item)} className="rounded-xl border-2 border-indigo-200 bg-white px-5 py-3 text-lg font-bold text-indigo-700 shadow-sm transition hover:border-indigo-400 hover:bg-indigo-50">{item.text}</button>
@@ -1003,7 +1004,7 @@ function GamePlayArea({ gameDoc, connectionId, isHost, opponentName, aiSettings 
   if (gameType === "schreiben") return <GameSchreiben gameDoc={gameDoc} connectionId={connectionId} ProgressHeader={() => <ProgressHeader total={1} title="Schreiben" />} />;
   if (gameType === "lesen_sprachbausteine") return <GameLesen gameDoc={gameDoc} connectionId={connectionId} ProgressHeader={() => <ProgressHeader total={10} title="Lesen & Gramer" />} />;
   if (gameType === "fillblank") return <GameFillBlankArena gameDoc={gameDoc} connectionId={connectionId} ProgressHeader={() => <ProgressHeader total={10} title="Boşluk Doldurma" />} />;
-  if (gameType === "syllable") return <GameSyllableArena gameDoc={gameDoc} connectionId={connectionId} ProgressHeader={() => <ProgressHeader total={5} title="Hece Birleştirme" />} />;
+  if (gameType === "syllable") return <GameSyllableArena gameDoc={gameDoc} connectionId={connectionId} ProgressHeader={() => <ProgressHeader total={5} title="Hece Birlestirme" />} />;
   return <div>Oyun bulunamadi.</div>;
 }
 
@@ -1029,7 +1030,7 @@ function GameResult({ gameDoc, user, connectionId, opponentConnectionId, onExit,
     const myTime = me.finishTime - gameDoc.startTime;
     const oppTime = opponent.finishTime - gameDoc.startTime;
     amIWinner = myTime <= oppTime;
-    winReason = amIWinner ? `Puanlar eşitti (${me.score}), ama sen daha hızlı bitirdin.` : `Puanlar eşitti (${me.score}), ama rakibin daha hızlı bitirdi.`;
+    winReason = amIWinner ? `Puanlar esitti (${me.score}), ama sen daha hizli bitirdin.` : `Puanlar esitti (${me.score}), ama rakibin daha hizli bitirdi.`;
   }
 
   useEffect(() => {
@@ -1060,7 +1061,7 @@ function GameResult({ gameDoc, user, connectionId, opponentConnectionId, onExit,
   return (
     <div className="flex w-full flex-col items-center justify-center p-6 text-center md:p-10">
       {amIWinner ? <Trophy size={80} className="mb-6 text-yellow-400 drop-shadow-2xl md:h-[100px] md:w-[100px]" /> : <XCircle size={80} className="mb-6 text-red-400 drop-shadow-2xl md:h-[100px] md:w-[100px]" />}
-      <h1 className={`mb-4 text-3xl font-black md:text-5xl ${amIWinner ? "text-indigo-600" : "text-slate-800"}`}>{amIWinner ? "ZAFER SENİN" : "KAYBETTİN"}</h1>
+      <h1 className={`mb-4 text-3xl font-black md:text-5xl ${amIWinner ? "text-indigo-600" : "text-slate-800"}`}>{amIWinner ? "ZAFER SENIN" : "KAYBETTIN"}</h1>
       <p className="mb-10 max-w-md text-base font-medium text-slate-500 md:text-xl">{winReason}</p>
       <div className="mb-10 grid w-full max-w-lg grid-cols-2 gap-4">
         <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-6">
@@ -1289,7 +1290,7 @@ function Header({ level, setLevel, toggleSidebar, onOpenSettings }) {
             {["A1", "A2", "B1", "B2", "C1", "C2"].map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
         </div>
-        <button onClick={onOpenSettings} className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" title="AI Ayarları"><Settings size={18} /></button>
+        <button onClick={onOpenSettings} className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" title="AI Ayarlari"><Settings size={18} /></button>
       </div>
     </header>
   );
@@ -1396,7 +1397,88 @@ function WordCard({ word, onUnknown, onKnown, isUnknownList }) {
         </div>
         {isUnknownList ? <AlertCircle size={16} className="text-red-500" /> : <ChevronDown size={16} className={`text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`} />}
       </div>
-      {expanded && <div className="mt-2 border-t border-gray-100 px-4 pb-4 pt-0"><div className="mt-2"><p className="font-medium text-gray-800">{word.meaning}</p><div className="mt-2 rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm text-gray-700"><span className="italic">"{word.example}"</span><br /><span className="mt-1 block text-xs text-gray-500">{word.translation}</span></div></div><div className="mt-4 flex gap-3">{isUnknownList ? <button onClick={(event) => { event.stopPropagation(); onKnown(); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-500 py-2 text-sm font-bold text-white"><CheckCircle size={16} /> Artık Biliyorum</button> : <><button onClick={(event) => { event.stopPropagation(); onKnown(); }} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-green-200 bg-green-50 py-2.5 text-sm font-bold text-green-700"><CheckCircle size={16} /> Biliyorum</button><button onClick={(event) => { event.stopPropagation(); onUnknown(); }} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-2.5 text-sm font-bold text-red-700"><XCircle size={16} /> Bilmiyorum</button></>}</div></div>}
+      {expanded && <div className="mt-2 border-t border-gray-100 px-4 pb-4 pt-0"><div className="mt-2"><p className="font-medium text-gray-800">{word.meaning}</p><div className="mt-2 rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm text-gray-700"><span className="italic">"{word.example}"</span><br /><span className="mt-1 block text-xs text-gray-500">{word.translation}</span></div></div><div className="mt-4 flex gap-3">{isUnknownList ? <button onClick={(event) => { event.stopPropagation(); onKnown(); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-500 py-2 text-sm font-bold text-white"><CheckCircle size={16} /> Artik Biliyorum</button> : <><button onClick={(event) => { event.stopPropagation(); onKnown(); }} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-green-200 bg-green-50 py-2.5 text-sm font-bold text-green-700"><CheckCircle size={16} /> Biliyorum</button><button onClick={(event) => { event.stopPropagation(); onUnknown(); }} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-2.5 text-sm font-bold text-red-700"><XCircle size={16} /> Bilmiyorum</button></>}</div></div>}
+    </div>
+  );
+}
+
+function HistoryBatchCard({ batch, onAddUnknown }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <button onClick={() => setExpanded((prev) => !prev)} className="flex w-full items-center justify-between text-left">
+        <div className="flex items-center gap-3">
+          <Calendar size={16} className="text-indigo-500" />
+          <span className="text-sm font-bold text-gray-700">{new Date(batch.date).toLocaleString("tr-TR")}</span>
+          <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600">{batch.level}</span>
+          <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-600">{(batch.words || []).length} kelime</span>
+        </div>
+        <ChevronDown size={16} className={`text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`} />
+      </button>
+      {expanded && <div className="mt-4 space-y-2 border-t border-gray-100 pt-4">{(batch.words || []).map((word, index) => <div key={`${batch.id}-${word.word}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"><div className="min-w-0 text-sm text-gray-700"><span className="mr-2 font-bold text-gray-900">{word.article} {word.word}</span>{word.meaning}</div><button onClick={() => onAddUnknown(word)} className="shrink-0 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-50">Bilinmeyenlere Ekle</button></div>)}</div>}
+    </div>
+  );
+}
+
+function UnknownWordQuiz({ words, onClose, onMarkKnown }) {
+  const [items, setItems] = useState(() => [...words].sort(() => Math.random() - 0.5).slice(0, Math.min(10, words.length)));
+  const [index, setIndex] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [score, setScore] = useState(0);
+
+  if (items.length === 0) return null;
+  if (index >= items.length) {
+    return (
+      <div className="rounded-3xl border border-gray-200 bg-white p-8 text-center shadow-xl">
+        <Award size={56} className="mx-auto mb-4 text-yellow-500" />
+        <h3 className="text-2xl font-bold text-gray-800">Oyun Tamamlandı</h3>
+        <p className="mt-2 text-gray-500">Skorun: {score} / {items.length}</p>
+        <button onClick={onClose} className="mt-6 rounded-xl bg-indigo-600 px-6 py-3 font-bold text-white">Geri Dön</button>
+      </div>
+    );
+  }
+
+  const current = items[index];
+  const options = [...new Set([current, ...items.filter((item) => normalizeWordKey(item.word) !== normalizeWordKey(current.word)).sort(() => Math.random() - 0.5).slice(0, 3)])].sort(() => Math.random() - 0.5);
+
+  const choose = (word) => {
+    if (selected) return;
+    const isCorrect = normalizeWordKey(word.word) === normalizeWordKey(current.word);
+    setSelected(word.word);
+    if (isCorrect) setScore((prev) => prev + 1);
+    window.setTimeout(() => {
+      setSelected(null);
+      setIndex((prev) => prev + 1);
+    }, 900);
+  };
+
+  return (
+    <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-xl">
+      <div className="mb-6 flex items-center justify-between">
+        <h3 className="text-2xl font-bold text-gray-800">Bilinmeyen Kelime Oyunu</h3>
+        <button onClick={onClose} className="rounded-xl p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700"><X size={20} /></button>
+      </div>
+      <p className="mb-2 text-sm font-bold uppercase tracking-wide text-indigo-500">Türkçe anlam</p>
+      <div className="mb-8 rounded-2xl bg-indigo-50 p-6 text-center text-2xl font-black text-indigo-700">{current.meaning}</div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {options.map((option) => {
+          const isCorrect = normalizeWordKey(option.word) === normalizeWordKey(current.word);
+          const isPicked = selected === option.word;
+          return (
+            <button key={option.word} onClick={() => choose(option)} className={`rounded-xl border px-4 py-3 text-left font-bold transition ${selected ? isCorrect ? "border-green-500 bg-green-50 text-green-700" : isPicked ? "border-red-500 bg-red-50 text-red-700" : "border-gray-200 bg-white text-gray-400" : "border-gray-200 bg-white text-gray-700 hover:border-indigo-400 hover:bg-indigo-50"}`}>
+              {option.article} {option.word}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-6 flex items-center justify-between text-sm text-gray-500">
+        <span>Soru {index + 1} / {items.length}</span>
+        <span>Skor: {score}</span>
+      </div>
+      <div className="mt-6 rounded-2xl border border-gray-100 bg-gray-50 p-4">
+        <p className="text-sm text-gray-600">İstersen bu kelimeyi öğrendiğinde listeden çıkarabilirsin.</p>
+        <button onClick={() => onMarkKnown(current.firestoreId)} className="mt-3 rounded-xl bg-green-500 px-4 py-2 text-sm font-bold text-white">Bu Kelimeyi Artık Biliyorum</button>
+      </div>
     </div>
   );
 }
@@ -1409,13 +1491,18 @@ function VocabTrainer({ level, user, aiSettings }) {
   const [unknowns, setUnknowns] = useState([]);
   const [arenaMode, setArenaMode] = useState(false);
   const [error, setError] = useState("");
+  const [unknownGameOpen, setUnknownGameOpen] = useState(false);
 
   useEffect(() => {
     if (!db || !user) return undefined;
     const historyCol = collection(db, "artifacts", appId, "users", user.uid, "vocab_history");
     const unknownsCol = collection(db, "artifacts", appId, "users", user.uid, "vocab_unknowns");
-    const unsubHistory = onSnapshot(historyCol, (snap) => setHistory(snap.docs.map((item) => ({ id: item.id, ...item.data() }))));
-    const unsubUnknowns = onSnapshot(unknownsCol, (snap) => setUnknowns(snap.docs.map((item) => ({ firestoreId: item.id, ...item.data() }))));
+    const unsubHistory = onSnapshot(historyCol, (snap) => {
+      setHistory(snap.docs.map((item) => ({ id: item.id, ...item.data() })).sort((a, b) => new Date(b.date) - new Date(a.date)));
+    });
+    const unsubUnknowns = onSnapshot(unknownsCol, (snap) => {
+      setUnknowns(snap.docs.map((item) => ({ firestoreId: item.id, ...item.data() })));
+    });
     return () => { unsubHistory(); unsubUnknowns(); };
   }, [user]);
 
@@ -1423,12 +1510,27 @@ function VocabTrainer({ level, user, aiSettings }) {
     setLoading(true);
     setError("");
     try {
-      const prompt = `Generate a JSON array of 5 distinct German vocabulary words for TELC Level ${level}. Format: [{"word":"GermanWord","article":"der/die/das","meaning":"TurkishMeaning","example":"GermanSentence","translation":"TurkishTranslationOfSentence"}]`;
+      const usedWords = new Set([
+        ...history.flatMap((batch) => (batch.words || []).map((word) => normalizeWordKey(word.word))),
+        ...currentBatch.map((word) => normalizeWordKey(word.word)),
+        ...unknowns.map((word) => normalizeWordKey(word.word))
+      ]);
+      const blockedWords = Array.from(usedWords).filter(Boolean);
+      const prompt = `Generate a JSON array of exactly 5 distinct German vocabulary words for TELC Level ${level}.
+The words must be useful for exam study and must be completely different from all previously generated words.
+Never use any of these words again: ${blockedWords.join(", ") || "none"}.
+Format: [{"word":"GermanWord","article":"der/die/das","meaning":"TurkishMeaning","example":"GermanSentence","translation":"TurkishTranslationOfSentence"}]`;
       const data = safeJSONParse(await generateContent(aiSettings, prompt, "json"));
-      if (Array.isArray(data)) {
-        setCurrentBatch(data);
-        if (db && user) await addDoc(collection(db, "artifacts", appId, "users", user.uid, "vocab_history"), { date: new Date().toISOString(), level, words: data });
-      } else throw new Error("Kelime paketi oluşturulamadı.");
+      const filteredData = Array.isArray(data) ? data.filter((word) => !usedWords.has(normalizeWordKey(word.word))) : [];
+      if (filteredData.length !== 5) throw new Error("Yapay zeka tekrar eden kelimeler üretti. Lütfen yeniden dene.");
+      setCurrentBatch(filteredData);
+      if (db && user) {
+        await addDoc(collection(db, "artifacts", appId, "users", user.uid, "vocab_history"), {
+          date: new Date().toISOString(),
+          level,
+          words: filteredData
+        });
+      }
     } catch (requestError) {
       setError(requestError.message || "Kelime paketi oluşturulamadı.");
     } finally {
@@ -1437,11 +1539,28 @@ function VocabTrainer({ level, user, aiSettings }) {
   };
 
   const markAsUnknown = async (word) => {
-    if (db && user) await addDoc(collection(db, "artifacts", appId, "users", user.uid, "vocab_unknowns"), word);
+    const exists = unknowns.some((item) => normalizeWordKey(item.word) === normalizeWordKey(word.word));
+    if (!exists && db && user) {
+      await addDoc(collection(db, "artifacts", appId, "users", user.uid, "vocab_unknowns"), word);
+    }
     setCurrentBatch((prev) => prev.filter((item) => item.word !== word.word));
   };
 
+  const addHistoryWordToUnknowns = async (word) => {
+    const exists = unknowns.some((item) => normalizeWordKey(item.word) === normalizeWordKey(word.word));
+    if (!exists && db && user) {
+      await addDoc(collection(db, "artifacts", appId, "users", user.uid, "vocab_unknowns"), word);
+    }
+  };
+
+  const removeUnknownWord = async (firestoreId) => {
+    if (db && user && firestoreId) {
+      await deleteDoc(doc(db, "artifacts", appId, "users", user.uid, "vocab_unknowns", firestoreId));
+    }
+  };
+
   if (arenaMode) return <TELCArena user={user} onClose={() => setArenaMode(false)} aiSettings={aiSettings} />;
+  if (unknownGameOpen) return <UnknownWordQuiz words={unknowns} onClose={() => setUnknownGameOpen(false)} onMarkKnown={removeUnknownWord} />;
 
   return (
     <div className="mx-auto max-w-4xl py-4">
@@ -1457,14 +1576,29 @@ function VocabTrainer({ level, user, aiSettings }) {
         </div>
       </div>
       {!!error && <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-      {tab === "new" && <div className="space-y-4">{currentBatch.length === 0 && !loading ? <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-20 text-center text-gray-500">Açık paket yok.</div> : currentBatch.map((word, index) => <WordCard key={`${word.word}-${index}`} word={word} onUnknown={() => markAsUnknown(word)} onKnown={() => setCurrentBatch((prev) => prev.filter((item) => item.word !== word.word))} isUnknownList={false} />)}</div>}
-      {tab === "history" && <div className="space-y-4">{history.map((batch) => <div key={batch.id} className="rounded-xl border border-gray-200 bg-white p-4"><div className="mb-2 flex items-center gap-3"><Calendar size={16} className="text-indigo-500" /><span className="text-sm font-bold text-gray-700">{new Date(batch.date).toLocaleString("tr-TR")}</span><span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600">{batch.level}</span></div>{(batch.words || []).map((word, index) => <div key={`${word.word}-${index}`} className="py-1 text-sm text-gray-700"><span className="mr-2 font-bold">{word.word}</span>{word.meaning}</div>)}</div>)}</div>}
-      {tab === "unknowns" && <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{unknowns.length === 0 ? <div className="col-span-2 py-20 text-center text-gray-500">Tebrikler! Bilinmeyen kelime eklemedin.</div> : unknowns.map((word) => <WordCard key={word.firestoreId} word={word} onKnown={() => db && user && deleteDoc(doc(db, "artifacts", appId, "users", user.uid, "vocab_unknowns", word.firestoreId))} isUnknownList />)}</div>}
+      {tab === "new" && (
+        <div className="space-y-4">
+          {currentBatch.length === 0 && !loading
+            ? <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-20 text-center text-gray-500">Açık paket yok.</div>
+            : currentBatch.map((word, index) => <WordCard key={`${word.word}-${index}`} word={word} onUnknown={() => markAsUnknown(word)} onKnown={() => setCurrentBatch((prev) => prev.filter((item) => item.word !== word.word))} isUnknownList={false} />)}
+        </div>
+      )}
+      {tab === "history" && <div className="space-y-4">{history.map((batch) => <HistoryBatchCard key={batch.id} batch={batch} onAddUnknown={addHistoryWordToUnknowns} />)}</div>}
+      {tab === "unknowns" && (
+        <div className="space-y-6">
+          {unknowns.length > 0 && <div className="flex justify-end"><button onClick={() => setUnknownGameOpen(true)} className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white">Bilinmeyen Kelime Oyunu</button></div>}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {unknowns.length === 0
+              ? <div className="col-span-2 py-20 text-center text-gray-500">Tebrikler! Bilinmeyen kelime eklemedin.</div>
+              : unknowns.map((word) => <WordCard key={word.firestoreId} word={word} onKnown={() => removeUnknownWord(word.firestoreId)} isUnknownList />)}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function ExamSimulator({ level, aiSettings }) {
+function ExamSimulator({ level, aiSettings, user }) {
   const [mode, setMode] = useState("menu");
   const [loading, setLoading] = useState(false);
   const [examData, setExamData] = useState(null);
@@ -1472,6 +1606,25 @@ function ExamSimulator({ level, aiSettings }) {
   const [answers, setAnswers] = useState({});
   const [feedback, setFeedback] = useState(null);
   const [error, setError] = useState("");
+  const [historyList, setHistoryList] = useState([]);
+
+  useEffect(() => {
+    if (!db || !user) return undefined;
+    const historyCol = collection(db, "artifacts", appId, "users", user.uid, "exam_history");
+    const unsubscribe = onSnapshot(historyCol, (snap) => {
+      setHistoryList(snap.docs.map((item) => ({ id: item.id, ...item.data() })).sort((a, b) => new Date(b.date) - new Date(a.date)));
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  const saveExamHistory = async (payload) => {
+    if (!db || !user) return;
+    await addDoc(collection(db, "artifacts", appId, "users", user.uid, "exam_history"), {
+      ...payload,
+      level,
+      date: new Date().toISOString()
+    });
+  };
 
   const startReading = async (type) => {
     setLoading(true);
@@ -1516,8 +1669,24 @@ function ExamSimulator({ level, aiSettings }) {
     setLoading(true);
     setError("");
     try {
-      const html = await generateContent(aiSettings, `Evaluate TELC ${level} writing. Task: ${JSON.stringify(examData)} User text: "${userAnswer}". Return HTML in Turkish.`);
-      setFeedback({ html });
+      const html = await generateContent(aiSettings, `Sen katı ama öğretici bir TELC değerlendiricisisin.
+Seviye: ${level}
+Görev: ${JSON.stringify(examData)}
+Kullanıcının metni: "${userAnswer}"
+
+Türkçe geri bildirim ver ve sonunda göreve uygun örnek bir Almanca metin yaz.
+Yalnızca HTML dön.
+Zorunlu yapı:
+<div class="space-y-4">
+  <div><strong>Puan:</strong> X/100</div>
+  <div><strong>Güçlü Yönler:</strong> ...</div>
+  <div><strong>Hatalar ve Düzeltmeler:</strong> ...</div>
+  <div><strong>Geliştirme Tavsiyesi:</strong> ...</div>
+  <div><strong>Örnek Metin:</strong><div>...</div></div>
+</div>`);
+      const nextFeedback = { html };
+      setFeedback(nextFeedback);
+      await saveExamHistory({ type: "schreiben", examData, userAnswer, feedback: nextFeedback });
     } catch (requestError) {
       setError(requestError.message || "Yazı değerlendirilemedi.");
     } finally {
@@ -1527,8 +1696,24 @@ function ExamSimulator({ level, aiSettings }) {
 
   const finishReading = () => {
     const allQuestions = examData?.teil1 ? [...examData.teil1.questions, ...examData.teil2.questions] : examData?.questions || [];
-    const results = allQuestions.map((question, index) => ({ ...question, userIdx: answers[question.id], isCorrect: answers[question.id] === question.correct, displayNum: index + 1 }));
-    setFeedback({ score: results.filter((item) => item.isCorrect).length, total: results.length, results });
+    const results = allQuestions.map((question, index) => ({
+      ...question,
+      userIdx: answers[question.id],
+      isCorrect: answers[question.id] === question.correct,
+      displayNum: index + 1
+    }));
+    const nextFeedback = { score: results.filter((item) => item.isCorrect).length, total: results.length, results };
+    setFeedback(nextFeedback);
+    saveExamHistory({ type: mode, examData, answers, feedback: nextFeedback }).catch(() => {});
+  };
+
+  const loadHistoryItem = (item) => {
+    setMode(item.type || "menu");
+    setExamData(item.examData || null);
+    setUserAnswer(item.userAnswer || "");
+    setAnswers(item.answers || {});
+    setFeedback(item.feedback || null);
+    setError("");
   };
 
   if (loading) return <div className="flex h-96 flex-col items-center justify-center"><Loader2 className="mb-4 h-12 w-12 animate-spin text-indigo-600" /><p className="text-gray-500">Sınav hazırlanıyor...</p></div>;
@@ -1545,6 +1730,10 @@ function ExamSimulator({ level, aiSettings }) {
               <p className="mt-2 text-sm text-gray-500">TELC formatında pratik yap.</p>
             </button>
           ))}
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800"><History size={20} /> Geçmiş Sınavlar</div>
+          {historyList.length === 0 ? <p className="text-sm text-gray-500">Henüz kayıtlı sınav yok.</p> : <div className="space-y-3">{historyList.map((item) => <button key={item.id} onClick={() => loadHistoryItem(item)} className="flex w-full items-center justify-between rounded-xl border border-gray-100 px-4 py-3 text-left transition hover:border-indigo-200 hover:bg-indigo-50"><div><div className="font-bold text-gray-800">{item.type === "schreiben" ? "Schreiben" : item.type === "lesen" ? "Lesen" : "Sprachbausteine"}</div><div className="text-xs text-gray-500">{new Date(item.date).toLocaleString("tr-TR")} • {item.level}</div></div><span className="text-xs font-bold text-indigo-600">Aç</span></button>)}</div>}
         </div>
       </div>
     );
@@ -1587,7 +1776,6 @@ function ExamSimulator({ level, aiSettings }) {
     </div>
   );
 }
-
 function AICoach({ level, initialPrompt, onClearPrompt, aiSettings }) {
   const [messages, setMessages] = useState([{ role: "ai", text: `Merhaba! TELC ${level} sınavı için kişisel asistanınım.` }]);
   const [input, setInput] = useState("");
@@ -1619,7 +1807,7 @@ function StrategySection() {
 }
 
 function MissingSetup({ aiSettings, onOpenSettings }) {
-  return <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center p-6"><div className="w-full rounded-3xl border border-amber-200 bg-white p-8 shadow-xl"><div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700"><AlertCircle size={32} /></div><h1 className="mb-3 text-3xl font-black text-slate-900">Kurulum Eksik</h1><p className="mb-6 text-slate-600">Uygulama localStorage ile çalışıyor. Aynı alan adındaki diğer uygulamalarda kayıtlı bir Gemini anahtarı bulunamazsa burada eklemen gerekiyor.</p><div className="space-y-3 rounded-2xl bg-slate-50 p-5 text-sm text-slate-700"><p className="text-green-600">Veri kaydı: localStorage hazır.</p><p className={!aiSettings.geminiApiKey ? "font-bold text-red-600" : "text-green-600"}>{!aiSettings.geminiApiKey ? "Gemini API key eksik." : "Gemini API key hazır."}</p><p>Birincil model Gemini 3.1 Flash Lite Preview'dur; yoğunlukta otomatik olarak hızlı yedek modele geçilir.</p></div><div className="mt-6 flex gap-3"><button onClick={onOpenSettings} className="rounded-xl bg-indigo-600 px-6 py-3 font-bold text-white">AI Ayarlarını Aç</button></div></div></div>;
+  return <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center p-6"><div className="w-full rounded-3xl border border-amber-200 bg-white p-8 shadow-xl"><div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700"><AlertCircle size={32} /></div><h1 className="mb-3 text-3xl font-black text-slate-900">Kurulum Eksik</h1><p className="mb-6 text-slate-600">Uygulama localStorage ile çalışıyor. Gemini anahtarını burada eklemen gerekiyor.</p><div className="space-y-3 rounded-2xl bg-slate-50 p-5 text-sm text-slate-700"><p className="text-green-600">Veri kaydı: localStorage hazır.</p><p className={!aiSettings.geminiApiKey ? "font-bold text-red-600" : "text-green-600"}>{!aiSettings.geminiApiKey ? "Gemini API key eksik." : "Gemini API key hazır."}</p><p>Birincil model Gemini 3.1 Flash Lite Preview'dur; yoğunlukta otomatik olarak hızlı yedek modele geçilir.</p></div><div className="mt-6 flex gap-3"><button onClick={onOpenSettings} className="rounded-xl bg-indigo-600 px-6 py-3 font-bold text-white">AI Ayarlarını Aç</button></div></div></div>;
 }
 
 export default function TELCMasterApp() {
@@ -1663,7 +1851,7 @@ export default function TELCMasterApp() {
     if (!user) return <div className="flex h-full items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-indigo-600" /></div>;
     if (activeTab === "dashboard") return <Dashboard level={level} onExecutePlan={handleExecutePlan} user={user} aiSettings={aiSettings} />;
     if (activeTab === "vocab") return <VocabTrainer level={level} user={user} aiSettings={aiSettings} />;
-    if (activeTab === "exam") return <ExamSimulator level={level} aiSettings={aiSettings} />;
+    if (activeTab === "exam") return <ExamSimulator level={level} aiSettings={aiSettings} user={user} />;
     if (activeTab === "tutor") return <AICoach level={level} initialPrompt={autoCoachPrompt} onClearPrompt={() => setAutoCoachPrompt(null)} aiSettings={aiSettings} />;
     return <StrategySection />;
   };
@@ -1679,3 +1867,5 @@ export default function TELCMasterApp() {
     </div>
   );
 }
+
+
