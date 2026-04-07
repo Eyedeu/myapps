@@ -1,0 +1,12 @@
+node_modules/
+npm-debug.log*
+
+# Local tooling caches
+.vite/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+
+# Generated source data
+app/src/generated/apps.json
