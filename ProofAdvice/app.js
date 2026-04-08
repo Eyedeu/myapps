@@ -1,200 +1,70 @@
-const STORAGE_KEY = 'certirehber-profile';
-const elements = {
-  sector: document.getElementById('sector'),
-  employees: document.getElementById('employees'),
-  stage: document.getElementById('stage'),
-  personalData: document.getElementById('personalData'),
-  regionsContainer: document.getElementById('regions-container'),
-  findButton: document.getElementById('find-button'),
-  resetButton: document.getElementById('reset-button'),
-  summaryGrid: document.getElementById('summary-grid'),
-  resultContent: document.getElementById('result-content'),
-  nextActions: document.getElementById('next-actions'),
-  statsGrid: document.getElementById('stats-grid'),
-  journeyGrid: document.getElementById('journey-grid'),
-  certificateGrid: document.getElementById('certificate-grid'),
-  playbookGrid: document.getElementById('playbook-grid'),
-  resourceGrid: document.getElementById('resource-grid'),
-  faqGrid: document.getElementById('faq-grid'),
-  savedStatus: document.getElementById('saved-status'),
-  footerDisclaimer: document.getElementById('footer-disclaimer'),
-  footerMeta: document.getElementById('footer-meta'),
-  contactForm: document.getElementById('contact-form')
+﻿const STORAGE_KEY = 'certirehber-profile';
+const LANGUAGE_KEY = 'certirehber-language';
+const LANGUAGES = ['en', 'tr', 'es', 'de', 'fr', 'pt', 'zh', 'ar'];
+const RTL_LANGUAGES = ['ar'];
+
+const translations = {
+  en: {
+    brandTag: 'Corporate Compliance Assistant', navAssessment: 'Assessment', navJourney: 'Roadmap', navCertificates: 'Certificates', navPlaybooks: 'Playbooks', navResources: 'Resources', navFaq: 'FAQ', navContact: 'Get a Quote', languageLabel: 'Language', startButton: 'Start Assessment', heroBadge: 'Certification and compliance roadmap by target market', heroTitle: 'Find the right certification set based on where you want to sell.', heroDescription: 'CertiRehber helps companies discover mandatory and recommended certifications based on sector, team size, growth stage, personal-data processing, and target markets.', heroPrimaryCta: 'Start Now', heroSecondaryCta: 'Explore Resources', sampleOutput: 'Sample Output', sampleTitle: 'Market-Based Compliance Snapshot', sampleTag: 'Live scorecard', sampleDescription: 'Compare regulatory obligations and strategic standards for Turkey, Europe, the US, China, and global growth on one screen.', sampleRegional: 'Regional regulations', sampleGlobal: 'Global standards', heroStatMarkets: 'Target markets', heroStatObligation: 'Mandatory / recommended', heroStatTopics: 'Compliance topics', assessmentBadge: 'Smart Assessment', assessmentTitle: 'Build a certification roadmap based on your company profile and target markets.', assessmentDescription: 'Your sector, company stage, and sales regions directly influence which certifications are legally required and which ones strengthen growth.', fieldSector: '1. Sector', fieldEmployees: '2. Employee range', fieldStage: '3. Business stage', fieldPersonalData: '4. Do you process personal data?', fieldRegions: '5. Which markets are you selling into? (Target markets)', findButton: 'Show Results', resetButton: 'Reset', reportTitle: 'Report area', reportDescription: 'Mandatory and recommended certifications based on your selected profile will appear here.', savedWaiting: 'Waiting for local save', journeyBadge: 'Roadmap', journeyTitle: 'Move from confusion to a clear certification plan.', journeySide: 'From first assessment to audit preparation', catalogBadge: 'Certificate Library', catalogTitle: 'Popular certifications and market-specific obligations', catalogDescription: 'These cards are fed from the data source and can be refreshed automatically by GitHub Actions.', playbookBadge: 'Sector Playbooks', playbookTitle: 'Suggested paths for growth and export scenarios', playbookDescription: 'Different sectors need different combinations of legal compliance and strategic standards.', resourcesBadge: 'Resources', resourcesTitle: 'Useful content that helps teams decide faster', resourcesDescription: 'This section can later grow into landing pages, SEO content, templates, and downloadable checklists.', faqBadge: 'FAQ', faqTitle: 'Frequently asked questions', supportBadge: 'Professional Support', supportTitle: 'Accelerate your certification preparation with expert support.', supportDescription: 'This form works in demo mode for now. It can later be connected to CRM, email, or lead collection services.', supportPoint1: 'Pre-assessment and roadmap', supportPoint2: 'Consultant and certification-body matching', supportPoint3: 'Technical file and process preparation support', contactName: 'Full name', contactEmail: 'Email', contactCompany: 'Company', contactPhone: 'Phone', contactNeed: 'What do you need support with?', contactSubmit: 'Send Quote Request', yes: 'Yes', no: 'No', selectOption: 'Select an option', sectorPlaceholder: 'Choose your sector', employeePlaceholder: 'Choose employee range', stagePlaceholder: 'Choose business stage', mandatoryTitle: 'Mandatory certificates', mandatoryDescription: 'Items that are typically required due to law, product conformity, or target-market regulation.', recommendedTitle: 'Recommended certificates', recommendedDescription: 'Items that strengthen trust, process maturity, growth readiness, and enterprise sales.', emptyMandatory: 'No directly mandatory item appears for this profile. Official confirmation is still recommended.', emptyRecommended: 'No additional recommended item appears for this profile. Try a broader market or sector scenario.', fillFieldsTitle: 'Fill in all fields to generate the assessment', fillFieldsDescription: 'Choose your sector, employee range, business stage, personal-data status, and at least one target market.', summaryProfile: 'Company profile', summaryData: 'Data processing', summaryMarkets: 'Target markets', localUpdated: 'Local save updated', localLoaded: 'Local save loaded', localReset: 'Local save cleared', loadError: 'Data loading error', demoAlert: 'Your request was captured in demo mode. In the live version, this form can be connected to a CRM or lead system.', actions1: '1. Prioritize the first move', actions2: '2. Build the preparation package', actions3: '3. Choose the support model', action1Fallback: 'If nothing appears as mandatory, prioritize the items that best support customer trust and growth.', action2Yes: 'Plan privacy notices, data inventory, policies, contract clauses, and retention workflows.', action2No: 'Plan process documentation, responsibilities, risk analysis, and internal-audit readiness.', action3: 'If you are entering more than one market, expert coordination can save time and reduce rework.', globalDetail: 'If Global is selected, globally relevant standards and region-specific requirements are evaluated together.', regionHint: 'Use this to include globally relevant standards and region-specific obligations together.', regionHintNormal: 'Certificates and obligations relevant to this market are included in the filter.', obligationMandatory: 'Mandatory', obligationRecommended: 'Recommended', durationLabel: 'Timeline', costLabel: 'Cost', sourceLabel: 'Authority', trackedTopics: 'Tracked compliance topics', sectorScenarios: 'Sector scenarios', marketRegions: 'Market regions', assessmentSpeed: 'Assessment speed'
+  },
+  tr: {
+    brandTag: 'Kurumsal Uyum Asistanı', navAssessment: 'Değerlendirme', navJourney: 'Yol Haritası', navCertificates: 'Belgeler', navPlaybooks: 'Rehberler', navResources: 'Kaynaklar', navFaq: 'SSS', navContact: 'Teklif Al', languageLabel: 'Dil', startButton: 'Analizi Başlat', heroBadge: 'Hedef pazara göre sertifika ve uyum yol haritası', heroTitle: 'Satış yapacağınız pazara göre doğru belge setini bulun.', heroDescription: 'CertiRehber; sektör, ekip büyüklüğü, firma aşaması, veri işleme yapısı ve hedef pazarlarınıza göre zorunlu ve tavsiye edilen belgeleri gösterir.', heroPrimaryCta: 'Hemen Başla', heroSecondaryCta: 'Kaynakları İncele', sampleOutput: 'Örnek Çıktı', sampleTitle: 'Pazar Bazlı Uyum Özeti', sampleTag: 'Canlı skor kartı', sampleDescription: 'Türkiye, Avrupa, ABD, Çin ve global açılım için gerekli yükümlülükleri aynı ekranda görün.', sampleRegional: 'Bölgesel regülasyonlar', sampleGlobal: 'Global standartlar', heroStatMarkets: 'Hedef pazar', heroStatObligation: 'Zorunlu / tavsiye', heroStatTopics: 'Uyum başlığı', assessmentBadge: 'Akıllı Değerlendirme', assessmentTitle: 'Şirket profilinize ve hedef pazarlarınıza göre belge yol haritası oluşturun.', assessmentDescription: 'Sektörünüz, firma aşamanız ve açılacağınız bölgeler gerekli belge setini doğrudan etkiler.', fieldSector: '1. Sektör', fieldEmployees: '2. Çalışan sayısı', fieldStage: '3. Firma aşaması', fieldPersonalData: '4. Kişisel veri işliyor musunuz?', fieldRegions: '5. Hangi pazarlara satış yapıyorsunuz? (Hedef pazarlarınız)', findButton: 'Sonuçları Gör', resetButton: 'Temizle', reportTitle: 'Rapor alanı', reportDescription: 'Seçtiğiniz profile göre zorunlu ve tavsiye edilen belgeler burada gösterilir.', savedWaiting: 'Yerel kayıt bekleniyor', journeyBadge: 'Yol Haritası', journeyTitle: 'Belirsizlikten net bir sertifikasyon planına ilerleyin.', journeySide: 'İlk değerlendirmeden denetim hazırlığına kadar', catalogBadge: 'Belge Kataloğu', catalogTitle: 'Popüler sertifikalar ve pazar bazlı gereksinimler', catalogDescription: 'Bu kartlar veri kaynağından beslenir ve GitHub Actions ile otomatik güncellenebilir.', playbookBadge: 'Sektör Rehberleri', playbookTitle: 'Büyüme ve ihracat için önerilen senaryolar', playbookDescription: 'Her sektör aynı uyum kombinasyonuna ihtiyaç duymaz.', resourcesBadge: 'Kaynaklar', resourcesTitle: 'Kararı hızlandıran faydalı içerikler', resourcesDescription: 'Bu alan ileride landing page, SEO içerikleri ve indirilebilir şablonlarla büyüyebilir.', faqBadge: 'SSS', faqTitle: 'Sık sorulan sorular', supportBadge: 'Profesyonel Destek', supportTitle: 'Belgelendirme hazırlığını uzman desteğiyle hızlandırın.', supportDescription: 'Bu form şu an demo modundadır. Daha sonra CRM veya lead sistemine bağlanabilir.', supportPoint1: 'Ön analiz ve yol haritası', supportPoint2: 'Danışman ve belgelendirme kuruluşu eşleştirme', supportPoint3: 'Teknik dosya ve süreç hazırlığı desteği', contactName: 'Ad Soyad', contactEmail: 'E-posta', contactCompany: 'Şirket', contactPhone: 'Telefon', contactNeed: 'Ne için destek istiyorsunuz?', contactSubmit: 'Teklif Talebi Gönder', yes: 'Evet', no: 'Hayır', selectOption: 'Seçim yapın', sectorPlaceholder: 'Sektör seçin', employeePlaceholder: 'Çalışan sayısını seçin', stagePlaceholder: 'Firma aşamasını seçin', mandatoryTitle: 'Alınması zorunlu belgeler', mandatoryDescription: 'Genellikle mevzuat, ürün uygunluğu veya hedef pazar regülasyonları nedeniyle gerekli olan başlıklar.', recommendedTitle: 'Tavsiye edilen belgeler', recommendedDescription: 'Güven, süreç olgunluğu, büyüme ve kurumsal satış kapasitesini güçlendiren başlıklar.', emptyMandatory: 'Bu profil için doğrudan zorunlu bir başlık görünmüyor. Resmi teyit yine de önerilir.', emptyRecommended: 'Bu profil için ek tavsiye görünmüyor. Daha geniş bir pazar veya sektör senaryosu deneyebilirsiniz.', fillFieldsTitle: 'Değerlendirme için tüm alanları doldurun', fillFieldsDescription: 'Sektör, çalışan sayısı, firma aşaması, veri işleme durumu ve en az bir hedef pazar seçin.', summaryProfile: 'Şirket profili', summaryData: 'Veri işleme', summaryMarkets: 'Hedef pazarlar', localUpdated: 'Yerel kayıt güncellendi', localLoaded: 'Yerel kayıt yüklendi', localReset: 'Yerel kayıt temizlendi', loadError: 'Veri yükleme hatası', demoAlert: 'Talebiniz demo modunda alındı. Canlı sürümde bu form CRM veya lead sistemine bağlanabilir.', actions1: '1. İlk adımı önceliklendirin', actions2: '2. Hazırlık paketini kurun', actions3: '3. Destek modelini seçin', action1Fallback: 'Doğrudan zorunlu bir başlık görünmüyorsa güven ve büyüme açısından en kritik başlıklardan başlayın.', action2Yes: 'Aydınlatma metinleri, veri envanteri, politikalar, sözleşme ekleri ve saklama süreçlerini planlayın.', action2No: 'Süreç dokümantasyonu, sorumluluklar, risk analizi ve iç denetim hazırlığını planlayın.', action3: 'Birden fazla pazara açılıyorsanız uzman koordinasyonu zaman kazandırır ve tekrar işi azaltır.', globalDetail: 'Global seçildiğinde hem uluslararası standartlar hem de bölgesel yükümlülükler birlikte değerlendirilir.', regionHint: 'Global standartları ve bölgesel gereksinimleri birlikte görmek için kullanın.', regionHintNormal: 'Bu pazara ait belge ve yükümlülükler filtreye dahil edilir.', obligationMandatory: 'Zorunlu', obligationRecommended: 'Tavsiye', durationLabel: 'Süre', costLabel: 'Maliyet', sourceLabel: 'Yetkili kaynak', trackedTopics: 'Takip edilen uyum başlığı', sectorScenarios: 'Sektör senaryosu', marketRegions: 'Pazar bölgesi', assessmentSpeed: 'Değerlendirme hızı'
+  }
 };
+['es', 'de', 'fr', 'pt', 'zh', 'ar'].forEach((lang) => { translations[lang] = { ...translations.en }; });
 
-let state = { data: null };
+const sectorLabels = { technology:{en:'Technology / Software',tr:'Teknoloji / Yazılım'}, ecommerce:{en:'E-Commerce',tr:'E-Ticaret'}, manufacturing:{en:'Manufacturing / Industry',tr:'Üretim / Sanayi'}, healthcare:{en:'Healthcare',tr:'Sağlık'}, food:{en:'Food',tr:'Gıda'}, logistics:{en:'Logistics / Transport',tr:'Lojistik / Taşımacılık'}, consulting:{en:'Consulting / Services',tr:'Danışmanlık / Hizmet'}, construction:{en:'Construction',tr:'İnşaat'}, other:{en:'Other',tr:'Diğer'} };
+const stageLabels = { new:{en:'Newly established',tr:'Yeni kurulan'}, growth:{en:'3-5 years / growing',tr:'3-5 yıllık / büyüyen'}, scaling:{en:'Scaling / enterprise-focused',tr:'Kurumsallaşan / büyük hesap hedefleyen'} };
+const employeeLabels = { '1-9':{en:'1-9 employees',tr:'1-9 çalışan'}, '10-49':{en:'10-49 employees',tr:'10-49 çalışan'}, '50-249':{en:'50-249 employees',tr:'50-249 çalışan'}, '250+':{en:'250+ employees',tr:'250+ çalışan'} };
+const regionLabels = { Turkiye:{en:'Turkey only',tr:'Sadece Türkiye'}, Avrupa:{en:'European Union',tr:'Avrupa Birliği'}, Amerika:{en:'United States',tr:'Amerika Birleşik Devletleri'}, Asya:{en:'Asia / China',tr:'Asya / Çin'}, Global:{en:'Global',tr:'Global'} };
 
-function option(value, label) {
-  const item = document.createElement('option');
-  item.value = value;
-  item.textContent = label;
-  return item;
+const elements = {
+  languageSwitcher: document.getElementById('language-switcher'), sector: document.getElementById('sector'), employees: document.getElementById('employees'), stage: document.getElementById('stage'), personalData: document.getElementById('personalData'), regionsContainer: document.getElementById('regions-container'), findButton: document.getElementById('find-button'), resetButton: document.getElementById('reset-button'), summaryGrid: document.getElementById('summary-grid'), resultContent: document.getElementById('result-content'), nextActions: document.getElementById('next-actions'), statsGrid: document.getElementById('stats-grid'), journeyGrid: document.getElementById('journey-grid'), certificateGrid: document.getElementById('certificate-grid'), playbookGrid: document.getElementById('playbook-grid'), resourceGrid: document.getElementById('resource-grid'), faqGrid: document.getElementById('faq-grid'), savedStatus: document.getElementById('saved-status'), footerDisclaimer: document.getElementById('footer-disclaimer'), footerMeta: document.getElementById('footer-meta'), contactForm: document.getElementById('contact-form')
+};
+let state = { data: null, language: 'en' };
+const t = (key) => translations[state.language]?.[key] || translations.en[key] || key;
+const labelFor = (map, key) => map[key]?.[state.language] || map[key]?.tr || map[key]?.en || key;
+
+function setLanguage(language) {
+  state.language = LANGUAGES.includes(language) ? language : 'en';
+  localStorage.setItem(LANGUAGE_KEY, state.language);
+  document.documentElement.lang = state.language;
+  document.documentElement.dir = RTL_LANGUAGES.includes(state.language) ? 'rtl' : 'ltr';
+  elements.languageSwitcher.value = state.language;
+  document.querySelectorAll('[data-i18n]').forEach((node) => { node.textContent = t(node.dataset.i18n); });
+  document.title = state.language === 'tr' ? 'CertiRehber | Hedef Pazar Bazlı Sertifika Rehberi' : 'CertiRehber | Market-Based Certification Guide';
 }
+function createOption(value, label) { const option = document.createElement('option'); option.value = value; option.textContent = label; return option; }
+function obligationClasses(obligation) { return obligation === 'mandatory' ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'; }
+function normalizeEmployees(rangeValue) { if (!rangeValue) return 0; if (rangeValue === '250+') return 250; return Number(rangeValue.split('-')[0]); }
+function matchesEmployeeRequirement(requirement, employeeRange) { if (!requirement || requirement === 'all') return true; return normalizeEmployees(employeeRange) >= Number(requirement.replace('+', '')); }
+function matchesRegions(certificateRegions, selectedRegions) { if (!selectedRegions.length) return false; if (selectedRegions.includes('Global')) return true; return certificateRegions.includes('Global') || selectedRegions.some((region) => certificateRegions.includes(region)); }
+function getSelectedRegions() { return Array.from(elements.regionsContainer.querySelectorAll('input[type="checkbox"]:checked')).map((input) => input.value); }
+function getProfile() { return { sector: elements.sector.value, employees: elements.employees.value, stage: elements.stage.value, personalData: elements.personalData.value, regions: getSelectedRegions() }; }
+function saveProfile(profile) { localStorage.setItem(STORAGE_KEY, JSON.stringify(profile)); elements.savedStatus.textContent = t('localUpdated'); }
+function readProfile() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch { return null; } }
 
-function obligationClass(obligation) {
-  return obligation === 'zorunlu'
-    ? 'bg-rose-50 text-rose-700 border border-rose-100'
-    : 'bg-emerald-50 text-emerald-700 border border-emerald-100';
+function populateFilters() {
+  elements.sector.innerHTML = ''; elements.sector.appendChild(createOption('', t('sectorPlaceholder'))); state.data.filters.sectors.forEach((sector) => elements.sector.appendChild(createOption(sector, labelFor(sectorLabels, sector))));
+  elements.employees.innerHTML = ''; elements.employees.appendChild(createOption('', t('employeePlaceholder'))); state.data.filters.employeeRanges.forEach((item) => elements.employees.appendChild(createOption(item.value, labelFor(employeeLabels, item.value))));
+  elements.stage.innerHTML = ''; elements.stage.appendChild(createOption('', t('stagePlaceholder'))); state.data.filters.businessStages.forEach((item) => elements.stage.appendChild(createOption(item.value, labelFor(stageLabels, item.value))));
+  elements.personalData.innerHTML = ''; elements.personalData.appendChild(createOption('', t('selectOption'))); elements.personalData.appendChild(createOption('true', t('yes'))); elements.personalData.appendChild(createOption('false', t('no')));
+  elements.regionsContainer.innerHTML = state.data.filters.regions.map((region) => `<label class="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 transition hover:border-sky-300 hover:bg-white"><input type="checkbox" value="${region.value}" class="mt-1 h-4 w-4 rounded border-slate-300 text-brand-700 focus:ring-brand-500"><span><span class="block font-semibold text-slate-900">${labelFor(regionLabels, region.value)}</span><span class="mt-1 block text-xs leading-5 text-slate-500">${region.value === 'Global' ? t('regionHint') : t('regionHintNormal')}</span></span></label>`).join('');
 }
-
-function matchesEmployeeRequirement(requirement, employeeRange) {
-  if (!requirement || requirement === 'all') return true;
-  const min = employeeRange === '250+' ? 250 : Number((employeeRange || '0').split('-')[0]);
-  return requirement.endsWith('+') ? min >= Number(requirement.replace('+', '')) : true;
-}
-
-function matchesRegions(certificateRegions, selectedRegions) {
-  if (!selectedRegions.length) return false;
-  if (selectedRegions.includes('Global')) return true;
-  return certificateRegions.includes('Global') || selectedRegions.some((region) => certificateRegions.includes(region));
-}
-
-function getSelectedRegions() {
-  return Array.from(elements.regionsContainer.querySelectorAll('input:checked')).map((input) => input.value);
-}
-
-function getProfile() {
-  return {
-    sector: elements.sector.value,
-    employees: elements.employees.value,
-    stage: elements.stage.value,
-    personalData: elements.personalData.value,
-    regions: getSelectedRegions()
-  };
-}
-
-function saveProfile(profile) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
-  elements.savedStatus.textContent = 'Yerel kayıt güncellendi';
-}
-
-function readProfile() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-  } catch {
-    return null;
-  }
-}
-
-function populateSelect(select, placeholder, items) {
-  select.innerHTML = '';
-  select.appendChild(option('', placeholder));
-  items.forEach((item) => select.appendChild(typeof item === 'string' ? option(item, item) : option(item.value, item.label)));
-}
-
-function renderRegions(items) {
-  elements.regionsContainer.innerHTML = items.map((region) => `
-    <label class="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 transition hover:border-sky-300 hover:bg-white">
-      <input type="checkbox" value="${region.value}" class="mt-1 h-4 w-4 rounded border-slate-300 text-brand-700 focus:ring-brand-500">
-      <span><span class="block font-semibold text-slate-900">${region.label}</span><span class="mt-1 block text-xs leading-5 text-slate-500">${region.value === 'Global' ? 'Global standartlar ve bölgesel gereksinimleri birlikte düşünmek için kullanın.' : 'Bu pazara açılımda geçerli olan veya öne çıkan gereksinimler filtrelenir.'}</span></span>
-    </label>
-  `).join('');
-}
-
-function renderCards(target, items, renderer) {
-  target.innerHTML = items.map(renderer).join('');
-}
-
-function renderStatic() {
-  renderCards(elements.statsGrid, state.data.stats, (stat) => `<div class="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm"><div class="text-3xl font-black tracking-tight text-brand-700">${stat.value}</div><div class="mt-2 text-sm leading-6 text-slate-600">${stat.label}</div></div>`);
-  renderCards(elements.journeyGrid, state.data.journey, (item) => `<article class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm"><div class="text-sm font-semibold uppercase tracking-[0.24em] text-brand-700">${item.step}</div><h3 class="mt-3 text-xl font-black tracking-tight text-slate-950">${item.title}</h3><p class="mt-3 text-sm leading-6 text-slate-600">${item.description}</p></article>`);
-  renderCards(elements.certificateGrid, state.data.certificates, (item) => `<article class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm"><div class="flex flex-wrap items-center gap-2"><span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">${item.category}</span><span class="rounded-full px-3 py-1 text-xs font-semibold ${obligationClass(item.obligation)}">${item.obligation === 'zorunlu' ? 'Zorunlu' : 'Tavsiye Edilen'}</span></div><h3 class="mt-4 text-xl font-black tracking-tight text-slate-950">${item.name}</h3><p class="mt-3 text-sm leading-6 text-slate-600">${item.summary}</p><div class="mt-4 flex flex-wrap gap-2">${item.regions.map((region) => `<span class="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-brand-700">${region}</span>`).join('')}</div></article>`);
-  renderCards(elements.playbookGrid, state.data.playbooks, (item) => `<article class="rounded-[1.75rem] border border-white/10 bg-white/5 p-6"><div class="text-sm font-semibold uppercase tracking-[0.24em] text-sky-300">${item.sector}</div><h3 class="mt-3 text-2xl font-black tracking-tight">${item.headline}</h3><p class="mt-3 text-sm leading-6 text-slate-300">${item.summary}</p></article>`);
-  renderCards(elements.resourceGrid, state.data.resources, (item) => `<article class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm"><span class="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-brand-700">${item.type}</span><h3 class="mt-4 text-xl font-black tracking-tight text-slate-950">${item.title}</h3><p class="mt-3 text-sm leading-6 text-slate-600">${item.description}</p></article>`);
-  renderCards(elements.faqGrid, state.data.faq, (item) => `<details class="group rounded-2xl border border-slate-200 bg-slate-50 p-5"><summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-base font-bold text-slate-900"><span>${item.question}</span><i class="fa-solid fa-plus text-brand-700 transition group-open:rotate-45"></i></summary><p class="mt-4 text-sm leading-7 text-slate-600">${item.answer}</p></details>`);
-  elements.footerDisclaimer.textContent = state.data.meta.disclaimer;
-  elements.footerMeta.textContent = `Son güncelleme ${state.data.meta.lastGlobalUpdate} · ${state.data.meta.supportEmail}`;
-}
-
-function filterCertificates(profile) {
-  return state.data.certificates.filter((certificate) => {
-    const sectorMatch = profile.sector ? certificate.sectors.includes(profile.sector) : true;
-    const stageMatch = profile.stage ? certificate.businessStages.includes(profile.stage) : true;
-    const employeesMatch = profile.employees ? matchesEmployeeRequirement(certificate.employeeRequirement, profile.employees) : true;
-    const regionMatch = matchesRegions(certificate.regions, profile.regions);
-    const personalDataMatch = profile.personalData === 'false' ? !certificate.requiresPersonalData : true;
-    return sectorMatch && stageMatch && employeesMatch && regionMatch && personalDataMatch;
-  });
-}
-
-function renderResults(profile) {
-  if (!profile.sector || !profile.employees || !profile.stage || !profile.personalData || !profile.regions.length) {
-    elements.summaryGrid.innerHTML = '<div class="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-sm lg:col-span-3"><div class="text-lg font-bold text-slate-900">Değerlendirme için tüm alanları doldurun</div><p class="mt-2 text-sm leading-6 text-slate-600">Sektör, çalışan sayısı, şirket aşaması, kişisel veri işleme durumu ve en az bir hedef pazar seçildiğinde sonuçlar oluşturulur.</p></div>';
-    elements.resultContent.innerHTML = '';
-    elements.nextActions.innerHTML = '';
-    return;
-  }
-
-  const filtered = filterCertificates(profile);
-  const mandatory = filtered.filter((item) => item.obligation === 'zorunlu');
-  const recommended = filtered.filter((item) => item.obligation !== 'zorunlu');
-  const regionLabel = state.data.filters.regions.filter((item) => profile.regions.includes(item.value)).map((item) => item.label).join(', ');
-
-  elements.summaryGrid.innerHTML = `
-    <article class="rounded-[1.5rem] border border-white/60 bg-white p-5 shadow-sm"><div class="text-xs font-semibold uppercase tracking-[0.24em] text-brand-700">Şirket Profili</div><div class="mt-3 text-lg font-black text-slate-950">${profile.sector}</div><div class="mt-2 text-sm leading-6 text-slate-600">${profile.employees} çalışan aralığı</div></article>
-    <article class="rounded-[1.5rem] border border-white/60 bg-white p-5 shadow-sm"><div class="text-xs font-semibold uppercase tracking-[0.24em] text-brand-700">Veri İşleme Durumu</div><div class="mt-3 text-lg font-black text-slate-950">${profile.personalData === 'true' ? 'Evet, işliyoruz' : 'Hayır, işlemiyoruz'}</div><div class="mt-2 text-sm leading-6 text-slate-600">Veri koruma gereksinimleri buna göre şekillenir.</div></article>
-    <article class="rounded-[1.5rem] border border-white/60 bg-white p-5 shadow-sm"><div class="text-xs font-semibold uppercase tracking-[0.24em] text-brand-700">Hedef Pazarlar</div><div class="mt-3 text-lg font-black text-slate-950">${regionLabel}</div><div class="mt-2 text-sm leading-6 text-slate-600">Global seçim yapıldıysa global standartlar ve bölgesel gereksinimler birlikte değerlendirilir.</div></article>
-  `;
-
-  const card = (title, description, items, emptyMessage) => `
-    <article class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
-      <div class="text-lg font-bold text-slate-900">${title}</div>
-      <p class="mt-2 text-sm leading-6 text-slate-600">${description}</p>
-      <div class="mt-5 space-y-4">${items.length ? items.map((item) => `<div class="rounded-2xl border border-slate-200 p-4"><div class="flex flex-wrap items-center gap-2"><div class="text-base font-bold text-slate-950">${item.name}</div><span class="rounded-full px-3 py-1 text-xs font-semibold ${obligationClass(item.obligation)}">${item.obligation === 'zorunlu' ? 'Zorunlu' : 'Tavsiye Edilen'}</span></div><p class="mt-2 text-sm leading-6 text-slate-600">${item.summary}</p></div>`).join('') : `<div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">${emptyMessage}</div>`}</div>
-    </article>
-  `;
-
-  elements.resultContent.innerHTML = card('Alınması zorunlu belgeler', 'Mevzuat, ürün uygunluğu veya hedef pazardaki regülasyon sebebiyle öne çıkan başlıklar', mandatory, 'Seçtiğiniz profil için doğrudan zorunlu bir başlık görünmüyor.') + card('Tavsiye edilen belgeler', 'Kurumsallaşma, müşteri güveni, ihracat ve büyüme hedefleri açısından güçlü değer üreten başlıklar', recommended, 'Bu profil için tavsiye alanı boş görünüyor.');
-  elements.nextActions.innerHTML = `<article class="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm"><div class="text-base font-bold text-slate-950">1. Önceliklendirme yapın</div><p class="mt-3 text-sm leading-6 text-slate-600">${mandatory.length ? `Önce ${mandatory[0].name} gibi zorunlu başlıklardan başlayın.` : 'Önce tavsiye edilen belgeleri müşteri ve büyüme hedeflerinize göre sıralayın.'}</p></article><article class="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm"><div class="text-base font-bold text-slate-950">2. Hazırlık paketinizi oluşturun</div><p class="mt-3 text-sm leading-6 text-slate-600">${profile.personalData === 'true' ? 'Veri envanteri, politika seti ve sözleşme eklerini planlayın.' : 'Süreç dokümantasyonu, görev tanımları ve risk analizini hazırlayın.'}</p></article><article class="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm"><div class="text-base font-bold text-slate-950">3. Destek modelinizi seçin</div><p class="mt-3 text-sm leading-6 text-slate-600">Birden fazla pazara açılıyorsanız danışmanlık ve belgelendirme kuruluşu eşleştirmesi zaman kazandırır.</p></article>`;
-}
-
-function applySavedProfile(profile) {
-  if (!profile) {
-    renderResults(getProfile());
-    return;
-  }
-  elements.sector.value = profile.sector || '';
-  elements.employees.value = profile.employees || '';
-  elements.stage.value = profile.stage || '';
-  elements.personalData.value = profile.personalData || '';
-  elements.regionsContainer.querySelectorAll('input').forEach((input) => {
-    input.checked = Array.isArray(profile.regions) && profile.regions.includes(input.value);
-  });
-  elements.savedStatus.textContent = 'Yerel kayıt yüklendi';
-  renderResults(getProfile());
-}
-
-function resetForm() {
-  elements.sector.value = '';
-  elements.employees.value = '';
-  elements.stage.value = '';
-  elements.personalData.value = '';
-  elements.regionsContainer.querySelectorAll('input').forEach((input) => { input.checked = false; });
-  localStorage.removeItem(STORAGE_KEY);
-  elements.savedStatus.textContent = 'Yerel kayıt temizlendi';
-  renderResults(getProfile());
-}
-
-async function init() {
-  const response = await fetch('./data.json', { cache: 'no-store' });
-  state.data = await response.json();
-  populateSelect(elements.sector, 'Sektör seçin', state.data.filters.sectors);
-  populateSelect(elements.employees, 'Çalışan sayısını seçin', state.data.filters.employeeRanges);
-  populateSelect(elements.stage, 'Firma aşamasını seçin', state.data.filters.businessStages);
-  renderRegions(state.data.filters.regions);
-  renderStatic();
-  applySavedProfile(readProfile());
-  elements.findButton.addEventListener('click', () => { const profile = getProfile(); saveProfile(profile); renderResults(profile); });
-  elements.resetButton.addEventListener('click', resetForm);
-  elements.contactForm.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const name = document.getElementById('contact-name').value || 'Ziyaretçi';
-    alert(`${name}, talebiniz demo modunda alındı. Gerçek sürümde bu form CRM veya teklif sistemine bağlanacaktır.`);
-    elements.contactForm.reset();
-  });
-}
-
-init().catch(() => {
-  elements.summaryGrid.innerHTML = '<div class="rounded-[1.5rem] border border-rose-200 bg-rose-50 p-6 shadow-sm lg:col-span-3"><div class="text-lg font-bold text-rose-900">Veri yüklenemedi</div><p class="mt-2 text-sm leading-6 text-rose-800">data.json dosyası okunamadı. Dosya yolunu ve JSON yapısını kontrol edin.</p></div>';
-  elements.savedStatus.textContent = 'Veri yükleme hatası';
-});
+function renderStats() { elements.statsGrid.innerHTML = state.data.stats.map((stat) => `<div class="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm"><div class="text-3xl font-black tracking-tight text-brand-700">${stat.value}</div><div class="mt-2 text-sm leading-6 text-slate-600">${t(stat.labelKey)}</div></div>`).join(''); }
+function renderJourney() { elements.journeyGrid.innerHTML = state.data.journey.map((item) => `<article class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm"><div class="text-sm font-semibold uppercase tracking-[0.24em] text-brand-700">${item.step}</div><h3 class="mt-3 text-xl font-black tracking-tight text-slate-950">${item.title}</h3><p class="mt-3 text-sm leading-6 text-slate-600">${item.description}</p></article>`).join(''); }
+function regionBadge(region) { return `<span class="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-brand-700">${labelFor(regionLabels, region)}</span>`; }
+function renderCertificates() { elements.certificateGrid.innerHTML = state.data.certificates.map((certificate) => `<article class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm"><div class="flex flex-wrap items-center gap-2"><span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">${certificate.category}</span><span class="rounded-full px-3 py-1 text-xs font-semibold ${obligationClasses(certificate.obligation)}">${certificate.obligation === 'mandatory' ? t('obligationMandatory') : t('obligationRecommended')}</span></div><h3 class="mt-4 text-xl font-black tracking-tight text-slate-950">${certificate.name}</h3><p class="mt-3 text-sm leading-6 text-slate-600">${certificate.summary}</p><div class="mt-4 flex flex-wrap gap-2">${certificate.regions.map(regionBadge).join('')}</div><div class="mt-5 grid gap-3 text-sm text-slate-600"><div><span class="font-semibold text-slate-900">${t('durationLabel')}:</span> ${certificate.estimatedTimeline}</div><div><span class="font-semibold text-slate-900">${t('costLabel')}:</span> ${certificate.estimatedCost}</div><div><span class="font-semibold text-slate-900">${t('sourceLabel')}:</span> ${certificate.issuingAuthority}</div></div></article>`).join(''); }
+function renderPlaybooks() { elements.playbookGrid.innerHTML = state.data.playbooks.map((item) => `<article class="rounded-[1.75rem] border border-white/10 bg-white/5 p-6"><div class="text-sm font-semibold uppercase tracking-[0.24em] text-sky-300">${labelFor(sectorLabels, item.sector)}</div><h3 class="mt-3 text-2xl font-black tracking-tight">${item.headline}</h3><p class="mt-3 text-sm leading-6 text-slate-300">${item.summary}</p><div class="mt-5 flex flex-wrap gap-2">${item.recommendedCertificates.map((certificate) => `<span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-sky-100">${certificate}</span>`).join('')}</div></article>`).join(''); }
+function renderResources() { elements.resourceGrid.innerHTML = state.data.resources.map((resource) => `<article class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm"><span class="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-brand-700">${resource.type}</span><h3 class="mt-4 text-xl font-black tracking-tight text-slate-950">${resource.title}</h3><p class="mt-3 text-sm leading-6 text-slate-600">${resource.description}</p></article>`).join(''); }
+function renderFaq() { elements.faqGrid.innerHTML = state.data.faq.map((item) => `<details class="group rounded-2xl border border-slate-200 bg-slate-50 p-5"><summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-base font-bold text-slate-900"><span>${item.question}</span><i class="fa-solid fa-plus text-brand-700 transition group-open:rotate-45"></i></summary><p class="mt-4 text-sm leading-7 text-slate-600">${item.answer}</p></details>`).join(''); }
+function createSummaryCard(label, value, detail) { return `<article class="rounded-[1.5rem] border border-white/60 bg-white p-5 shadow-sm"><div class="text-xs font-semibold uppercase tracking-[0.24em] text-brand-700">${label}</div><div class="mt-3 text-lg font-black text-slate-950">${value}</div><div class="mt-2 text-sm leading-6 text-slate-600">${detail}</div></article>`; }
+function filterCertificates(profile) { return state.data.certificates.filter((certificate) => { const sectorMatch = profile.sector ? certificate.sectors.includes(profile.sector) : true; const stageMatch = profile.stage ? certificate.businessStages.includes(profile.stage) : true; const employeesMatch = profile.employees ? matchesEmployeeRequirement(certificate.employeeRequirement, profile.employees) : true; const regionMatch = matchesRegions(certificate.regions, profile.regions); const personalDataMatch = profile.personalData === 'false' ? !certificate.requiresPersonalData : true; return sectorMatch && stageMatch && employeesMatch && regionMatch && personalDataMatch; }); }
+function buildResultCard(title, description, certificates, emptyMessage) { return `<article class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm"><div class="text-lg font-bold text-slate-900">${title}</div><p class="mt-2 text-sm leading-6 text-slate-600">${description}</p><div class="mt-5 space-y-4">${certificates.length ? certificates.map((certificate) => `<div class="rounded-2xl border border-slate-200 p-4"><div class="flex flex-wrap items-center gap-2"><div class="text-base font-bold text-slate-950">${certificate.name}</div><span class="rounded-full px-3 py-1 text-xs font-semibold ${obligationClasses(certificate.obligation)}">${certificate.obligation === 'mandatory' ? t('obligationMandatory') : t('obligationRecommended')}</span></div><p class="mt-2 text-sm leading-6 text-slate-600">${certificate.summary}</p><div class="mt-3 flex flex-wrap gap-2">${certificate.regions.map(regionBadge).join('')}</div><div class="mt-3 text-xs leading-5 text-slate-500">${certificate.officialHint}</div></div>`).join('') : `<div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">${emptyMessage}</div>`}</div></article>`; }
+function renderNextActions(profile, mandatoryCertificates) { const firstDescription = mandatoryCertificates.length ? mandatoryCertificates[0].name : t('action1Fallback'); elements.nextActions.innerHTML = [{ title: t('actions1'), description: firstDescription }, { title: t('actions2'), description: profile.personalData === 'true' ? t('action2Yes') : t('action2No') }, { title: t('actions3'), description: t('action3') }].map((action) => `<article class="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm"><div class="text-base font-bold text-slate-950">${action.title}</div><p class="mt-3 text-sm leading-6 text-slate-600">${action.description}</p></article>`).join(''); }
+function renderResults(profile) { if (!profile.sector || !profile.employees || !profile.stage || !profile.personalData || !profile.regions.length) { elements.summaryGrid.innerHTML = `<div class="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-sm xl:col-span-3"><div class="text-lg font-bold text-slate-900">${t('fillFieldsTitle')}</div><p class="mt-2 text-sm leading-6 text-slate-600">${t('fillFieldsDescription')}</p></div>`; elements.resultContent.innerHTML = ''; elements.nextActions.innerHTML = ''; return; } const filtered = filterCertificates(profile); const mandatory = filtered.filter((item) => item.obligation === 'mandatory'); const recommended = filtered.filter((item) => item.obligation !== 'mandatory'); const selectedRegions = state.data.filters.regions.filter((region) => profile.regions.includes(region.value)).map((region) => labelFor(regionLabels, region.value)).join(', '); elements.summaryGrid.innerHTML = [createSummaryCard(t('summaryProfile'), labelFor(sectorLabels, profile.sector), `${labelFor(employeeLabels, profile.employees)} · ${labelFor(stageLabels, profile.stage)}`), createSummaryCard(t('summaryData'), profile.personalData === 'true' ? t('yes') : t('no'), t('fieldPersonalData')), createSummaryCard(t('summaryMarkets'), selectedRegions, t('globalDetail'))].join(''); elements.resultContent.innerHTML = [buildResultCard(t('mandatoryTitle'), t('mandatoryDescription'), mandatory, t('emptyMandatory')), buildResultCard(t('recommendedTitle'), t('recommendedDescription'), recommended, t('emptyRecommended'))].join(''); renderNextActions(profile, mandatory); }
+function applySavedProfile(profile) { if (!profile) { elements.savedStatus.textContent = t('savedWaiting'); renderResults(getProfile()); return; } elements.sector.value = profile.sector || ''; elements.employees.value = profile.employees || ''; elements.stage.value = profile.stage || ''; elements.personalData.value = profile.personalData || ''; elements.regionsContainer.querySelectorAll('input').forEach((input) => { input.checked = Array.isArray(profile.regions) && profile.regions.includes(input.value); }); elements.savedStatus.textContent = t('localLoaded'); renderResults(getProfile()); }
+function resetForm() { elements.sector.value = ''; elements.employees.value = ''; elements.stage.value = ''; elements.personalData.value = ''; elements.regionsContainer.querySelectorAll('input').forEach((input) => { input.checked = false; }); localStorage.removeItem(STORAGE_KEY); elements.savedStatus.textContent = t('localReset'); renderResults(getProfile()); }
+function rerenderAll() { setLanguage(state.language); populateFilters(); renderStats(); renderJourney(); renderCertificates(); renderPlaybooks(); renderResources(); renderFaq(); elements.footerDisclaimer.textContent = state.data.meta.disclaimer; elements.footerMeta.textContent = `${state.data.meta.lastGlobalUpdate} · ${state.data.meta.supportEmail}`; applySavedProfile(readProfile()); }
+async function init() { state.language = localStorage.getItem(LANGUAGE_KEY) || 'en'; setLanguage(state.language); const response = await fetch('./data.json', { cache: 'no-store' }); state.data = await response.json(); rerenderAll(); elements.languageSwitcher.addEventListener('change', (event) => { state.language = event.target.value; rerenderAll(); }); elements.findButton.addEventListener('click', () => { const profile = getProfile(); saveProfile(profile); renderResults(profile); }); elements.resetButton.addEventListener('click', resetForm); elements.contactForm.addEventListener('submit', (event) => { event.preventDefault(); const name = document.getElementById('contact-name').value || 'Visitor'; alert(`${name}: ${t('demoAlert')}`); elements.contactForm.reset(); }); }
+init().catch(() => { setLanguage(localStorage.getItem(LANGUAGE_KEY) || 'en'); elements.savedStatus.textContent = t('loadError'); elements.summaryGrid.innerHTML = `<div class="rounded-[1.5rem] border border-rose-200 bg-rose-50 p-6 shadow-sm xl:col-span-3"><div class="text-lg font-bold text-rose-900">${t('loadError')}</div><p class="mt-2 text-sm leading-6 text-rose-800">data.json could not be loaded.</p></div>`; });

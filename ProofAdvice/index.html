@@ -1,10 +1,10 @@
-<!DOCTYPE html>
-<html lang="tr">
+﻿<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CertiRehber | Hedef Pazar Bazlı Sertifika Rehberi</title>
-  <meta name="description" content="Şirketiniz için gerekli sertifika, uyum ve hedef pazar gereksinimlerini hızlıca keşfedin.">
+  <title>CertiRehber | Market-Based Certification Guide</title>
+  <meta name="description" content="Discover the right certifications and compliance requirements for your company based on sector, growth stage, and target markets.">
   <meta name="theme-color" content="#0f4c81">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -15,127 +15,59 @@
 <body class="bg-slate-50 text-slate-800 antialiased">
   <div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,116,214,0.18),_transparent_28%),linear-gradient(180deg,_#f8fbff_0%,_#f8fafc_55%,_#ffffff_100%)]">
     <header class="sticky top-0 z-50 border-b border-sky-100/80 bg-white/90 backdrop-blur-lg">
-      <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+      <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
         <a href="#hero" class="flex items-center gap-3">
-          <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-900 text-white shadow-panel">
-            <i class="fa-solid fa-shield-heart text-lg"></i>
-          </div>
+          <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-900 text-white shadow-panel"><i class="fa-solid fa-shield-heart text-lg"></i></div>
           <div>
             <div class="text-lg font-black tracking-tight text-slate-950">CertiRehber</div>
-            <div class="text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-700">Kurumsal Uyum Asistanı</div>
+            <div class="text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-700" data-i18n="brandTag">Corporate Compliance Assistant</div>
           </div>
         </a>
         <nav class="hidden items-center gap-8 text-sm font-semibold text-slate-600 lg:flex">
-          <a href="#assessment" class="hover:text-brand-700">Değerlendirme</a>
-          <a href="#journey" class="hover:text-brand-700">Yol Haritası</a>
-          <a href="#certificates" class="hover:text-brand-700">Belgeler</a>
-          <a href="#playbooks" class="hover:text-brand-700">Sektör Rehberleri</a>
-          <a href="#resources" class="hover:text-brand-700">Kaynaklar</a>
-          <a href="#faq" class="hover:text-brand-700">SSS</a>
-          <a href="#contact" class="hover:text-brand-700">Teklif Al</a>
+          <a href="#assessment" class="hover:text-brand-700" data-i18n="navAssessment">Assessment</a>
+          <a href="#journey" class="hover:text-brand-700" data-i18n="navJourney">Roadmap</a>
+          <a href="#certificates" class="hover:text-brand-700" data-i18n="navCertificates">Certificates</a>
+          <a href="#playbooks" class="hover:text-brand-700" data-i18n="navPlaybooks">Playbooks</a>
+          <a href="#resources" class="hover:text-brand-700" data-i18n="navResources">Resources</a>
+          <a href="#faq" class="hover:text-brand-700" data-i18n="navFaq">FAQ</a>
+          <a href="#contact" class="hover:text-brand-700" data-i18n="navContact">Get a Quote</a>
         </nav>
-        <a href="#assessment" class="rounded-full bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-900">Analizi Başlat</a>
+        <div class="flex items-center gap-3">
+          <label class="hidden text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 md:block" for="language-switcher" data-i18n="languageLabel">Language</label>
+          <select id="language-switcher" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-brand-500 focus:ring-4 focus:ring-sky-100">
+            <option value="en">English</option><option value="tr">Türkçe</option><option value="es">Español</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="pt">Português</option><option value="zh">中文</option><option value="ar">العربية</option>
+          </select>
+          <a href="#assessment" class="rounded-full bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-900" data-i18n="startButton">Start Assessment</a>
+        </div>
       </div>
     </header>
-
     <main>
       <section id="hero" class="mx-auto max-w-7xl px-6 py-16 md:py-24">
         <div class="grid gap-10 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
           <div>
-            <div class="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/90 px-4 py-2 text-sm font-semibold text-brand-700 shadow-sm">
-              <i class="fa-solid fa-earth-europe"></i>
-              Hedef pazarınıza göre sertifika ve uyum yol haritası
-            </div>
-            <h1 class="mt-7 max-w-4xl text-4xl font-black leading-tight tracking-tight text-slate-950 md:text-6xl">Ürün ve hizmetlerinizi hangi pazara sunacağınıza göre doğru belge setini bulun.</h1>
-            <p class="mt-6 max-w-3xl text-lg leading-8 text-slate-600">CertiRehber; sektör, ekip büyüklüğü, şirket aşaması, veri işleme yapısı ve hedef pazarlarınıza göre zorunlu belgeleri ve tavsiye edilen sertifikaları tek raporda gösterir.</p>
-            <div class="mt-10 flex flex-col gap-4 sm:flex-row">
-              <a href="#assessment" class="inline-flex items-center justify-center gap-2 rounded-full bg-brand-700 px-7 py-4 text-base font-semibold text-white shadow-panel hover:bg-brand-900">Hemen Başla<i class="fa-solid fa-arrow-right"></i></a>
-              <a href="#resources" class="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-7 py-4 text-base font-semibold text-slate-700 hover:border-sky-300 hover:text-brand-700">Kaynakları İncele</a>
-            </div>
+            <div class="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/90 px-4 py-2 text-sm font-semibold text-brand-700 shadow-sm"><i class="fa-solid fa-earth-europe"></i><span data-i18n="heroBadge">Certification and compliance roadmap by target market</span></div>
+            <h1 class="mt-7 max-w-4xl text-4xl font-black leading-tight tracking-tight text-slate-950 md:text-6xl" data-i18n="heroTitle">Find the right certification set based on where you want to sell.</h1>
+            <p class="mt-6 max-w-3xl text-lg leading-8 text-slate-600" data-i18n="heroDescription">CertiRehber helps companies discover mandatory and recommended certifications based on sector, team size, growth stage, personal-data processing, and target markets.</p>
+            <div class="mt-10 flex flex-col gap-4 sm:flex-row"><a href="#assessment" class="inline-flex items-center justify-center gap-2 rounded-full bg-brand-700 px-7 py-4 text-base font-semibold text-white shadow-panel hover:bg-brand-900"><span data-i18n="heroPrimaryCta">Start Now</span><i class="fa-solid fa-arrow-right"></i></a><a href="#resources" class="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-7 py-4 text-base font-semibold text-slate-700 hover:border-sky-300 hover:text-brand-700" data-i18n="heroSecondaryCta">Explore Resources</a></div>
             <div id="stats-grid" class="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"></div>
           </div>
           <div class="rounded-[2rem] border border-white/70 bg-white/95 p-8 shadow-panel">
             <div class="rounded-[1.5rem] bg-slate-950 p-6 text-white">
-              <div class="flex items-center justify-between gap-4">
-                <div><div class="text-xs font-semibold uppercase tracking-[0.25em] text-sky-200">Örnek Çıktı</div><div class="mt-2 text-xl font-bold">Pazar Bazlı Uyum Özeti</div></div>
-                <span class="rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-200">Canlı skor kartı</span>
-              </div>
-              <div class="mt-6 space-y-4">
-                <div class="rounded-2xl bg-white/5 p-4 text-sm leading-6 text-slate-200">Türkiye, Avrupa, Amerika, Asya ve global satış hedeflerine göre uyum başlıklarını aynı ekranda karşılaştırır.</div>
-                <div class="grid gap-4 md:grid-cols-2">
-                  <div class="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">Bölgesel regülasyonlar</div>
-                  <div class="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">Global standartlar</div>
-                </div>
-              </div>
+              <div class="flex items-center justify-between gap-4"><div><div class="text-xs font-semibold uppercase tracking-[0.25em] text-sky-200" data-i18n="sampleOutput">Sample Output</div><div class="mt-2 text-xl font-bold" data-i18n="sampleTitle">Market-Based Compliance Snapshot</div></div><span class="rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-200" data-i18n="sampleTag">Live scorecard</span></div>
+              <div class="mt-6 space-y-4"><div class="rounded-2xl bg-white/5 p-4 text-sm leading-6 text-slate-200" data-i18n="sampleDescription">Compare regulatory obligations and strategic standards for Turkey, Europe, the US, China, and global growth on one screen.</div><div class="grid gap-4 md:grid-cols-2"><div class="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200" data-i18n="sampleRegional">Regional regulations</div><div class="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200" data-i18n="sampleGlobal">Global standards</div></div></div>
             </div>
-            <div class="mt-6 grid gap-4 sm:grid-cols-3">
-              <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="text-2xl font-black text-brand-700">5</div><div class="mt-2 text-sm text-slate-600">Hedef pazar</div></div>
-              <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="text-2xl font-black text-brand-700">2</div><div class="mt-2 text-sm text-slate-600">Zorunlu / tavsiye</div></div>
-              <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="text-2xl font-black text-brand-700">30+</div><div class="mt-2 text-sm text-slate-600">Uyum başlığı</div></div>
-            </div>
+            <div class="mt-6 grid gap-4 sm:grid-cols-3"><div class="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="text-2xl font-black text-brand-700">5</div><div class="mt-2 text-sm text-slate-600" data-i18n="heroStatMarkets">Target markets</div></div><div class="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="text-2xl font-black text-brand-700">2</div><div class="mt-2 text-sm text-slate-600" data-i18n="heroStatObligation">Mandatory / recommended</div></div><div class="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="text-2xl font-black text-brand-700">30+</div><div class="mt-2 text-sm text-slate-600" data-i18n="heroStatTopics">Compliance topics</div></div></div>
           </div>
         </div>
       </section>
-
-      <section id="assessment" class="mx-auto max-w-7xl px-6 py-10">
-        <div class="rounded-[2rem] border border-sky-100 bg-white/95 p-8 shadow-panel lg:p-10">
-          <div class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
-            <div>
-              <div class="text-sm font-semibold uppercase tracking-[0.25em] text-brand-700">Akıllı Değerlendirme</div>
-              <h2 class="mt-4 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">Şirket profilinize ve hedef pazarınıza göre belge yol haritası oluşturun.</h2>
-              <p class="mt-4 text-base leading-7 text-slate-600">Sektörünüz, firma aşamanız ve satış yapacağınız bölgeler değiştikçe almanız gereken belgeler de değişir.</p>
-            </div>
-            <div>
-              <form id="assessment-form" class="grid gap-5 md:grid-cols-2">
-                <label><span class="mb-2 block text-sm font-semibold text-slate-800">1. Sektör</span><select id="sector" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-sky-100"></select></label>
-                <label><span class="mb-2 block text-sm font-semibold text-slate-800">2. Çalışan sayısı</span><select id="employees" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-sky-100"></select></label>
-                <label><span class="mb-2 block text-sm font-semibold text-slate-800">3. Firma aşaması</span><select id="stage" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-sky-100"></select></label>
-                <label><span class="mb-2 block text-sm font-semibold text-slate-800">4. Kişisel veri işliyor musunuz?</span><select id="personalData" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-sky-100"><option value="">Seçim yapın</option><option value="true">Evet</option><option value="false">Hayır</option></select></label>
-                <fieldset class="md:col-span-2">
-                  <legend class="mb-3 block text-sm font-semibold text-slate-800">5. Ürün veya hizmetlerinizi hangi pazara sunuyorsunuz? (Hedef pazarınız)</legend>
-                  <div id="regions-container" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"></div>
-                </fieldset>
-              </form>
-              <div class="mt-6 flex flex-col gap-3 sm:flex-row">
-                <button id="find-button" type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-brand-700 px-7 py-3 text-sm font-semibold text-white hover:bg-brand-900"><i class="fa-solid fa-chart-column"></i>Sonuçları Gör</button>
-                <button id="reset-button" type="button" class="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-7 py-3 text-sm font-semibold text-slate-700 hover:border-sky-300 hover:text-brand-700">Temizle</button>
-              </div>
-            </div>
-          </div>
-          <div class="mt-10 rounded-[1.75rem] border border-dashed border-sky-200 bg-sky-50/60 p-6">
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div><div class="text-lg font-bold text-slate-900">Rapor alanı</div><div class="mt-2 text-sm leading-6 text-slate-600">Analiz tamamlandığında hedef pazarlarınıza göre zorunlu ve tavsiye edilen belgeler burada görüntülenir.</div></div>
-              <div id="saved-status" class="rounded-full bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">Yerel kayıt bekleniyor</div>
-            </div>
-            <div id="summary-grid" class="mt-6 grid gap-6 lg:grid-cols-3"></div>
-            <div id="result-content" class="mt-6 grid gap-6 xl:grid-cols-2"></div>
-            <div id="next-actions" class="mt-6 grid gap-4 md:grid-cols-3"></div>
-          </div>
-        </div>
-      </section>
-
-      <section id="journey" class="mx-auto max-w-7xl px-6 py-10"><div class="flex items-end justify-between gap-6"><div><div class="text-sm font-semibold uppercase tracking-[0.25em] text-brand-700">Yol Haritası</div><h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950">Doğru belge setine sistematik şekilde ulaşın.</h2></div></div><div id="journey-grid" class="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4"></div></section>
-      <section id="certificates" class="mx-auto max-w-7xl px-6 py-10"><div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between"><div><div class="text-sm font-semibold uppercase tracking-[0.25em] text-brand-700">Belge Kataloğu</div><h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950">Popüler sertifikalar ve pazar bazlı uyum başlıkları</h2></div></div><div id="certificate-grid" class="mt-8 grid gap-6 lg:grid-cols-2 xl:grid-cols-3"></div></section>
-      <section id="playbooks" class="mx-auto max-w-7xl px-6 py-10"><div class="rounded-[2rem] bg-slate-950 px-8 py-10 text-white shadow-panel"><div><div class="text-sm font-semibold uppercase tracking-[0.25em] text-sky-300">Sektör Rehberleri</div><h2 class="mt-3 text-3xl font-black tracking-tight">Büyüme ve ihracat senaryoları için önerilen oyun planları</h2></div><div id="playbook-grid" class="mt-8 grid gap-6 lg:grid-cols-2"></div></div></section>
-      <section id="resources" class="mx-auto max-w-7xl px-6 py-10"><div><div class="text-sm font-semibold uppercase tracking-[0.25em] text-brand-700">Kaynaklar</div><h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950">Karar vermeyi kolaylaştıran hızlı kaynaklar</h2></div><div id="resource-grid" class="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4"></div></section>
-      <section id="faq" class="mx-auto max-w-7xl px-6 py-10"><div class="rounded-[2rem] border border-sky-100 bg-white p-8 shadow-panel"><div><div class="text-sm font-semibold uppercase tracking-[0.25em] text-brand-700">SSS</div><h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950">En sık sorulan sorular</h2></div><div id="faq-grid" class="mt-8 grid gap-4"></div></div></section>
-      <section id="contact" class="mx-auto max-w-7xl px-6 py-10 pb-20">
-        <div class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
-          <div class="rounded-[2rem] bg-gradient-to-br from-brand-700 to-brand-900 p-8 text-white shadow-panel"><div class="text-sm font-semibold uppercase tracking-[0.25em] text-sky-200">Profesyonel Destek</div><h2 class="mt-4 text-3xl font-black tracking-tight">Belgelendirme hazırlığını danışman desteğiyle hızlandırın.</h2><p class="mt-4 text-sm leading-7 text-sky-50/90">İlk sürümde bu form demo amaçlıdır.</p></div>
-          <div class="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-panel">
-            <form id="contact-form" class="grid gap-5 md:grid-cols-2">
-              <label><span class="mb-2 block text-sm font-semibold text-slate-800">Ad Soyad</span><input id="contact-name" type="text" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-sky-100"></label>
-              <label><span class="mb-2 block text-sm font-semibold text-slate-800">E-posta</span><input id="contact-email" type="email" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-sky-100"></label>
-              <label><span class="mb-2 block text-sm font-semibold text-slate-800">Şirket</span><input id="contact-company" type="text" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-sky-100"></label>
-              <label><span class="mb-2 block text-sm font-semibold text-slate-800">Telefon</span><input id="contact-phone" type="tel" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-sky-100"></label>
-              <label class="md:col-span-2"><span class="mb-2 block text-sm font-semibold text-slate-800">İhtiyacınız</span><textarea id="contact-message" rows="5" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-sky-100"></textarea></label>
-              <button type="submit" class="md:col-span-2 inline-flex items-center justify-center gap-2 rounded-full bg-brand-700 px-7 py-3 text-sm font-semibold text-white hover:bg-brand-900"><i class="fa-solid fa-paper-plane"></i>Teklif Talebi Gönder</button>
-            </form>
-          </div>
-        </div>
-      </section>
+      <section id="assessment" class="mx-auto max-w-7xl px-6 py-10"><div class="rounded-[2rem] border border-sky-100 bg-white/95 p-8 shadow-panel lg:p-10"><div class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]"><div><div class="text-sm font-semibold uppercase tracking-[0.25em] text-brand-700" data-i18n="assessmentBadge">Smart Assessment</div><h2 class="mt-4 text-3xl font-black tracking-tight text-slate-950 md:text-4xl" data-i18n="assessmentTitle">Build a certification roadmap based on your company profile and target markets.</h2><p class="mt-4 text-base leading-7 text-slate-600" data-i18n="assessmentDescription">Your sector, company stage, and sales regions directly influence which certifications are legally required and which ones strengthen growth.</p></div><div><form id="assessment-form" class="grid gap-5 md:grid-cols-2"><label><span class="mb-2 block text-sm font-semibold text-slate-800" data-i18n="fieldSector">1. Sector</span><select id="sector" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-sky-100"></select></label><label><span class="mb-2 block text-sm font-semibold text-slate-800" data-i18n="fieldEmployees">2. Employee range</span><select id="employees" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-sky-100"></select></label><label><span class="mb-2 block text-sm font-semibold text-slate-800" data-i18n="fieldStage">3. Business stage</span><select id="stage" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-sky-100"></select></label><label><span class="mb-2 block text-sm font-semibold text-slate-800" data-i18n="fieldPersonalData">4. Do you process personal data?</span><select id="personalData" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-sky-100"></select></label><fieldset class="md:col-span-2"><legend class="mb-3 block text-sm font-semibold text-slate-800" data-i18n="fieldRegions">5. Which markets are you selling into? (Target markets)</legend><div id="regions-container" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"></div></fieldset></form><div class="mt-6 flex flex-col gap-3 sm:flex-row"><button id="find-button" type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-brand-700 px-7 py-3 text-sm font-semibold text-white hover:bg-brand-900"><i class="fa-solid fa-chart-column"></i><span data-i18n="findButton">Show Results</span></button><button id="reset-button" type="button" class="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-7 py-3 text-sm font-semibold text-slate-700 hover:border-sky-300 hover:text-brand-700" data-i18n="resetButton">Reset</button></div></div></div><div class="mt-10 rounded-[1.75rem] border border-dashed border-sky-200 bg-sky-50/60 p-6"><div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><div class="text-lg font-bold text-slate-900" data-i18n="reportTitle">Report area</div><div class="mt-2 text-sm leading-6 text-slate-600" data-i18n="reportDescription">Mandatory and recommended certifications based on your selected profile will appear here.</div></div><div id="saved-status" class="rounded-full bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700" data-i18n="savedWaiting">Waiting for local save</div></div><div id="summary-grid" class="mt-6 grid gap-6 lg:grid-cols-3"></div><div id="result-content" class="mt-6 grid gap-6 xl:grid-cols-2"></div><div id="next-actions" class="mt-6 grid gap-4 md:grid-cols-3"></div></div></div></section>
+      <section id="journey" class="mx-auto max-w-7xl px-6 py-10"><div class="flex items-end justify-between gap-6"><div><div class="text-sm font-semibold uppercase tracking-[0.25em] text-brand-700" data-i18n="journeyBadge">Roadmap</div><h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950" data-i18n="journeyTitle">Move from confusion to a clear certification plan.</h2></div><div class="hidden text-sm text-slate-500 lg:block" data-i18n="journeySide">From first assessment to audit preparation</div></div><div id="journey-grid" class="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4"></div></section>
+      <section id="certificates" class="mx-auto max-w-7xl px-6 py-10"><div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between"><div><div class="text-sm font-semibold uppercase tracking-[0.25em] text-brand-700" data-i18n="catalogBadge">Certificate Library</div><h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950" data-i18n="catalogTitle">Popular certifications and market-specific obligations</h2></div><p class="max-w-2xl text-sm leading-6 text-slate-600" data-i18n="catalogDescription">These cards are fed from the data source and can be refreshed automatically by GitHub Actions.</p></div><div id="certificate-grid" class="mt-8 grid gap-6 lg:grid-cols-2 xl:grid-cols-3"></div></section>
+      <section id="playbooks" class="mx-auto max-w-7xl px-6 py-10"><div class="rounded-[2rem] bg-slate-950 px-8 py-10 text-white shadow-panel"><div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between"><div><div class="text-sm font-semibold uppercase tracking-[0.25em] text-sky-300" data-i18n="playbookBadge">Sector Playbooks</div><h2 class="mt-3 text-3xl font-black tracking-tight" data-i18n="playbookTitle">Suggested paths for growth and export scenarios</h2></div><p class="max-w-2xl text-sm leading-6 text-slate-300" data-i18n="playbookDescription">Different sectors need different combinations of legal compliance and strategic standards.</p></div><div id="playbook-grid" class="mt-8 grid gap-6 lg:grid-cols-2"></div></div></section>
+      <section id="resources" class="mx-auto max-w-7xl px-6 py-10"><div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between"><div><div class="text-sm font-semibold uppercase tracking-[0.25em] text-brand-700" data-i18n="resourcesBadge">Resources</div><h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950" data-i18n="resourcesTitle">Useful content that helps teams decide faster</h2></div><p class="max-w-2xl text-sm leading-6 text-slate-600" data-i18n="resourcesDescription">This section can later grow into landing pages, SEO content, templates, and downloadable checklists.</p></div><div id="resource-grid" class="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4"></div></section>
+      <section id="faq" class="mx-auto max-w-7xl px-6 py-10"><div class="rounded-[2rem] border border-sky-100 bg-white p-8 shadow-panel"><div><div class="text-sm font-semibold uppercase tracking-[0.25em] text-brand-700" data-i18n="faqBadge">FAQ</div><h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950" data-i18n="faqTitle">Frequently asked questions</h2></div><div id="faq-grid" class="mt-8 grid gap-4"></div></div></section>
+      <section id="contact" class="mx-auto max-w-7xl px-6 py-10 pb-20"><div class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]"><div class="rounded-[2rem] bg-gradient-to-br from-brand-700 to-brand-900 p-8 text-white shadow-panel"><div class="text-sm font-semibold uppercase tracking-[0.25em] text-sky-200" data-i18n="supportBadge">Professional Support</div><h2 class="mt-4 text-3xl font-black tracking-tight" data-i18n="supportTitle">Accelerate your certification preparation with expert support.</h2><p class="mt-4 text-sm leading-7 text-sky-50/90" data-i18n="supportDescription">This form works in demo mode for now. It can later be connected to CRM, email, or lead collection services.</p><ul class="mt-6 space-y-3 text-sm text-sky-50/90"><li class="flex items-start gap-3"><i class="fa-solid fa-check mt-1"></i><span data-i18n="supportPoint1">Pre-assessment and roadmap</span></li><li class="flex items-start gap-3"><i class="fa-solid fa-check mt-1"></i><span data-i18n="supportPoint2">Consultant and certification-body matching</span></li><li class="flex items-start gap-3"><i class="fa-solid fa-check mt-1"></i><span data-i18n="supportPoint3">Technical file and process preparation support</span></li></ul></div><div class="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-panel"><form id="contact-form" class="grid gap-5 md:grid-cols-2"><label class="md:col-span-1"><span class="mb-2 block text-sm font-semibold text-slate-800" data-i18n="contactName">Full name</span><input id="contact-name" type="text" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-sky-100"></label><label class="md:col-span-1"><span class="mb-2 block text-sm font-semibold text-slate-800" data-i18n="contactEmail">Email</span><input id="contact-email" type="email" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-sky-100"></label><label class="md:col-span-1"><span class="mb-2 block text-sm font-semibold text-slate-800" data-i18n="contactCompany">Company</span><input id="contact-company" type="text" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-sky-100"></label><label class="md:col-span-1"><span class="mb-2 block text-sm font-semibold text-slate-800" data-i18n="contactPhone">Phone</span><input id="contact-phone" type="tel" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-sky-100"></label><label class="md:col-span-2"><span class="mb-2 block text-sm font-semibold text-slate-800" data-i18n="contactNeed">What do you need support with?</span><textarea id="contact-message" rows="5" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-sky-100"></textarea></label><button type="submit" class="md:col-span-2 inline-flex items-center justify-center gap-2 rounded-full bg-brand-700 px-7 py-3 text-sm font-semibold text-white hover:bg-brand-900"><i class="fa-solid fa-paper-plane"></i><span data-i18n="contactSubmit">Send Quote Request</span></button></form></div></div></section>
     </main>
-
     <footer class="border-t border-sky-100 bg-white/90"><div class="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-8 md:flex-row md:items-center md:justify-between"><div><div class="text-sm font-bold text-slate-900">CertiRehber</div><div id="footer-disclaimer" class="mt-1 max-w-3xl text-xs leading-5 text-slate-500"></div></div><div id="footer-meta" class="text-xs font-semibold uppercase tracking-[0.2em] text-brand-700"></div></div></footer>
   </div>
   <script src="./app.js"></script>

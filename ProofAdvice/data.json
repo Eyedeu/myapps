@@ -1,473 +1,59 @@
-{
+﻿{
   "meta": {
     "platform": "CertiRehber",
-    "description": "Yeni kurulan şirketler ve büyüyen KOBİ'ler için sertifika, uyum ve hedef pazar rehberi",
+    "description": "Certification and compliance guide for startups and growing SMEs",
     "lastGlobalUpdate": "2026-04-08",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "supportEmail": "destek@certirehber.com",
-    "disclaimer": "CertiRehber bilgilendirme amaçlı bir karar destek platformudur. Nihai uygunluk, sertifikasyon ve yasal gereksinimler için ilgili resmi kurumlar ve akredite belgelendirme kuruluşları ile doğrulama yapılmalıdır."
+    "disclaimer": "CertiRehber is an informational decision-support platform. Final compliance, certification, and legal obligations should always be confirmed with official authorities and accredited certification bodies."
   },
   "stats": [
-    {
-      "label": "Takip edilen ana uyum başlığı",
-      "value": "30+"
-    },
-    {
-      "label": "Odak sektör senaryosu",
-      "value": "9"
-    },
-    {
-      "label": "Hedef pazar bölgesi",
-      "value": "5"
-    },
-    {
-      "label": "Hızlı değerlendirme süresi",
-      "value": "< 3 dk"
-    }
+    { "labelKey": "trackedTopics", "value": "30+" },
+    { "labelKey": "sectorScenarios", "value": "9" },
+    { "labelKey": "marketRegions", "value": "5" },
+    { "labelKey": "assessmentSpeed", "value": "< 3 min" }
   ],
   "filters": {
-    "sectors": [
-      "Teknoloji / Yazılım",
-      "E-Ticaret",
-      "Üretim / Sanayi",
-      "Sağlık",
-      "Gıda",
-      "Lojistik / Taşımacılık",
-      "Danışmanlık / Hizmet",
-      "İnşaat",
-      "Diğer"
-    ],
-    "employeeRanges": [
-      {
-        "value": "1-9",
-        "label": "1-9 çalışan"
-      },
-      {
-        "value": "10-49",
-        "label": "10-49 çalışan"
-      },
-      {
-        "value": "50-249",
-        "label": "50-249 çalışan"
-      },
-      {
-        "value": "250+",
-        "label": "250+ çalışan"
-      }
-    ],
-    "businessStages": [
-      {
-        "value": "new",
-        "label": "Yeni kurulan"
-      },
-      {
-        "value": "growth",
-        "label": "3-5 yıllık / büyüyen"
-      },
-      {
-        "value": "scaling",
-        "label": "Kurumsallaşan / büyük hesap hedefleyen"
-      }
-    ],
-    "regions": [
-      {
-        "value": "Turkiye",
-        "label": "Sadece Türkiye"
-      },
-      {
-        "value": "Avrupa",
-        "label": "Avrupa Birliği (AB)"
-      },
-      {
-        "value": "Amerika",
-        "label": "Amerika Birleşik Devletleri (ABD)"
-      },
-      {
-        "value": "Asya",
-        "label": "Asya / Çin"
-      },
-      {
-        "value": "Global",
-        "label": "Tüm Dünya (Global)"
-      }
-    ]
+    "sectors": ["technology", "ecommerce", "manufacturing", "healthcare", "food", "logistics", "consulting", "construction", "other"],
+    "employeeRanges": [{ "value": "1-9" }, { "value": "10-49" }, { "value": "50-249" }, { "value": "250+" }],
+    "businessStages": [{ "value": "new" }, { "value": "growth" }, { "value": "scaling" }],
+    "regions": [{ "value": "Turkiye" }, { "value": "Avrupa" }, { "value": "Amerika" }, { "value": "Asya" }, { "value": "Global" }]
   },
   "journey": [
-    {
-      "step": "01",
-      "title": "Şirket profilinizi netleştirin",
-      "description": "Sektörünüz, ekip büyüklüğünüz, şirket aşamanız ve veri işleme yapınız temel sertifika gereksinimlerinizi belirler."
-    },
-    {
-      "step": "02",
-      "title": "Hedef pazarınızı işaretleyin",
-      "description": "Türkiye, Avrupa, Amerika, Asya veya global açılım hedefleriniz; zorunlu regülasyon ve belge setini doğrudan etkiler."
-    },
-    {
-      "step": "03",
-      "title": "Zorunlu ve tavsiye edilenleri ayırın",
-      "description": "Yasal zorunluluklar ile müşteri, ihale, yatırım ve ihracat odaklı tavsiye belgeleri birlikte ama ayrı önceliklerle ele alınmalıdır."
-    },
-    {
-      "step": "04",
-      "title": "Hazırlık paketini planlayın",
-      "description": "Politikalar, süreç dokümanları, eğitim planları, teknik dosyalar ve sorumluluk matrisiyle sertifikasyon hazırlığını yönetin."
-    }
+    { "step": "01", "title": "Clarify your company profile", "description": "Your sector, team size, business stage, and data-processing model define your starting compliance scope." },
+    { "step": "02", "title": "Mark your target markets", "description": "Turkey, Europe, the United States, China, and global expansion plans each bring different requirements." },
+    { "step": "03", "title": "Separate mandatory and strategic needs", "description": "Legal obligations and growth-oriented certifications should be prioritized differently." },
+    { "step": "04", "title": "Build the preparation package", "description": "Policies, process documents, training plans, technical files, and audit readiness should be planned together." }
   ],
   "certificates": [
-    {
-      "id": "kvkk",
-      "name": "KVKK Uyum Süreci",
-      "category": "Yasal Uyumluluk",
-      "regions": [
-        "Turkiye"
-      ],
-      "sectors": [
-        "Teknoloji / Yazılım",
-        "E-Ticaret",
-        "Sağlık",
-        "Lojistik / Taşımacılık",
-        "Danışmanlık / Hizmet",
-        "Gıda",
-        "Üretim / Sanayi",
-        "İnşaat",
-        "Diğer"
-      ],
-      "businessStages": [
-        "new",
-        "growth",
-        "scaling"
-      ],
-      "employeeRequirement": "all",
-      "requiresPersonalData": true,
-      "obligation": "zorunlu",
-      "summary": "Türkiye'de kişisel veri işleyen şirketler için aydınlatma, açık rıza, veri envanteri, saklama ve imha süreçlerini kapsayan temel uyum yapısıdır.",
-      "estimatedTimeline": "2-8 hafta",
-      "estimatedCost": "Şirket yapısına göre değişir",
-      "issuingAuthority": "KVKK / İlgili mevzuat",
-      "officialHint": "VERBİS yükümlülüğü, aydınlatma metinleri, işleme envanteri ve saklama-imha politikalarıyla birlikte değerlendirilmelidir.",
-      "outcomes": [
-        "Veri envanteri oluşur",
-        "Politikalar yazılı hale gelir",
-        "Müşteri ve tedarikçi güveni artar"
-      ],
-      "lastUpdated": "2026-04-08"
-    },
-    {
-      "id": "gdpr",
-      "name": "GDPR Uyum Çerçevesi",
-      "category": "Veri Koruma",
-      "regions": [
-        "Avrupa"
-      ],
-      "sectors": [
-        "Teknoloji / Yazılım",
-        "E-Ticaret",
-        "Sağlık",
-        "Danışmanlık / Hizmet",
-        "Lojistik / Taşımacılık",
-        "Diğer"
-      ],
-      "businessStages": [
-        "new",
-        "growth",
-        "scaling"
-      ],
-      "employeeRequirement": "all",
-      "requiresPersonalData": true,
-      "obligation": "zorunlu",
-      "summary": "Avrupa Birliği vatandaşlarının kişisel verilerini işleyen şirketler için veri koruma, açık rıza, veri sahibi hakları ve sınır ötesi veri işleme yükümlülüklerini düzenler.",
-      "estimatedTimeline": "4-12 hafta",
-      "estimatedCost": "Orta - yüksek",
-      "issuingAuthority": "AB veri koruma otoriteleri / ilgili mevzuat",
-      "officialHint": "Avrupa'ya satış yapan veya AB'deki kişilere hizmet sunan şirketler için ülke bazlı ek yükümlülükler de olabilir.",
-      "outcomes": [
-        "Veri işleme kayıtları netleşir",
-        "Açık rıza ve sözleşmeler güçlenir",
-        "AB müşterileri için güven artar"
-      ],
-      "lastUpdated": "2026-04-08"
-    },
-    {
-      "id": "pipl",
-      "name": "PIPL Uyum Gereksinimleri",
-      "category": "Veri Koruma",
-      "regions": [
-        "Asya"
-      ],
-      "sectors": [
-        "Teknoloji / Yazılım",
-        "E-Ticaret",
-        "Sağlık",
-        "Danışmanlık / Hizmet",
-        "Diğer"
-      ],
-      "businessStages": [
-        "growth",
-        "scaling"
-      ],
-      "employeeRequirement": "all",
-      "requiresPersonalData": true,
-      "obligation": "zorunlu",
-      "summary": "Çin'de kişisel veri işleyen veya Çin pazarına dijital ürün ve hizmet sunan şirketler için sıkı veri koruma ve sınır ötesi veri transferi şartları içerir.",
-      "estimatedTimeline": "6-14 hafta",
-      "estimatedCost": "Orta - yüksek",
-      "issuingAuthority": "Çin veri koruma düzenlemeleri",
-      "officialHint": "Çin veri yerelleştirme ve güvenlik değerlendirme gereklilikleri ayrıca incelenmelidir.",
-      "outcomes": [
-        "Çin pazarına giriş riski azalır",
-        "Veri transfer süreçleri netleşir",
-        "Yerel ortaklarla güvenli çalışma zemini oluşur"
-      ],
-      "lastUpdated": "2026-04-08"
-    },
-    {
-      "id": "ccpa",
-      "name": "CCPA / CPRA Uyum Programı",
-      "category": "Veri Koruma",
-      "regions": [
-        "Amerika"
-      ],
-      "sectors": [
-        "Teknoloji / Yazılım",
-        "E-Ticaret",
-        "Sağlık",
-        "Danışmanlık / Hizmet",
-        "Diğer"
-      ],
-      "businessStages": [
-        "growth",
-        "scaling"
-      ],
-      "employeeRequirement": "10+",
-      "requiresPersonalData": true,
-      "obligation": "zorunlu",
-      "summary": "Kaliforniya tüketicilerine ürün veya hizmet sunan ve belirli eşikleri sağlayan şirketler için veri gizliliği, açıklama ve tüketici talep yönetimi yükümlülüklerini tanımlar.",
-      "estimatedTimeline": "4-10 hafta",
-      "estimatedCost": "Orta",
-      "issuingAuthority": "California Privacy Protection Agency / ilgili mevzuat",
-      "officialHint": "ABD genelinde farklı eyalet regülasyonları bulunduğu için eyalet bazlı ek inceleme gerekir.",
-      "outcomes": [
-        "Gizlilik bildirimleri güncellenir",
-        "Tüketici talep süreçleri kurulur",
-        "ABD sözleşme süreçlerinde güven artar"
-      ],
-      "lastUpdated": "2026-04-08"
-    },
-    {
-      "id": "ce",
-      "name": "CE İşareti / CE Uygunluk Süreci",
-      "category": "Ürün Uygunluğu",
-      "regions": [
-        "Turkiye",
-        "Avrupa"
-      ],
-      "sectors": [
-        "Üretim / Sanayi",
-        "Gıda",
-        "İnşaat",
-        "Lojistik / Taşımacılık",
-        "Sağlık"
-      ],
-      "businessStages": [
-        "new",
-        "growth",
-        "scaling"
-      ],
-      "employeeRequirement": "1+",
-      "requiresPersonalData": false,
-      "obligation": "zorunlu",
-      "summary": "Avrupa ve Türkiye teknik düzenlemelerine tabi ürünlerin piyasaya arzında gerekli olan uygunluk işareti ve teknik dosya sürecini ifade eder.",
-      "estimatedTimeline": "3-12 hafta",
-      "estimatedCost": "Ürün sınıfına göre değişir",
-      "issuingAuthority": "İlgili teknik düzenleme / Onaylanmış kuruluş",
-      "officialHint": "Her ürün grubu için aynı değildir; test, teknik dosya, etiketleme ve beyan süreçleri birlikte ele alınmalıdır.",
-      "outcomes": [
-        "Ürün piyasaya çıkış uygunluğu artar",
-        "İhracat süreci kolaylaşır",
-        "Teknik dosya disiplini oluşur"
-      ],
-      "lastUpdated": "2026-04-08"
-    },
-    {
-      "id": "fda",
-      "name": "FDA Onayı / FDA Uyum Süreci",
-      "category": "Regüle Pazar Girişi",
-      "regions": [
-        "Amerika"
-      ],
-      "sectors": [
-        "Sağlık",
-        "Gıda",
-        "Üretim / Sanayi"
-      ],
-      "businessStages": [
-        "growth",
-        "scaling"
-      ],
-      "employeeRequirement": "1+",
-      "requiresPersonalData": false,
-      "obligation": "zorunlu",
-      "summary": "ABD'de belirli sağlık, medikal cihaz, kozmetik ve gıda kategorilerinde pazara giriş için gerekli kayıt, dosyalama, test ve bildirim süreçlerini kapsar.",
-      "estimatedTimeline": "6-20 hafta",
-      "estimatedCost": "Ürün sınıfına göre değişir",
-      "issuingAuthority": "U.S. Food and Drug Administration",
-      "officialHint": "Ürün sınıfına göre 510(k), kayıt, etiketleme veya tesis yükümlülükleri farklılaşabilir.",
-      "outcomes": [
-        "ABD pazarına giriş netleşir",
-        "Ürün risk sınıfı görünür olur",
-        "Regülatif hazırlık seviyesi artar"
-      ],
-      "lastUpdated": "2026-04-08"
-    },
-    {
-      "id": "ccc",
-      "name": "CCC Belgesi",
-      "category": "Ürün Uygunluğu",
-      "regions": [
-        "Asya"
-      ],
-      "sectors": [
-        "Üretim / Sanayi",
-        "İnşaat",
-        "Diğer"
-      ],
-      "businessStages": [
-        "growth",
-        "scaling"
-      ],
-      "employeeRequirement": "1+",
-      "requiresPersonalData": false,
-      "obligation": "zorunlu",
-      "summary": "Çin'de belirli ürün kategorileri için zorunlu ürün sertifikasyonu olup test, fabrika denetimi ve etiketleme süreçlerini kapsar.",
-      "estimatedTimeline": "8-18 hafta",
-      "estimatedCost": "Orta - yüksek",
-      "issuingAuthority": "China Compulsory Certification",
-      "officialHint": "Ürün GTİP ve kategori eşleştirmesi kritik olduğundan ön doğrulama yapılmalıdır.",
-      "outcomes": [
-        "Çin'e satış için uygunluk netleşir",
-        "Test ve denetim planı oluşur",
-        "İhracat riski azalır"
-      ],
-      "lastUpdated": "2026-04-08"
-    },
-    {
-      "id": "iso-27001",
-      "name": "ISO 27001 Bilgi Güvenliği Yönetim Sistemi",
-      "category": "Bilgi Güvenliği",
-      "regions": [
-        "Global"
-      ],
-      "sectors": [
-        "Teknoloji / Yazılım",
-        "E-Ticaret",
-        "Sağlık",
-        "Danışmanlık / Hizmet",
-        "Lojistik / Taşımacılık",
-        "Diğer"
-      ],
-      "businessStages": [
-        "growth",
-        "scaling"
-      ],
-      "employeeRequirement": "1+",
-      "requiresPersonalData": false,
-      "obligation": "tavsiye",
-      "summary": "Bilgi varlıklarını risk bazlı yönetmek, kurumsal müşteri güveni kazanmak ve global satış süreçlerinde güvenlik olgunluğunu göstermek için öne çıkar.",
-      "estimatedTimeline": "6-16 hafta",
-      "estimatedCost": "Orta - yüksek",
-      "issuingAuthority": "Akredite belgelendirme kuruluşu",
-      "officialHint": "Özellikle SaaS, yazılım ve veri yoğun hizmet sunan şirketlerde satış döngüsünü kısaltabilir.",
-      "outcomes": [
-        "Risk yönetimi olgunlaşır",
-        "Müşteri denetimlerinde avantaj sağlar",
-        "Politika ve kontrol setleri netleşir"
-      ],
-      "lastUpdated": "2026-04-08"
-    },
-    {
-      "id": "iso-9001",
-      "name": "ISO 9001 Kalite Yönetim Sistemi",
-      "category": "Kalite",
-      "regions": [
-        "Global"
-      ],
-      "sectors": [
-        "Teknoloji / Yazılım",
-        "E-Ticaret",
-        "Üretim / Sanayi",
-        "Sağlık",
-        "Gıda",
-        "Lojistik / Taşımacılık",
-        "Danışmanlık / Hizmet",
-        "İnşaat",
-        "Diğer"
-      ],
-      "businessStages": [
-        "growth",
-        "scaling"
-      ],
-      "employeeRequirement": "1+",
-      "requiresPersonalData": false,
-      "obligation": "tavsiye",
-      "summary": "Süreç standardizasyonu, operasyonel olgunluk ve ihale veya kurumsal müşteri yeterliliği için en yaygın yönetim sistemi belgelerinden biridir.",
-      "estimatedTimeline": "4-12 hafta",
-      "estimatedCost": "Düşük - orta",
-      "issuingAuthority": "Akredite belgelendirme kuruluşu",
-      "officialHint": "Büyüme sürecindeki hemen her sektörde temel kurumsallaşma belgesi olarak düşünülmelidir.",
-      "outcomes": [
-        "Süreçler dokümante olur",
-        "Sorumluluklar netleşir",
-        "Operasyonel kalite algısı güçlenir"
-      ],
-      "lastUpdated": "2026-04-08"
-    }
+    { "id": "kvkk", "name": "KVKK Compliance Program", "category": "Legal Compliance", "regions": ["Turkiye"], "sectors": ["technology", "ecommerce", "healthcare", "logistics", "consulting", "food", "manufacturing", "construction", "other"], "businessStages": ["new", "growth", "scaling"], "employeeRequirement": "all", "requiresPersonalData": true, "obligation": "mandatory", "summary": "Core privacy compliance framework for organizations processing personal data in Turkey.", "estimatedTimeline": "2-8 weeks", "estimatedCost": "Depends on company structure", "issuingAuthority": "KVKK / relevant legislation", "officialHint": "Review VERBIS obligations, privacy notices, data inventory, and retention-destruction policies together.", "lastUpdated": "2026-04-08" },
+    { "id": "gdpr", "name": "GDPR Compliance Framework", "category": "Data Protection", "regions": ["Avrupa"], "sectors": ["technology", "ecommerce", "healthcare", "consulting", "logistics", "other"], "businessStages": ["new", "growth", "scaling"], "employeeRequirement": "all", "requiresPersonalData": true, "obligation": "mandatory", "summary": "Privacy and data-protection requirements for companies handling EU residents' personal data.", "estimatedTimeline": "4-12 weeks", "estimatedCost": "Medium to high", "issuingAuthority": "EU data protection authorities", "officialHint": "If you sell into the EU, country-specific obligations may apply in addition to GDPR.", "lastUpdated": "2026-04-08" },
+    { "id": "pipl", "name": "PIPL Compliance Requirements", "category": "Data Protection", "regions": ["Asya"], "sectors": ["technology", "ecommerce", "healthcare", "consulting", "other"], "businessStages": ["growth", "scaling"], "employeeRequirement": "all", "requiresPersonalData": true, "obligation": "mandatory", "summary": "Strict privacy and cross-border transfer rules for companies serving China or processing Chinese personal data.", "estimatedTimeline": "6-14 weeks", "estimatedCost": "Medium to high", "issuingAuthority": "Chinese privacy legislation", "officialHint": "Data localization and security assessment requirements should be reviewed early.", "lastUpdated": "2026-04-08" },
+    { "id": "ccpa", "name": "CCPA / CPRA Compliance Program", "category": "Data Protection", "regions": ["Amerika"], "sectors": ["technology", "ecommerce", "healthcare", "consulting", "other"], "businessStages": ["growth", "scaling"], "employeeRequirement": "10+", "requiresPersonalData": true, "obligation": "mandatory", "summary": "Privacy compliance pathway for companies serving California consumers and meeting relevant thresholds.", "estimatedTimeline": "4-10 weeks", "estimatedCost": "Medium", "issuingAuthority": "California privacy authorities", "officialHint": "US state-level privacy rules vary, so California may not be the only framework you need.", "lastUpdated": "2026-04-08" },
+    { "id": "ce", "name": "CE Marking / CE Conformity Process", "category": "Product Compliance", "regions": ["Turkiye", "Avrupa"], "sectors": ["manufacturing", "food", "construction", "logistics", "healthcare"], "businessStages": ["new", "growth", "scaling"], "employeeRequirement": "1+", "requiresPersonalData": false, "obligation": "mandatory", "summary": "Required product conformity pathway for regulated goods entering the European and Turkish markets.", "estimatedTimeline": "3-12 weeks", "estimatedCost": "Depends on product class", "issuingAuthority": "Relevant regulation / notified body", "officialHint": "Testing, technical files, labels, and declarations should be handled as one package.", "lastUpdated": "2026-04-08" },
+    { "id": "fda", "name": "FDA Approval / FDA Readiness", "category": "Regulated Market Access", "regions": ["Amerika"], "sectors": ["healthcare", "food", "manufacturing"], "businessStages": ["growth", "scaling"], "employeeRequirement": "1+", "requiresPersonalData": false, "obligation": "mandatory", "summary": "Market-entry preparation for regulated products in the United States, especially health and food categories.", "estimatedTimeline": "6-20 weeks", "estimatedCost": "Depends on product class", "issuingAuthority": "U.S. Food and Drug Administration", "officialHint": "Product classification drives whether registration, filing, 510(k), or facility obligations apply.", "lastUpdated": "2026-04-08" },
+    { "id": "ccc", "name": "CCC Certification", "category": "Product Compliance", "regions": ["Asya"], "sectors": ["manufacturing", "construction", "other"], "businessStages": ["growth", "scaling"], "employeeRequirement": "1+", "requiresPersonalData": false, "obligation": "mandatory", "summary": "Compulsory product certification route for certain goods sold in China.", "estimatedTimeline": "8-18 weeks", "estimatedCost": "Medium to high", "issuingAuthority": "China Compulsory Certification", "officialHint": "Product classification and scope validation should be confirmed before certification work starts.", "lastUpdated": "2026-04-08" },
+    { "id": "iso-27001", "name": "ISO 27001 Information Security Management System", "category": "Information Security", "regions": ["Global"], "sectors": ["technology", "ecommerce", "healthcare", "consulting", "logistics", "other"], "businessStages": ["growth", "scaling"], "employeeRequirement": "1+", "requiresPersonalData": false, "obligation": "recommended", "summary": "Global trust and security framework for companies that want stronger enterprise readiness.", "estimatedTimeline": "6-16 weeks", "estimatedCost": "Medium to high", "issuingAuthority": "Accredited certification body", "officialHint": "Frequently requested in B2B sales, procurement, and security due diligence processes.", "lastUpdated": "2026-04-08" },
+    { "id": "iso-9001", "name": "ISO 9001 Quality Management System", "category": "Quality", "regions": ["Global"], "sectors": ["technology", "ecommerce", "manufacturing", "healthcare", "food", "logistics", "consulting", "construction", "other"], "businessStages": ["growth", "scaling"], "employeeRequirement": "1+", "requiresPersonalData": false, "obligation": "recommended", "summary": "Widely recognized quality framework that supports process maturity and corporate sales credibility.", "estimatedTimeline": "4-12 weeks", "estimatedCost": "Low to medium", "issuingAuthority": "Accredited certification body", "officialHint": "Often the first formal management-system certificate for scaling companies.", "lastUpdated": "2026-04-08" },
+    { "id": "iso-22000", "name": "ISO 22000 Food Safety Management System", "category": "Food Safety", "regions": ["Global"], "sectors": ["food"], "businessStages": ["growth", "scaling"], "employeeRequirement": "1+", "requiresPersonalData": false, "obligation": "recommended", "summary": "Food safety management model focused on traceability, hazard control, and audit readiness.", "estimatedTimeline": "6-14 weeks", "estimatedCost": "Medium", "issuingAuthority": "Accredited certification body", "officialHint": "Especially valuable for supply-chain trust, retail onboarding, and export readiness.", "lastUpdated": "2026-04-08" },
+    { "id": "iso-13485", "name": "ISO 13485 Medical Device Quality Management System", "category": "Healthcare and Regulated Sectors", "regions": ["Global"], "sectors": ["healthcare", "manufacturing"], "businessStages": ["growth", "scaling"], "employeeRequirement": "1+", "requiresPersonalData": false, "obligation": "recommended", "summary": "Quality framework for medical-device companies seeking stronger regulated-market readiness.", "estimatedTimeline": "8-18 weeks", "estimatedCost": "Medium to high", "issuingAuthority": "Accredited certification body", "officialHint": "Should be evaluated together with target-market device regulations and technical documentation.", "lastUpdated": "2026-04-08" }
   ],
   "playbooks": [
-    {
-      "sector": "Teknoloji / Yazılım",
-      "headline": "SaaS ve yazılım şirketleri için pazar açılım oyunu",
-      "summary": "Türkiye'de başlayan, Avrupa ve ABD'ye satış yapmak isteyen yazılım ekipleri için önce veri koruma ve güvenlik omurgasını kurmak gerekir.",
-      "recommendedCertificates": [
-        "KVKK Uyum Süreci",
-        "GDPR Uyum Çerçevesi",
-        "CCPA / CPRA Uyum Programı",
-        "ISO 27001 Bilgi Güvenliği Yönetim Sistemi",
-        "ISO 9001 Kalite Yönetim Sistemi"
-      ]
-    },
-    {
-      "sector": "E-Ticaret",
-      "headline": "Çok pazarlı e-ticaret büyümesi için uyum kurgusu",
-      "summary": "E-ticaret şirketleri için veri gizliliği, tüketici verisi işleme, operasyon kalitesi ve hedef pazara göre gizlilik metinleri kritik önemdedir.",
-      "recommendedCertificates": [
-        "KVKK Uyum Süreci",
-        "GDPR Uyum Çerçevesi",
-        "CCPA / CPRA Uyum Programı",
-        "ISO 27001 Bilgi Güvenliği Yönetim Sistemi"
-      ]
-    }
+    { "sector": "technology", "headline": "Go-to-market compliance path for SaaS and software teams", "summary": "Software companies expanding beyond Turkey usually need privacy readiness first, then security and quality maturity.", "recommendedCertificates": ["KVKK Compliance Program", "GDPR Compliance Framework", "CCPA / CPRA Compliance Program", "ISO 27001 Information Security Management System", "ISO 9001 Quality Management System"] },
+    { "sector": "ecommerce", "headline": "Multi-market compliance plan for e-commerce companies", "summary": "E-commerce operations often combine privacy obligations, customer trust requirements, and process maturity needs.", "recommendedCertificates": ["KVKK Compliance Program", "GDPR Compliance Framework", "CCPA / CPRA Compliance Program", "ISO 27001 Information Security Management System"] },
+    { "sector": "manufacturing", "headline": "Export-readiness playbook for manufacturers", "summary": "Manufacturers usually need both market-specific product compliance and globally credible management systems.", "recommendedCertificates": ["CE Marking / CE Conformity Process", "FDA Approval / FDA Readiness", "CCC Certification", "ISO 9001 Quality Management System"] },
+    { "sector": "healthcare", "headline": "Regulated growth path for health and medtech companies", "summary": "Healthcare businesses often manage privacy, quality systems, and product-market regulatory requirements in parallel.", "recommendedCertificates": ["KVKK Compliance Program", "GDPR Compliance Framework", "FDA Approval / FDA Readiness", "ISO 13485 Medical Device Quality Management System"] }
   ],
   "resources": [
-    {
-      "title": "Hedef pazara göre belge seçimi kontrol listesi",
-      "type": "Checklist",
-      "description": "Türkiye, Avrupa, ABD ve Çin hedefleri için belge karar mantığını sadeleştiren hızlı başlangıç kontrol listesi."
-    },
-    {
-      "title": "KVKK ve GDPR başlangıç farkları",
-      "type": "Karşılaştırma Rehberi",
-      "description": "Türkiye ve Avrupa veri koruma yükümlülüklerinin kapsam, haklar ve operasyon tarafındaki ana farklarını özetler."
-    }
+    { "title": "Target-market certification checklist", "type": "Checklist", "description": "A quick decision checklist for Turkey, Europe, the US, China, and global expansion scenarios." },
+    { "title": "KVKK vs GDPR starter comparison", "type": "Comparison Guide", "description": "High-level overview of the main operational differences between Turkish and EU privacy obligations." },
+    { "title": "CE, FDA, and CCC market-entry comparison", "type": "Market Guide", "description": "A practical starting point for product companies comparing Europe, US, and China readiness." },
+    { "title": "ISO readiness pack for enterprise sales", "type": "Preparation Guide", "description": "Core preparation areas for ISO 9001 and ISO 27001 before consulting or audit engagement." }
   ],
   "faq": [
-    {
-      "question": "Yeni kurulan bir şirket hangi belgelerle başlamalı?",
-      "answer": "Bu, sektörünüze, kişisel veri işleyip işlemediğinize ve ilk satış yapacağınız pazara göre değişir."
-    },
-    {
-      "question": "Global seçeneği neyi ifade ediyor?",
-      "answer": "Global seçim, şirketin çoklu pazara açılma hedefi olduğunu varsayar."
-    }
+    { "question": "Which certifications should a newly established company start with?", "answer": "That depends on your sector, target market, and whether you process personal data. Privacy obligations usually come first, while ISO certifications often support growth and enterprise sales." },
+    { "question": "What if we plan to sell into more than one country?", "answer": "You should evaluate all target regions together. In many cases, global ISO standards and region-specific legal obligations need to be planned in the same roadmap." },
+    { "question": "What does the Global option mean?", "answer": "Global indicates a multi-market expansion goal. In that case, globally recognized standards and region-specific requirements should be viewed together." },
+    { "question": "Do these recommendations replace legal advice?", "answer": "No. CertiRehber is an information and decision-support tool. Final compliance decisions should be confirmed with official institutions, legal counsel, and accredited bodies." }
   ]
 }
