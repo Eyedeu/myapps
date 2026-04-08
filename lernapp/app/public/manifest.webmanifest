@@ -1,0 +1,27 @@
+{
+  "name": "AusbildungPro",
+  "short_name": "AusbildungPro",
+  "description": "Almanca mesleki egitim, odev cozumu, konu anlatimi, ceviri ve sinav hazirligi uygulamasi.",
+  "start_url": "/myapps/lernapp/",
+  "scope": "/myapps/lernapp/",
+  "display": "standalone",
+  "background_color": "#0b1730",
+  "theme_color": "#0b1730",
+  "icons": [
+    {
+      "src": "/myapps/lernapp/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/myapps/lernapp/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/myapps/lernapp/apple-touch-icon.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    }
+  ]
+}
