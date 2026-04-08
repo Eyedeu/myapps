@@ -1,0 +1,359 @@
+{
+  "meta": {
+    "platform": "CertiRehber",
+    "description": "KOBI'ler ve buyuyen girisimler icin sertifika, uyum ve hazirlik rehberi",
+    "lastGlobalUpdate": "2026-04-08",
+    "version": "1.0.0",
+    "supportEmail": "destek@certirehber.com",
+    "disclaimer": "CertiRehber bilgilendirme amacli bir karar destek platformudur. Nihai uygunluk, sertifikasyon ve yasal gereksinimler icin ilgili resmi kurumlar ve akredite belgelendirme kuruluslari ile dogrulama yapilmalidir."
+  },
+  "stats": [
+    {
+      "label": "Takip edilen ana uyum basligi",
+      "value": "24+"
+    },
+    {
+      "label": "Odak sektor senaryosu",
+      "value": "8"
+    },
+    {
+      "label": "Haftalik veri kontrolu",
+      "value": "Pazar"
+    },
+    {
+      "label": "MVP karar hizi",
+      "value": "< 3 dk"
+    }
+  ],
+  "filters": {
+    "sectors": [
+      "Teknoloji / Yazilim",
+      "E-Ticaret",
+      "Uretim / Sanayi",
+      "Saglik",
+      "Gida",
+      "Lojistik / Tasimacilik",
+      "Danismanlik / Hizmet",
+      "Insaat",
+      "Diger"
+    ],
+    "employeeRanges": [
+      {
+        "value": "1-9",
+        "label": "1-9 calisan"
+      },
+      {
+        "value": "10-49",
+        "label": "10-49 calisan"
+      },
+      {
+        "value": "50-249",
+        "label": "50-249 calisan"
+      },
+      {
+        "value": "250+",
+        "label": "250+ calisan"
+      }
+    ],
+    "businessStages": [
+      {
+        "value": "new",
+        "label": "Yeni kurulan"
+      },
+      {
+        "value": "growth",
+        "label": "3-5 yillik / buyuyen"
+      },
+      {
+        "value": "scaling",
+        "label": "Kurumsallasan / buyuk hesap hedefleyen"
+      }
+    ]
+  },
+  "journey": [
+    {
+      "step": "01",
+      "title": "Profilinizi cikarin",
+      "description": "Sektorunuz, ekip olceginiz, firma asamaniz ve veri isleme yapiniz temel gereksinimleri belirler."
+    },
+    {
+      "step": "02",
+      "title": "Zorunlu ve tavsiye edilenleri ayirin",
+      "description": "Mevzuat kaynakli zorunluluklar ile musteri, ihale ve ihracat odakli tavsiye belgeler farkli ele alinmalidir."
+    },
+    {
+      "step": "03",
+      "title": "Hazirlik paketini olusturun",
+      "description": "Politika seti, risk analizi, teknik dosya, egitim planlari ve sorumluluk matrisi gibi temel varliklari planlayin."
+    },
+    {
+      "step": "04",
+      "title": "Denetim ve basvuru surecini yonetin",
+      "description": "Akredite kurulus secimi, on denetim hazirligi ve uygunsuzluk takibi ile sureci kontrollu ilerletin."
+    }
+  ],
+  "certificates": [
+    {
+      "id": "kvkk",
+      "name": "KVKK Uyum Sureci",
+      "category": "Yasal Uyumluluk",
+      "sectors": [
+        "Teknoloji / Yazilim",
+        "E-Ticaret",
+        "Saglik",
+        "Lojistik / Tasimacilik",
+        "Danismanlik / Hizmet",
+        "Gida",
+        "Uretim / Sanayi",
+        "Insaat",
+        "Diger"
+      ],
+      "businessStages": [
+        "new",
+        "growth",
+        "scaling"
+      ],
+      "employeeRequirement": "all",
+      "requiresPersonalData": true,
+      "obligation": "zorunlu",
+      "summary": "Kisisel veri isleyen isletmeler icin aydinlatma, acik riza, envanter, saklama ve imha sureclerini kapsayan temel uyum yapisidir.",
+      "estimatedTimeline": "2-8 hafta",
+      "estimatedCost": "Sirket yapisina gore degisir",
+      "issuingAuthority": "KVKK / Ilgili mevzuat",
+      "officialHint": "VERBIS, aydinlatma metinleri ve veri envanteri ile birlikte degerlendirilmelidir.",
+      "outcomes": [
+        "Veri envanteri olusur",
+        "Politikalar yazili hale gelir",
+        "Musteri ve tedarikci guveni artar"
+      ],
+      "lastUpdated": "2026-04-08"
+    },
+    {
+      "id": "iso-27001",
+      "name": "ISO 27001 Bilgi Guvenligi Yonetim Sistemi",
+      "category": "Bilgi Guvenligi",
+      "sectors": [
+        "Teknoloji / Yazilim",
+        "E-Ticaret",
+        "Saglik",
+        "Danismanlik / Hizmet",
+        "Lojistik / Tasimacilik"
+      ],
+      "businessStages": [
+        "growth",
+        "scaling"
+      ],
+      "employeeRequirement": "1+",
+      "requiresPersonalData": false,
+      "obligation": "tavsiye",
+      "summary": "Bilgi varliklarini risk bazli yonetmek, musteri guveni kazanmak ve enterprise satis sureclerinde yeterlilik gostermek icin one cikar.",
+      "estimatedTimeline": "6-16 hafta",
+      "estimatedCost": "Orta - yuksek",
+      "issuingAuthority": "Akredite belgelendirme kurulusu",
+      "officialHint": "Ozellikle SaaS, yazilim ve veri yogun hizmet sunan firmalar icin ticari guc kazandirir.",
+      "outcomes": [
+        "Risk yonetimi olgunlasir",
+        "Kurumsal musteri denetimlerinde avantaj saglar",
+        "Politika ve kontrol setleri netlesir"
+      ],
+      "lastUpdated": "2026-04-08"
+    },
+    {
+      "id": "iso-9001",
+      "name": "ISO 9001 Kalite Yonetim Sistemi",
+      "category": "Kalite",
+      "sectors": [
+        "Teknoloji / Yazilim",
+        "E-Ticaret",
+        "Uretim / Sanayi",
+        "Saglik",
+        "Gida",
+        "Lojistik / Tasimacilik",
+        "Danismanlik / Hizmet",
+        "Insaat",
+        "Diger"
+      ],
+      "businessStages": [
+        "growth",
+        "scaling"
+      ],
+      "employeeRequirement": "1+",
+      "requiresPersonalData": false,
+      "obligation": "tavsiye",
+      "summary": "Surec standardizasyonu, operasyonel olgunluk ve ihale / kurumsal musteri yeterliligi icin en yaygin yonetim sistemi belgelerinden biridir.",
+      "estimatedTimeline": "4-12 hafta",
+      "estimatedCost": "Dusuk - orta",
+      "issuingAuthority": "Akredite belgelendirme kurulusu",
+      "officialHint": "Bir cok farkli sektor ve buyume asamasi icin temel kurumsallasma belgesi olarak dusunulebilir.",
+      "outcomes": [
+        "Surecler dokumante olur",
+        "Sorumluluklar netlesir",
+        "Operasyonel kalite algisi guclenir"
+      ],
+      "lastUpdated": "2026-04-08"
+    },
+    {
+      "id": "ce",
+      "name": "CE Belgesi / CE Isareti",
+      "category": "Urun Uygunlugu",
+      "sectors": [
+        "Uretim / Sanayi",
+        "Gida",
+        "Insaat",
+        "Lojistik / Tasimacilik"
+      ],
+      "businessStages": [
+        "new",
+        "growth",
+        "scaling"
+      ],
+      "employeeRequirement": "1+",
+      "requiresPersonalData": false,
+      "obligation": "zorunlu",
+      "summary": "AB teknik duzenlemelerine tabi urunlerin piyasaya arzinda gerekli olan uygunluk isareti ve teknik dosya surecini ifade eder.",
+      "estimatedTimeline": "3-12 hafta",
+      "estimatedCost": "Urun sinifina gore degisir",
+      "issuingAuthority": "Ilgili teknik duzenleme / Onaylanmis kurulus",
+      "officialHint": "Her urun grubu icin ayni degildir; test, dosyalama ve etiketleme birlikte ele alinmalidir.",
+      "outcomes": [
+        "Urun piyasaya cikis uygunlugu artar",
+        "Ihracat sureci kolaylasir",
+        "Teknik dosya disiplini olusur"
+      ],
+      "lastUpdated": "2026-04-08"
+    },
+    {
+      "id": "iso-22000",
+      "name": "ISO 22000 Gida Guvenligi Yonetim Sistemi",
+      "category": "Gida Guvenligi",
+      "sectors": [
+        "Gida"
+      ],
+      "businessStages": [
+        "growth",
+        "scaling"
+      ],
+      "employeeRequirement": "1+",
+      "requiresPersonalData": false,
+      "obligation": "tavsiye",
+      "summary": "Gida zincirindeki tehlikelerin kontrolu, izlenebilirlik ve hijyen yonetimi icin kritik bir sistemdir.",
+      "estimatedTimeline": "6-14 hafta",
+      "estimatedCost": "Orta",
+      "issuingAuthority": "Akredite belgelendirme kurulusu",
+      "officialHint": "Gida uretimi, depolama ve tedarik zincirinde musteri beklentisini guclendirir.",
+      "outcomes": [
+        "Risk kontrol noktalarina netlik gelir",
+        "Denetim hazirligi artar",
+        "Musteri taleplerine cevap verme kapasitesi guclenir"
+      ],
+      "lastUpdated": "2026-04-08"
+    },
+    {
+      "id": "iso-13485",
+      "name": "ISO 13485 Tibbi Cihaz Kalite Yonetim Sistemi",
+      "category": "Saglik ve Regule Sektor",
+      "sectors": [
+        "Saglik",
+        "Uretim / Sanayi"
+      ],
+      "businessStages": [
+        "growth",
+        "scaling"
+      ],
+      "employeeRequirement": "10+",
+      "requiresPersonalData": false,
+      "obligation": "tavsiye",
+      "summary": "Tibbi cihaz gelistiren veya ureten firmalar icin kalite, izlenebilirlik ve regule pazar beklentilerini destekler.",
+      "estimatedTimeline": "8-18 hafta",
+      "estimatedCost": "Orta - yuksek",
+      "issuingAuthority": "Akredite belgelendirme kurulusu",
+      "officialHint": "Regule saglik ekosistemine giris yapmak isteyen ekipler icin guclu bir sinyal uretir.",
+      "outcomes": [
+        "Kalite kayitlari sistematik hale gelir",
+        "Izlenebilirlik guclenir",
+        "Regule pazar beklentileriyle hizalanir"
+      ],
+      "lastUpdated": "2026-04-08"
+    }
+  ],
+  "playbooks": [
+    {
+      "sector": "Teknoloji / Yazilim",
+      "headline": "SaaS ve yazilim ekipleri icin guven ve enterprise satis hizi on plandadir.",
+      "priorities": [
+        "KVKK",
+        "ISO 27001",
+        "ISO 9001"
+      ],
+      "summary": "Kisisel veri, bilgi guvenligi ve kurumsal musteri denetimleri genellikle ilk baski alanlaridir."
+    },
+    {
+      "sector": "E-Ticaret",
+      "headline": "Musteri verisi, odeme surecleri ve operasyonel kalite birlikte ele alinmalidir.",
+      "priorities": [
+        "KVKK",
+        "ISO 27001",
+        "ISO 9001"
+      ],
+      "summary": "Veri isleme yogunlugu nedeniyle uyum sureci hukuki ve teknik kontrollerin birlikte planlanmasini gerektirir."
+    },
+    {
+      "sector": "Uretim / Sanayi",
+      "headline": "Urun uygunlugu ve kalite sistemi en kritik iki eksendir.",
+      "priorities": [
+        "CE",
+        "ISO 9001",
+        "ISO 13485"
+      ],
+      "summary": "Pazar, urun tipi ve ihracat hedeflerine gore teknik dosya, test ve denetim gereksinimleri degisir."
+    },
+    {
+      "sector": "Gida",
+      "headline": "Hijyen, izlenebilirlik ve musteri guveni icin gida guvenligi sistemi belirleyicidir.",
+      "priorities": [
+        "ISO 22000",
+        "ISO 9001",
+        "CE"
+      ],
+      "summary": "Gida zincirinde izlenebilirlik, proses disiplini ve tesis bazli kontroller one cikar."
+    }
+  ],
+  "resources": [
+    {
+      "title": "Belgelendirme Hazirlik Kontrol Listesi",
+      "type": "Checklist",
+      "description": "Ic denetim, dokumantasyon, risk analizi ve rol atamalari icin temel kontrol basliklari.",
+      "cta": "Indirilebilir kaynak olarak sunulabilir"
+    },
+    {
+      "title": "ISO 27001 Baslangic Yol Haritasi",
+      "type": "Guide",
+      "description": "Politika seti, varlik envanteri, risk yonetimi ve denetim hazirligi icin ozet plan.",
+      "cta": "Lead magnet olarak kullanilabilir"
+    },
+    {
+      "title": "KVKK Uyum Baslangic Paketi",
+      "type": "Template",
+      "description": "Aydinlatma metni, saklama-imha politikasi ve veri envanteri baslangic cercevesi.",
+      "cta": "Premium dokuman urunune donusebilir"
+    }
+  ],
+  "faq": [
+    {
+      "question": "Hangi belge benim icin zorunlu, hangisi tavsiye niteliginde?",
+      "answer": "Zorunlu belgeler mevzuat veya urun uygunlugu kaynakli ihtiyaclardir. Tavsiye edilen belgeler ise kurumsallasma, musteri talebi, ihale ve ihracat hedeflerine gore on plana cikar."
+    },
+    {
+      "question": "Yeni kurulan firmalar sertifika almaya ne zaman baslamali?",
+      "answer": "Yasal uyum basliklari faaliyet baslar baslamaz ele alinmalidir. ISO gibi yonetim sistemi belgeleri ise ilk buyume sinyali, kurumsal musteri gorusmeleri veya denetim baskisi ortaya ciktiginda onceliklendirilmelidir."
+    },
+    {
+      "question": "Belge sureci ortalama ne kadar surer?",
+      "answer": "Sirketin dokumantasyon olgunlugu, ekip yapisi, sektor ve secilen belgeye gore sureler degisir. Basit hazirliklar birkac hafta surerken daha olgun sistemler icin 2-4 ay arasi surec gorulebilir."
+    },
+    {
+      "question": "CertiRehber resmi danismanlik yerine gecer mi?",
+      "answer": "Hayir. Platform bir karar destek ve on hazirlik katmani sunar. Nihai baglayici degerlendirme icin resmi kurumlar, mevzuat metinleri ve akredite belgelendirme kuruluslari ile teyit gereklidir."
+    }
+  ]
+}
