@@ -1,58 +1,58 @@
 {
   "meta": {
     "platform": "CertiRehber",
-    "description": "KOBI'ler ve buyuyen girisimler icin sertifika, uyum ve hazirlik rehberi",
+    "description": "Yeni kurulan şirketler ve büyüyen KOBİ'ler için sertifika, uyum ve hedef pazar rehberi",
     "lastGlobalUpdate": "2026-04-08",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "supportEmail": "destek@certirehber.com",
-    "disclaimer": "CertiRehber bilgilendirme amacli bir karar destek platformudur. Nihai uygunluk, sertifikasyon ve yasal gereksinimler icin ilgili resmi kurumlar ve akredite belgelendirme kuruluslari ile dogrulama yapilmalidir."
+    "disclaimer": "CertiRehber bilgilendirme amaçlı bir karar destek platformudur. Nihai uygunluk, sertifikasyon ve yasal gereksinimler için ilgili resmi kurumlar ve akredite belgelendirme kuruluşları ile doğrulama yapılmalıdır."
   },
   "stats": [
     {
-      "label": "Takip edilen ana uyum basligi",
-      "value": "24+"
+      "label": "Takip edilen ana uyum başlığı",
+      "value": "30+"
     },
     {
-      "label": "Odak sektor senaryosu",
-      "value": "8"
+      "label": "Odak sektör senaryosu",
+      "value": "9"
     },
     {
-      "label": "Haftalik veri kontrolu",
-      "value": "Pazar"
+      "label": "Hedef pazar bölgesi",
+      "value": "5"
     },
     {
-      "label": "MVP karar hizi",
+      "label": "Hızlı değerlendirme süresi",
       "value": "< 3 dk"
     }
   ],
   "filters": {
     "sectors": [
-      "Teknoloji / Yazilim",
+      "Teknoloji / Yazılım",
       "E-Ticaret",
-      "Uretim / Sanayi",
-      "Saglik",
-      "Gida",
-      "Lojistik / Tasimacilik",
-      "Danismanlik / Hizmet",
-      "Insaat",
-      "Diger"
+      "Üretim / Sanayi",
+      "Sağlık",
+      "Gıda",
+      "Lojistik / Taşımacılık",
+      "Danışmanlık / Hizmet",
+      "İnşaat",
+      "Diğer"
     ],
     "employeeRanges": [
       {
         "value": "1-9",
-        "label": "1-9 calisan"
+        "label": "1-9 çalışan"
       },
       {
         "value": "10-49",
-        "label": "10-49 calisan"
+        "label": "10-49 çalışan"
       },
       {
         "value": "50-249",
-        "label": "50-249 calisan"
+        "label": "50-249 çalışan"
       },
       {
         "value": "250+",
-        "label": "250+ calisan"
+        "label": "250+ çalışan"
       }
     ],
     "businessStages": [
@@ -62,51 +62,76 @@
       },
       {
         "value": "growth",
-        "label": "3-5 yillik / buyuyen"
+        "label": "3-5 yıllık / büyüyen"
       },
       {
         "value": "scaling",
-        "label": "Kurumsallasan / buyuk hesap hedefleyen"
+        "label": "Kurumsallaşan / büyük hesap hedefleyen"
+      }
+    ],
+    "regions": [
+      {
+        "value": "Turkiye",
+        "label": "Sadece Türkiye"
+      },
+      {
+        "value": "Avrupa",
+        "label": "Avrupa Birliği (AB)"
+      },
+      {
+        "value": "Amerika",
+        "label": "Amerika Birleşik Devletleri (ABD)"
+      },
+      {
+        "value": "Asya",
+        "label": "Asya / Çin"
+      },
+      {
+        "value": "Global",
+        "label": "Tüm Dünya (Global)"
       }
     ]
   },
   "journey": [
     {
       "step": "01",
-      "title": "Profilinizi cikarin",
-      "description": "Sektorunuz, ekip olceginiz, firma asamaniz ve veri isleme yapiniz temel gereksinimleri belirler."
+      "title": "Şirket profilinizi netleştirin",
+      "description": "Sektörünüz, ekip büyüklüğünüz, şirket aşamanız ve veri işleme yapınız temel sertifika gereksinimlerinizi belirler."
     },
     {
       "step": "02",
-      "title": "Zorunlu ve tavsiye edilenleri ayirin",
-      "description": "Mevzuat kaynakli zorunluluklar ile musteri, ihale ve ihracat odakli tavsiye belgeler farkli ele alinmalidir."
+      "title": "Hedef pazarınızı işaretleyin",
+      "description": "Türkiye, Avrupa, Amerika, Asya veya global açılım hedefleriniz; zorunlu regülasyon ve belge setini doğrudan etkiler."
     },
     {
       "step": "03",
-      "title": "Hazirlik paketini olusturun",
-      "description": "Politika seti, risk analizi, teknik dosya, egitim planlari ve sorumluluk matrisi gibi temel varliklari planlayin."
+      "title": "Zorunlu ve tavsiye edilenleri ayırın",
+      "description": "Yasal zorunluluklar ile müşteri, ihale, yatırım ve ihracat odaklı tavsiye belgeleri birlikte ama ayrı önceliklerle ele alınmalıdır."
     },
     {
       "step": "04",
-      "title": "Denetim ve basvuru surecini yonetin",
-      "description": "Akredite kurulus secimi, on denetim hazirligi ve uygunsuzluk takibi ile sureci kontrollu ilerletin."
+      "title": "Hazırlık paketini planlayın",
+      "description": "Politikalar, süreç dokümanları, eğitim planları, teknik dosyalar ve sorumluluk matrisiyle sertifikasyon hazırlığını yönetin."
     }
   ],
   "certificates": [
     {
       "id": "kvkk",
-      "name": "KVKK Uyum Sureci",
+      "name": "KVKK Uyum Süreci",
       "category": "Yasal Uyumluluk",
+      "regions": [
+        "Turkiye"
+      ],
       "sectors": [
-        "Teknoloji / Yazilim",
+        "Teknoloji / Yazılım",
         "E-Ticaret",
-        "Saglik",
-        "Lojistik / Tasimacilik",
-        "Danismanlik / Hizmet",
-        "Gida",
-        "Uretim / Sanayi",
-        "Insaat",
-        "Diger"
+        "Sağlık",
+        "Lojistik / Taşımacılık",
+        "Danışmanlık / Hizmet",
+        "Gıda",
+        "Üretim / Sanayi",
+        "İnşaat",
+        "Diğer"
       ],
       "businessStages": [
         "new",
@@ -116,91 +141,133 @@
       "employeeRequirement": "all",
       "requiresPersonalData": true,
       "obligation": "zorunlu",
-      "summary": "Kisisel veri isleyen isletmeler icin aydinlatma, acik riza, envanter, saklama ve imha sureclerini kapsayan temel uyum yapisidir.",
+      "summary": "Türkiye'de kişisel veri işleyen şirketler için aydınlatma, açık rıza, veri envanteri, saklama ve imha süreçlerini kapsayan temel uyum yapısıdır.",
       "estimatedTimeline": "2-8 hafta",
-      "estimatedCost": "Sirket yapisina gore degisir",
-      "issuingAuthority": "KVKK / Ilgili mevzuat",
-      "officialHint": "VERBIS, aydinlatma metinleri ve veri envanteri ile birlikte degerlendirilmelidir.",
+      "estimatedCost": "Şirket yapısına göre değişir",
+      "issuingAuthority": "KVKK / İlgili mevzuat",
+      "officialHint": "VERBİS yükümlülüğü, aydınlatma metinleri, işleme envanteri ve saklama-imha politikalarıyla birlikte değerlendirilmelidir.",
       "outcomes": [
-        "Veri envanteri olusur",
-        "Politikalar yazili hale gelir",
-        "Musteri ve tedarikci guveni artar"
+        "Veri envanteri oluşur",
+        "Politikalar yazılı hale gelir",
+        "Müşteri ve tedarikçi güveni artar"
       ],
       "lastUpdated": "2026-04-08"
     },
     {
-      "id": "iso-27001",
-      "name": "ISO 27001 Bilgi Guvenligi Yonetim Sistemi",
-      "category": "Bilgi Guvenligi",
+      "id": "gdpr",
+      "name": "GDPR Uyum Çerçevesi",
+      "category": "Veri Koruma",
+      "regions": [
+        "Avrupa"
+      ],
       "sectors": [
-        "Teknoloji / Yazilim",
+        "Teknoloji / Yazılım",
         "E-Ticaret",
-        "Saglik",
-        "Danismanlik / Hizmet",
-        "Lojistik / Tasimacilik"
+        "Sağlık",
+        "Danışmanlık / Hizmet",
+        "Lojistik / Taşımacılık",
+        "Diğer"
       ],
       "businessStages": [
+        "new",
         "growth",
         "scaling"
       ],
-      "employeeRequirement": "1+",
-      "requiresPersonalData": false,
-      "obligation": "tavsiye",
-      "summary": "Bilgi varliklarini risk bazli yonetmek, musteri guveni kazanmak ve enterprise satis sureclerinde yeterlilik gostermek icin one cikar.",
-      "estimatedTimeline": "6-16 hafta",
-      "estimatedCost": "Orta - yuksek",
-      "issuingAuthority": "Akredite belgelendirme kurulusu",
-      "officialHint": "Ozellikle SaaS, yazilim ve veri yogun hizmet sunan firmalar icin ticari guc kazandirir.",
-      "outcomes": [
-        "Risk yonetimi olgunlasir",
-        "Kurumsal musteri denetimlerinde avantaj saglar",
-        "Politika ve kontrol setleri netlesir"
-      ],
-      "lastUpdated": "2026-04-08"
-    },
-    {
-      "id": "iso-9001",
-      "name": "ISO 9001 Kalite Yonetim Sistemi",
-      "category": "Kalite",
-      "sectors": [
-        "Teknoloji / Yazilim",
-        "E-Ticaret",
-        "Uretim / Sanayi",
-        "Saglik",
-        "Gida",
-        "Lojistik / Tasimacilik",
-        "Danismanlik / Hizmet",
-        "Insaat",
-        "Diger"
-      ],
-      "businessStages": [
-        "growth",
-        "scaling"
-      ],
-      "employeeRequirement": "1+",
-      "requiresPersonalData": false,
-      "obligation": "tavsiye",
-      "summary": "Surec standardizasyonu, operasyonel olgunluk ve ihale / kurumsal musteri yeterliligi icin en yaygin yonetim sistemi belgelerinden biridir.",
+      "employeeRequirement": "all",
+      "requiresPersonalData": true,
+      "obligation": "zorunlu",
+      "summary": "Avrupa Birliği vatandaşlarının kişisel verilerini işleyen şirketler için veri koruma, açık rıza, veri sahibi hakları ve sınır ötesi veri işleme yükümlülüklerini düzenler.",
       "estimatedTimeline": "4-12 hafta",
-      "estimatedCost": "Dusuk - orta",
-      "issuingAuthority": "Akredite belgelendirme kurulusu",
-      "officialHint": "Bir cok farkli sektor ve buyume asamasi icin temel kurumsallasma belgesi olarak dusunulebilir.",
+      "estimatedCost": "Orta - yüksek",
+      "issuingAuthority": "AB veri koruma otoriteleri / ilgili mevzuat",
+      "officialHint": "Avrupa'ya satış yapan veya AB'deki kişilere hizmet sunan şirketler için ülke bazlı ek yükümlülükler de olabilir.",
       "outcomes": [
-        "Surecler dokumante olur",
-        "Sorumluluklar netlesir",
-        "Operasyonel kalite algisi guclenir"
+        "Veri işleme kayıtları netleşir",
+        "Açık rıza ve sözleşmeler güçlenir",
+        "AB müşterileri için güven artar"
+      ],
+      "lastUpdated": "2026-04-08"
+    },
+    {
+      "id": "pipl",
+      "name": "PIPL Uyum Gereksinimleri",
+      "category": "Veri Koruma",
+      "regions": [
+        "Asya"
+      ],
+      "sectors": [
+        "Teknoloji / Yazılım",
+        "E-Ticaret",
+        "Sağlık",
+        "Danışmanlık / Hizmet",
+        "Diğer"
+      ],
+      "businessStages": [
+        "growth",
+        "scaling"
+      ],
+      "employeeRequirement": "all",
+      "requiresPersonalData": true,
+      "obligation": "zorunlu",
+      "summary": "Çin'de kişisel veri işleyen veya Çin pazarına dijital ürün ve hizmet sunan şirketler için sıkı veri koruma ve sınır ötesi veri transferi şartları içerir.",
+      "estimatedTimeline": "6-14 hafta",
+      "estimatedCost": "Orta - yüksek",
+      "issuingAuthority": "Çin veri koruma düzenlemeleri",
+      "officialHint": "Çin veri yerelleştirme ve güvenlik değerlendirme gereklilikleri ayrıca incelenmelidir.",
+      "outcomes": [
+        "Çin pazarına giriş riski azalır",
+        "Veri transfer süreçleri netleşir",
+        "Yerel ortaklarla güvenli çalışma zemini oluşur"
+      ],
+      "lastUpdated": "2026-04-08"
+    },
+    {
+      "id": "ccpa",
+      "name": "CCPA / CPRA Uyum Programı",
+      "category": "Veri Koruma",
+      "regions": [
+        "Amerika"
+      ],
+      "sectors": [
+        "Teknoloji / Yazılım",
+        "E-Ticaret",
+        "Sağlık",
+        "Danışmanlık / Hizmet",
+        "Diğer"
+      ],
+      "businessStages": [
+        "growth",
+        "scaling"
+      ],
+      "employeeRequirement": "10+",
+      "requiresPersonalData": true,
+      "obligation": "zorunlu",
+      "summary": "Kaliforniya tüketicilerine ürün veya hizmet sunan ve belirli eşikleri sağlayan şirketler için veri gizliliği, açıklama ve tüketici talep yönetimi yükümlülüklerini tanımlar.",
+      "estimatedTimeline": "4-10 hafta",
+      "estimatedCost": "Orta",
+      "issuingAuthority": "California Privacy Protection Agency / ilgili mevzuat",
+      "officialHint": "ABD genelinde farklı eyalet regülasyonları bulunduğu için eyalet bazlı ek inceleme gerekir.",
+      "outcomes": [
+        "Gizlilik bildirimleri güncellenir",
+        "Tüketici talep süreçleri kurulur",
+        "ABD sözleşme süreçlerinde güven artar"
       ],
       "lastUpdated": "2026-04-08"
     },
     {
       "id": "ce",
-      "name": "CE Belgesi / CE Isareti",
-      "category": "Urun Uygunlugu",
+      "name": "CE İşareti / CE Uygunluk Süreci",
+      "category": "Ürün Uygunluğu",
+      "regions": [
+        "Turkiye",
+        "Avrupa"
+      ],
       "sectors": [
-        "Uretim / Sanayi",
-        "Gida",
-        "Insaat",
-        "Lojistik / Tasimacilik"
+        "Üretim / Sanayi",
+        "Gıda",
+        "İnşaat",
+        "Lojistik / Taşımacılık",
+        "Sağlık"
       ],
       "businessStages": [
         "new",
@@ -210,24 +277,94 @@
       "employeeRequirement": "1+",
       "requiresPersonalData": false,
       "obligation": "zorunlu",
-      "summary": "AB teknik duzenlemelerine tabi urunlerin piyasaya arzinda gerekli olan uygunluk isareti ve teknik dosya surecini ifade eder.",
+      "summary": "Avrupa ve Türkiye teknik düzenlemelerine tabi ürünlerin piyasaya arzında gerekli olan uygunluk işareti ve teknik dosya sürecini ifade eder.",
       "estimatedTimeline": "3-12 hafta",
-      "estimatedCost": "Urun sinifina gore degisir",
-      "issuingAuthority": "Ilgili teknik duzenleme / Onaylanmis kurulus",
-      "officialHint": "Her urun grubu icin ayni degildir; test, dosyalama ve etiketleme birlikte ele alinmalidir.",
+      "estimatedCost": "Ürün sınıfına göre değişir",
+      "issuingAuthority": "İlgili teknik düzenleme / Onaylanmış kuruluş",
+      "officialHint": "Her ürün grubu için aynı değildir; test, teknik dosya, etiketleme ve beyan süreçleri birlikte ele alınmalıdır.",
       "outcomes": [
-        "Urun piyasaya cikis uygunlugu artar",
-        "Ihracat sureci kolaylasir",
-        "Teknik dosya disiplini olusur"
+        "Ürün piyasaya çıkış uygunluğu artar",
+        "İhracat süreci kolaylaşır",
+        "Teknik dosya disiplini oluşur"
       ],
       "lastUpdated": "2026-04-08"
     },
     {
-      "id": "iso-22000",
-      "name": "ISO 22000 Gida Guvenligi Yonetim Sistemi",
-      "category": "Gida Guvenligi",
+      "id": "fda",
+      "name": "FDA Onayı / FDA Uyum Süreci",
+      "category": "Regüle Pazar Girişi",
+      "regions": [
+        "Amerika"
+      ],
       "sectors": [
-        "Gida"
+        "Sağlık",
+        "Gıda",
+        "Üretim / Sanayi"
+      ],
+      "businessStages": [
+        "growth",
+        "scaling"
+      ],
+      "employeeRequirement": "1+",
+      "requiresPersonalData": false,
+      "obligation": "zorunlu",
+      "summary": "ABD'de belirli sağlık, medikal cihaz, kozmetik ve gıda kategorilerinde pazara giriş için gerekli kayıt, dosyalama, test ve bildirim süreçlerini kapsar.",
+      "estimatedTimeline": "6-20 hafta",
+      "estimatedCost": "Ürün sınıfına göre değişir",
+      "issuingAuthority": "U.S. Food and Drug Administration",
+      "officialHint": "Ürün sınıfına göre 510(k), kayıt, etiketleme veya tesis yükümlülükleri farklılaşabilir.",
+      "outcomes": [
+        "ABD pazarına giriş netleşir",
+        "Ürün risk sınıfı görünür olur",
+        "Regülatif hazırlık seviyesi artar"
+      ],
+      "lastUpdated": "2026-04-08"
+    },
+    {
+      "id": "ccc",
+      "name": "CCC Belgesi",
+      "category": "Ürün Uygunluğu",
+      "regions": [
+        "Asya"
+      ],
+      "sectors": [
+        "Üretim / Sanayi",
+        "İnşaat",
+        "Diğer"
+      ],
+      "businessStages": [
+        "growth",
+        "scaling"
+      ],
+      "employeeRequirement": "1+",
+      "requiresPersonalData": false,
+      "obligation": "zorunlu",
+      "summary": "Çin'de belirli ürün kategorileri için zorunlu ürün sertifikasyonu olup test, fabrika denetimi ve etiketleme süreçlerini kapsar.",
+      "estimatedTimeline": "8-18 hafta",
+      "estimatedCost": "Orta - yüksek",
+      "issuingAuthority": "China Compulsory Certification",
+      "officialHint": "Ürün GTİP ve kategori eşleştirmesi kritik olduğundan ön doğrulama yapılmalıdır.",
+      "outcomes": [
+        "Çin'e satış için uygunluk netleşir",
+        "Test ve denetim planı oluşur",
+        "İhracat riski azalır"
+      ],
+      "lastUpdated": "2026-04-08"
+    },
+    {
+      "id": "iso-27001",
+      "name": "ISO 27001 Bilgi Güvenliği Yönetim Sistemi",
+      "category": "Bilgi Güvenliği",
+      "regions": [
+        "Global"
+      ],
+      "sectors": [
+        "Teknoloji / Yazılım",
+        "E-Ticaret",
+        "Sağlık",
+        "Danışmanlık / Hizmet",
+        "Lojistik / Taşımacılık",
+        "Diğer"
       ],
       "businessStages": [
         "growth",
@@ -236,124 +373,101 @@
       "employeeRequirement": "1+",
       "requiresPersonalData": false,
       "obligation": "tavsiye",
-      "summary": "Gida zincirindeki tehlikelerin kontrolu, izlenebilirlik ve hijyen yonetimi icin kritik bir sistemdir.",
-      "estimatedTimeline": "6-14 hafta",
-      "estimatedCost": "Orta",
-      "issuingAuthority": "Akredite belgelendirme kurulusu",
-      "officialHint": "Gida uretimi, depolama ve tedarik zincirinde musteri beklentisini guclendirir.",
+      "summary": "Bilgi varlıklarını risk bazlı yönetmek, kurumsal müşteri güveni kazanmak ve global satış süreçlerinde güvenlik olgunluğunu göstermek için öne çıkar.",
+      "estimatedTimeline": "6-16 hafta",
+      "estimatedCost": "Orta - yüksek",
+      "issuingAuthority": "Akredite belgelendirme kuruluşu",
+      "officialHint": "Özellikle SaaS, yazılım ve veri yoğun hizmet sunan şirketlerde satış döngüsünü kısaltabilir.",
       "outcomes": [
-        "Risk kontrol noktalarina netlik gelir",
-        "Denetim hazirligi artar",
-        "Musteri taleplerine cevap verme kapasitesi guclenir"
+        "Risk yönetimi olgunlaşır",
+        "Müşteri denetimlerinde avantaj sağlar",
+        "Politika ve kontrol setleri netleşir"
       ],
       "lastUpdated": "2026-04-08"
     },
     {
-      "id": "iso-13485",
-      "name": "ISO 13485 Tibbi Cihaz Kalite Yonetim Sistemi",
-      "category": "Saglik ve Regule Sektor",
+      "id": "iso-9001",
+      "name": "ISO 9001 Kalite Yönetim Sistemi",
+      "category": "Kalite",
+      "regions": [
+        "Global"
+      ],
       "sectors": [
-        "Saglik",
-        "Uretim / Sanayi"
+        "Teknoloji / Yazılım",
+        "E-Ticaret",
+        "Üretim / Sanayi",
+        "Sağlık",
+        "Gıda",
+        "Lojistik / Taşımacılık",
+        "Danışmanlık / Hizmet",
+        "İnşaat",
+        "Diğer"
       ],
       "businessStages": [
         "growth",
         "scaling"
       ],
-      "employeeRequirement": "10+",
+      "employeeRequirement": "1+",
       "requiresPersonalData": false,
       "obligation": "tavsiye",
-      "summary": "Tibbi cihaz gelistiren veya ureten firmalar icin kalite, izlenebilirlik ve regule pazar beklentilerini destekler.",
-      "estimatedTimeline": "8-18 hafta",
-      "estimatedCost": "Orta - yuksek",
-      "issuingAuthority": "Akredite belgelendirme kurulusu",
-      "officialHint": "Regule saglik ekosistemine giris yapmak isteyen ekipler icin guclu bir sinyal uretir.",
+      "summary": "Süreç standardizasyonu, operasyonel olgunluk ve ihale veya kurumsal müşteri yeterliliği için en yaygın yönetim sistemi belgelerinden biridir.",
+      "estimatedTimeline": "4-12 hafta",
+      "estimatedCost": "Düşük - orta",
+      "issuingAuthority": "Akredite belgelendirme kuruluşu",
+      "officialHint": "Büyüme sürecindeki hemen her sektörde temel kurumsallaşma belgesi olarak düşünülmelidir.",
       "outcomes": [
-        "Kalite kayitlari sistematik hale gelir",
-        "Izlenebilirlik guclenir",
-        "Regule pazar beklentileriyle hizalanir"
+        "Süreçler dokümante olur",
+        "Sorumluluklar netleşir",
+        "Operasyonel kalite algısı güçlenir"
       ],
       "lastUpdated": "2026-04-08"
     }
   ],
   "playbooks": [
     {
-      "sector": "Teknoloji / Yazilim",
-      "headline": "SaaS ve yazilim ekipleri icin guven ve enterprise satis hizi on plandadir.",
-      "priorities": [
-        "KVKK",
-        "ISO 27001",
-        "ISO 9001"
-      ],
-      "summary": "Kisisel veri, bilgi guvenligi ve kurumsal musteri denetimleri genellikle ilk baski alanlaridir."
+      "sector": "Teknoloji / Yazılım",
+      "headline": "SaaS ve yazılım şirketleri için pazar açılım oyunu",
+      "summary": "Türkiye'de başlayan, Avrupa ve ABD'ye satış yapmak isteyen yazılım ekipleri için önce veri koruma ve güvenlik omurgasını kurmak gerekir.",
+      "recommendedCertificates": [
+        "KVKK Uyum Süreci",
+        "GDPR Uyum Çerçevesi",
+        "CCPA / CPRA Uyum Programı",
+        "ISO 27001 Bilgi Güvenliği Yönetim Sistemi",
+        "ISO 9001 Kalite Yönetim Sistemi"
+      ]
     },
     {
       "sector": "E-Ticaret",
-      "headline": "Musteri verisi, odeme surecleri ve operasyonel kalite birlikte ele alinmalidir.",
-      "priorities": [
-        "KVKK",
-        "ISO 27001",
-        "ISO 9001"
-      ],
-      "summary": "Veri isleme yogunlugu nedeniyle uyum sureci hukuki ve teknik kontrollerin birlikte planlanmasini gerektirir."
-    },
-    {
-      "sector": "Uretim / Sanayi",
-      "headline": "Urun uygunlugu ve kalite sistemi en kritik iki eksendir.",
-      "priorities": [
-        "CE",
-        "ISO 9001",
-        "ISO 13485"
-      ],
-      "summary": "Pazar, urun tipi ve ihracat hedeflerine gore teknik dosya, test ve denetim gereksinimleri degisir."
-    },
-    {
-      "sector": "Gida",
-      "headline": "Hijyen, izlenebilirlik ve musteri guveni icin gida guvenligi sistemi belirleyicidir.",
-      "priorities": [
-        "ISO 22000",
-        "ISO 9001",
-        "CE"
-      ],
-      "summary": "Gida zincirinde izlenebilirlik, proses disiplini ve tesis bazli kontroller one cikar."
+      "headline": "Çok pazarlı e-ticaret büyümesi için uyum kurgusu",
+      "summary": "E-ticaret şirketleri için veri gizliliği, tüketici verisi işleme, operasyon kalitesi ve hedef pazara göre gizlilik metinleri kritik önemdedir.",
+      "recommendedCertificates": [
+        "KVKK Uyum Süreci",
+        "GDPR Uyum Çerçevesi",
+        "CCPA / CPRA Uyum Programı",
+        "ISO 27001 Bilgi Güvenliği Yönetim Sistemi"
+      ]
     }
   ],
   "resources": [
     {
-      "title": "Belgelendirme Hazirlik Kontrol Listesi",
+      "title": "Hedef pazara göre belge seçimi kontrol listesi",
       "type": "Checklist",
-      "description": "Ic denetim, dokumantasyon, risk analizi ve rol atamalari icin temel kontrol basliklari.",
-      "cta": "Indirilebilir kaynak olarak sunulabilir"
+      "description": "Türkiye, Avrupa, ABD ve Çin hedefleri için belge karar mantığını sadeleştiren hızlı başlangıç kontrol listesi."
     },
     {
-      "title": "ISO 27001 Baslangic Yol Haritasi",
-      "type": "Guide",
-      "description": "Politika seti, varlik envanteri, risk yonetimi ve denetim hazirligi icin ozet plan.",
-      "cta": "Lead magnet olarak kullanilabilir"
-    },
-    {
-      "title": "KVKK Uyum Baslangic Paketi",
-      "type": "Template",
-      "description": "Aydinlatma metni, saklama-imha politikasi ve veri envanteri baslangic cercevesi.",
-      "cta": "Premium dokuman urunune donusebilir"
+      "title": "KVKK ve GDPR başlangıç farkları",
+      "type": "Karşılaştırma Rehberi",
+      "description": "Türkiye ve Avrupa veri koruma yükümlülüklerinin kapsam, haklar ve operasyon tarafındaki ana farklarını özetler."
     }
   ],
   "faq": [
     {
-      "question": "Hangi belge benim icin zorunlu, hangisi tavsiye niteliginde?",
-      "answer": "Zorunlu belgeler mevzuat veya urun uygunlugu kaynakli ihtiyaclardir. Tavsiye edilen belgeler ise kurumsallasma, musteri talebi, ihale ve ihracat hedeflerine gore on plana cikar."
+      "question": "Yeni kurulan bir şirket hangi belgelerle başlamalı?",
+      "answer": "Bu, sektörünüze, kişisel veri işleyip işlemediğinize ve ilk satış yapacağınız pazara göre değişir."
     },
     {
-      "question": "Yeni kurulan firmalar sertifika almaya ne zaman baslamali?",
-      "answer": "Yasal uyum basliklari faaliyet baslar baslamaz ele alinmalidir. ISO gibi yonetim sistemi belgeleri ise ilk buyume sinyali, kurumsal musteri gorusmeleri veya denetim baskisi ortaya ciktiginda onceliklendirilmelidir."
-    },
-    {
-      "question": "Belge sureci ortalama ne kadar surer?",
-      "answer": "Sirketin dokumantasyon olgunlugu, ekip yapisi, sektor ve secilen belgeye gore sureler degisir. Basit hazirliklar birkac hafta surerken daha olgun sistemler icin 2-4 ay arasi surec gorulebilir."
-    },
-    {
-      "question": "CertiRehber resmi danismanlik yerine gecer mi?",
-      "answer": "Hayir. Platform bir karar destek ve on hazirlik katmani sunar. Nihai baglayici degerlendirme icin resmi kurumlar, mevzuat metinleri ve akredite belgelendirme kuruluslari ile teyit gereklidir."
+      "question": "Global seçeneği neyi ifade ediyor?",
+      "answer": "Global seçim, şirketin çoklu pazara açılma hedefi olduğunu varsayar."
     }
   ]
 }
