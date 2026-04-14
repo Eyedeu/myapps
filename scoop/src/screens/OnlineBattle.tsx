@@ -232,17 +232,32 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   }, [db, room, playerId, roomId, draftQuest, t])
 
   const submit = useCallback(async () => {
-    if (!db || !roomId) return
+    if (!db || !roomId || !room) return
+    const photoTask = room.preferPhoto
+    if (photoTask && !image) {
+      setErr(t.submitNeedPhoto)
+      return
+    }
+    if (!photoTask && !text.trim()) {
+      setErr(t.submitNeedText)
+      return
+    }
     setBusy(true)
     setErr(null)
     try {
-      await submitOnline({ db, roomId, playerId, text, imageDataUrl: image })
+      await submitOnline({
+        db,
+        roomId,
+        playerId,
+        text: photoTask ? '' : text,
+        imageDataUrl: photoTask ? image : null,
+      })
     } catch (e) {
       setErr(e instanceof Error ? e.message : t.errorGeneric)
     } finally {
       setBusy(false)
     }
-  }, [db, roomId, playerId, text, image, t])
+  }, [db, roomId, room, playerId, text, image, t])
 
   const copyCode = useCallback(async () => {
     try {
@@ -473,6 +488,11 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
             <>
               <p className="quest-label">{t.questLabel}</p>
               <p className="quest small">{draftQuest.text}</p>
+              {draftQuest.preferPhoto ? (
+                <p className="photo-hint small">{t.questPhotoOnly}</p>
+              ) : (
+                <p className="muted small">{t.questTextOnly}</p>
+              )}
               <div className="actions">
                 <button type="button" className="btn ghost" onClick={refreshDraft} disabled={lobbyBusy}>
                   {t.newQuest}
@@ -509,30 +529,37 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
         <header className="header">
           <h1 className="title">{t.questLabel}</h1>
           <p className="quest">{room.questText}</p>
-          {room.preferPhoto && <p className="photo-hint">{t.requirePhotoQuest}</p>}
+          {room.preferPhoto ? (
+            <p className="photo-hint">{t.questPhotoOnly}</p>
+          ) : (
+            <p className="muted small">{t.questTextOnly}</p>
+          )}
         </header>
         <main className="card">
           {!submitted ? (
             <>
-              <label className="field">
-                <span className="field-label">{t.yourAnswer}</span>
-                <textarea
-                  className="textarea"
-                  rows={4}
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  maxLength={2000}
-                />
-              </label>
-              <label className="field">
-                <span className="field-label">{t.photoOptional}</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={(e) => void onPickImage(e.target.files?.[0] ?? null)}
-                />
-              </label>
+              {room.preferPhoto ? (
+                <label className="field">
+                  <span className="field-label">{t.photoProofLabel}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(e) => void onPickImage(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+              ) : (
+                <label className="field">
+                  <span className="field-label">{t.yourAnswer}</span>
+                  <textarea
+                    className="textarea"
+                    rows={4}
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    maxLength={2000}
+                  />
+                </label>
+              )}
               <div className="actions">
                 <button type="button" className="btn primary" disabled={busy} onClick={() => void submit()}>
                   {t.submit}

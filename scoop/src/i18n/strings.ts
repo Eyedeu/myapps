@@ -75,6 +75,11 @@ export const STRINGS: Record<
     runJudge: string
     errorGeneric: string
     requirePhotoQuest: string
+    questPhotoOnly: string
+    questTextOnly: string
+    submitNeedPhoto: string
+    submitNeedText: string
+    photoProofLabel: string
     answerNow: string
   }
 > = {
@@ -155,6 +160,11 @@ export const STRINGS: Record<
     runJudge: 'Ask AI to judge',
     errorGeneric: 'Something went wrong.',
     requirePhotoQuest: 'Photo proof is suggested for this quest.',
+    questPhotoOnly: 'Photo round: your proof is the picture only (no written answer).',
+    questTextOnly: 'Text round: answer with reasoning or numbers only (no photo).',
+    submitNeedPhoto: 'Add a photo before submitting.',
+    submitNeedText: 'Write an answer before submitting.',
+    photoProofLabel: 'Photo proof',
     answerNow: 'Answer now (no timer)',
   },
   tr: {
@@ -235,6 +245,11 @@ export const STRINGS: Record<
     runJudge: 'Yapay zekaya sor',
     errorGeneric: 'Bir şeyler ters gitti.',
     requirePhotoQuest: 'Bu görevde fotoğraf kanıtı önerilir.',
+    questPhotoOnly: 'Fotoğraf turu: kanıt yalnızca fotoğraf (yazılı cevap yok).',
+    questTextOnly: 'Metin turu: yalnızca mantık veya sayı ile cevap (fotoğraf yok).',
+    submitNeedPhoto: 'Göndermeden önce fotoğraf ekleyin.',
+    submitNeedText: 'Göndermeden önce bir cevap yazın.',
+    photoProofLabel: 'Fotoğraf kanıtı',
     answerNow: 'Şimdi cevapla (süresiz)',
   },
   de: {
@@ -315,6 +330,11 @@ export const STRINGS: Record<
     runJudge: 'KI befragen',
     errorGeneric: 'Etwas ist schiefgelaufen.',
     requirePhotoQuest: 'Fotonachweis wird empfohlen.',
+    questPhotoOnly: 'Foto-Runde: Der Nachweis ist nur das Bild (kein Text).',
+    questTextOnly: 'Text-Runde: Nur schriftliche Antwort/Denken (kein Foto).',
+    submitNeedPhoto: 'Bitte vor dem Absenden ein Foto hinzufügen.',
+    submitNeedText: 'Bitte vor dem Absenden eine Antwort schreiben.',
+    photoProofLabel: 'Fotonachweis',
     answerNow: 'Jetzt antworten (ohne Timer)',
   },
 }

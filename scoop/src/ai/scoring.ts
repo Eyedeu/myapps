@@ -7,24 +7,35 @@ const langName: Record<Locale, string> = {
   de: 'German',
 }
 
-/** English instructions to the model; quest text itself must be in `locale`. */
-const CREATIVE_AXES = [
-  'COLOR SCAVENGER: pick one specific color and ask for one clear example photographed in the room. Subject must NOT be a book.',
-  'TWO-COLOR HUNT: two objects of different named colors in one frame. No books.',
-  'SHAPES: one clearly round object and one clearly angular object in one photo. Everyday items, not books.',
-  'HEIGHT LINE: line up 3 non-book everyday objects shortest→tallest; side-view photo.',
-  'TEXTURE CONTRAST: matte vs glossy surfaces in one photo; user labels each with one word in text.',
-  'WINDOW MIX: one bit of outdoor view plus one indoor object in the same frame.',
-  'REFLECTION: photograph a reflection (glass, screen, metal); user names the object briefly.',
-  'SMALL GRID: 3–5 similar small items (coins, buttons, pens) in a simple pattern; top-down photo. Not books.',
-  'ODD ONE OUT: three similar objects and one different; photo; user names the odd one in text.',
-  'BAG OR FOOTWEAR: photograph one bag or pair of shoes; user states color + type.',
-  'PLANT OR SNACK: a plant, fruit, or packaged food in frame; one short identifying phrase in text.',
-  'SHADOW OR LIGHT: a clear shadow or sun patch; user says what casts it.',
-  'FABRIC PATTERN: visible stripes, dots, or checks on cloth; photo.',
-  'PAIR: two clearly matching items (socks, gloves, mugs) in one photo.',
-  'COUNT + PROOF: ask for a small countable visible feature (e.g. chair legs in frame) — number in text plus a photo showing the counted area.',
-  'DIAGONAL OR TRIANGLE: arrange 3 objects in a triangle layout; top-down photo; name them in order.',
+/** English instructions to the model; quest text itself must be in `locale`. Photo tasks: no typing/caption in the quest. */
+const PHOTO_AXES = [
+  'COLOR SCAVENGER: one specific color; photograph one clear example in the room. Not a book.',
+  'TWO-COLOR: two objects of different named colors in one frame. No books.',
+  'SHAPES: one round and one angular everyday object in one photo. Not books.',
+  'HEIGHT LINE: 3 non-book objects shortest to tallest; side-view photo.',
+  'TEXTURE CONTRAST: matte vs glossy surfaces visible in one photo (no captions in instructions).',
+  'WINDOW MIX: a bit of outdoor view plus one indoor object in the same frame.',
+  'REFLECTION: a reflection in glass, screen, or metal.',
+  'SMALL GRID: 3–5 small items in a simple pattern; top-down photo.',
+  'ODD ONE OUT PHOTO: four small objects in frame where one clearly differs by type.',
+  'BAG OR SHOE: one bag or pair of shoes clearly in frame.',
+  'PLANT OR SNACK: a plant, fruit, or packaged food clearly in frame.',
+  'SHADOW: a clear shadow shape in the photo.',
+  'FABRIC PATTERN: stripes, dots, or checks on cloth in frame.',
+  'PAIR: two clearly matching items (e.g. two mugs) in one photo.',
+  'COUNT AREA: photograph a tight frame where counting one simple thing is obvious (e.g. legs of one chair).',
+  'TRIANGLE LAYOUT: three objects in a triangle; top-down photo.',
+] as const
+
+/** Text-only micro-puzzles; preferPhoto must be false. */
+const TEXT_AXES = [
+  'LOGIC_CHAIN: All X are Y, all Y are Z — ask if every X must be Z; answer yes/no + one short reason.',
+  'ODD_CATEGORY: four nouns where three share a category; user names the odd one and why (one phrase).',
+  'MENTAL_MATH: two-step arithmetic with small integers; single numeric answer.',
+  'NUMBER_SEQUENCE: four numbers with a simple pattern; user types the next number only.',
+  'LINEUP_CLUES: three people and three distinct items/places; 2–3 clues give a unique match; one clear short answer (e.g. who has what).',
+  'NET_STEPS: forward/back steps word problem; one integer answer.',
+  'ORDER_LEFT_RIGHT: three labeled things and clues about left/right order; answer as a short ordered list.',
 ] as const
 
 const SCAVENGER_COLORS = [
@@ -45,9 +56,14 @@ export type GenerateQuestOptions = {
   avoidTexts?: string[]
 }
 
-function pickCreativeAxis(): string {
-  const i = Math.floor(Math.random() * CREATIVE_AXES.length)
-  return CREATIVE_AXES[i]!
+function pickPhotoAxis(): string {
+  const i = Math.floor(Math.random() * PHOTO_AXES.length)
+  return PHOTO_AXES[i]!
+}
+
+function pickTextAxis(): string {
+  const i = Math.floor(Math.random() * TEXT_AXES.length)
+  return TEXT_AXES[i]!
 }
 
 function pickScavengerColor(): string {
@@ -60,36 +76,57 @@ export async function generateAiQuest(
   locale: Locale,
   options?: GenerateQuestOptions,
 ): Promise<QuestSpec> {
-  const axis = pickCreativeAxis()
-  const colorHint = pickScavengerColor()
   const avoid = (options?.avoidTexts ?? [])
     .filter((s) => s.trim().length > 0)
     .slice(0, 6)
   const avoidBlock =
     avoid.length > 0
-      ? `\nRecent quests to DIFFER from (new object family, new verb, new layout — do not paraphrase these):\n${avoid.map((s, i) => `${i + 1}. ${s}`).join('\n')}`
+      ? `\nRecent quests to DIFFER from (new idea — do not paraphrase):\n${avoid.map((s, i) => `${i + 1}. ${s}`).join('\n')}`
       : ''
 
-  const system = `You write micro-quests that a judge can SCORE from the user's short text and/or one photo.
-Rules:
-- Ask only for observable, checkable things: counts, colors, shapes, arrangements, visible text, scavenger hunts, reflections, textures, light/shadow.
-- preferPhoto must be true unless the answer is clearly verifiable from a short factual list the user types (e.g. list 3 visible brand names).
-- Forbidden: memories, nostalgia, dreams, emotions or opinions as the main deliverable, meditation/breathing-only, private acts you cannot see (messages sent, water drunk), therapy-like prompts, medical claims, danger, illegal acts, humiliation.
-- ANTI-CLICHÉ: Do NOT center the quest on books, book spines, bookshelves, magazines, encyclopedias, "largest/smallest books", stacking or lining up books, or reading. If you mention printed text, use a label, package, or screen — not a book as the main subject.
-- CREATIVE MANDATE: Follow the CREATIVE_AXIS exactly for this request. Make it feel like a fresh mini-game, not "arrange three things again" unless the axis explicitly asks a new twist.
-- One sentence, under ~230 characters in the target language.
-Reply JSON only, no markdown. Keys: quest (string), preferPhoto (boolean).`
-  const userText = `Create ONE micro-quest doable in about 5 minutes indoors. Language: ${langName[locale]}. The grader only sees text + optional photo—pass/fail must be obvious from evidence.
+  const useTextQuest = Math.random() < 0.4
 
-CREATIVE_AXIS (follow this structure and intent; translate fully into ${langName[locale]}):
+  if (useTextQuest) {
+    const axis = pickTextAxis()
+    const system = `You write TEXT-ONLY micro-puzzles (no photo). The user will type an answer; they cannot upload an image for this task.
+Rules:
+- Self-contained in one sentence when possible (max ~260 characters in target language). Clear, fair, one main correct answer or a small set of acceptable answers.
+- preferPhoto MUST be false always.
+- Types: tiny logic, categories, mental math, numeric pattern, ordering from clues, net steps — use TEXT_AXIS as structure.
+- Forbidden: personal memories, feelings, "look around the room" without a photo task, medical claims, insults, illegal acts.
+- Do not ask the user to photograph anything.
+Reply JSON only. Keys: quest (string), preferPhoto (must be false).`
+    const userText = `Create ONE text-only puzzle doable in under 5 minutes. Language: ${langName[locale]}.
+
+TEXT_AXIS (translate fully into ${langName[locale]}):
+${axis}${avoidBlock}`
+    const raw = await llmJsonResponse({ settings, system, userText })
+    const parsed = JSON.parse(raw) as { quest?: string; preferPhoto?: boolean }
+    const text = typeof parsed.quest === 'string' ? parsed.quest.trim() : ''
+    if (!text) throw new Error('Invalid quest JSON')
+    return { text, preferPhoto: false }
+  }
+
+  const axis = pickPhotoAxis()
+  const colorHint = pickScavengerColor()
+  const system = `You write PHOTO-ONLY micro-quests. The user submits ONE image only — no text answer field. The quest must not say "write", "type", "label in text", or ask for transcription; everything must be judgeable from the photo alone.
+Rules:
+- preferPhoto MUST be true always.
+- Observable, checkable from image: colors, shapes, arrangements, readable labels in the photo, reflections, textures, counts visible in frame.
+- Forbidden: memories, emotions as deliverable, private acts, medical claims, danger, illegal acts, humiliation.
+- ANTI-CLICHÉ: No books/book spines as main subject. No asking to copy quest into a text box.
+- Follow PHOTO_AXIS; one sentence, under ~260 characters in target language.
+Reply JSON only. Keys: quest (string), preferPhoto (must be true).`
+  const userText = `Create ONE photo-only quest doable in about 5 minutes indoors. Language: ${langName[locale]}.
+
+PHOTO_AXIS (translate fully into ${langName[locale]}):
 ${axis}
-If the axis involves a color scavenger, prefer this color unless impossible: ${colorHint}.${avoidBlock}`
+If the axis is a color scavenger, prefer this color unless impossible: ${colorHint}.${avoidBlock}`
   const raw = await llmJsonResponse({ settings, system, userText })
   const parsed = JSON.parse(raw) as { quest?: string; preferPhoto?: boolean }
   const text = typeof parsed.quest === 'string' ? parsed.quest.trim() : ''
   if (!text) throw new Error('Invalid quest JSON')
-  const preferPhoto = Boolean(parsed.preferPhoto)
-  return { text, preferPhoto }
+  return { text, preferPhoto: true }
 }
 
 function formatMmSs(totalSec: number): string {
@@ -118,15 +155,23 @@ export async function judgeSolo(args: {
   const timingBlock =
     timing && timing.limitSec > 0
       ? `\nTimed round: limit ${timing.limitSec}s (${formatMmSs(timing.limitSec)}), elapsed ${timing.elapsedSec}s (${formatMmSs(timing.elapsedSec)}), about ${Math.round((timing.elapsedSec / timing.limitSec) * 100)}% of limit used.`
-      : '\nTimed round: user skipped the timer (went straight to answer). Judge only photo/text; do not reward or penalize for speed.'
+      : '\nTimed round: user skipped the timer (went straight to answer). Do not reward or penalize for speed.'
 
-  const system = `You are a fair judge for a micro-quest. PRIMARY: score from objective evidence—does the photo/text plausibly satisfy the quest (counts, colors, arrangement, visible text, etc.)? If a photo was clearly expected and missing or useless, score low. Do not reward pure vibes.
+  const photoMode = quest.preferPhoto
+  const modeBlock = photoMode
+    ? '\nSubmission mode: PHOTO ONLY. Judge strictly from the image. Ignore user text entirely (there is no text answer for this task). If the image is missing or does not show the quest, score very low. Do not treat pasted quest wording as proof.'
+    : '\nSubmission mode: TEXT ONLY. Judge only the written answer for logic/math/pattern correctness. Do not use or ask for photos. If the answer is empty, score very low.'
 
-TIME (only when timed-round data is provided): Finishing clearly faster than the limit with strong proof may add a SMALL bonus (at most ~1 point on the 1–10 scale) on top of quality—never let speed alone outweigh weak evidence. Using most of the limit with excellent proof is perfectly fine. Suspiciously fast + thin proof should not get a time bonus. If timed-round data says the user skipped the timer, ignore time completely.
+  const system = `You are a fair judge for a micro-quest.${modeBlock}
 
-Be kind and concise. Language for feedback: ${langName[locale]}. Reply JSON only: score (integer 1-10), feedback (string, 2-4 sentences; briefly mention timing only when timed data exists and it mattered), completed (boolean: evidence matches the quest well enough). If text is empty and no image, score low.`
-  const userText = `Quest: ${quest.text}\nPrefer photo: ${quest.preferPhoto}${timingBlock}\nUser text:\n${answer || '(none)'}\n(Photo attached if provided.)`
-  const images = imageDataUrl ? [imageDataUrl] : []
+PRIMARY: For photo tasks, objective visual evidence. For text tasks, correctness and reasoning quality of what they typed.
+
+TIME (only when timed-round data is provided below): With strong proof, finishing faster than the limit may add a SMALL bonus (at most ~1 point on 1–10)—never let speed outweigh missing or weak evidence. If the user skipped the timer, ignore time.
+
+Be kind and concise. Language for feedback: ${langName[locale]}. Reply JSON only: score (integer 1-10), feedback (2-4 sentences; mention timing only when timed data exists and relevant), completed (boolean).`
+
+  const userText = `Quest: ${quest.text}\nTask type: ${photoMode ? 'photo-only' : 'text-only'}${timingBlock}\nUser text answer:\n${answer || '(none)'}\n(Image: ${photoMode ? (imageDataUrl ? 'provided' : 'missing') : 'not used for this task'})`
+  const images = photoMode && imageDataUrl ? [imageDataUrl] : []
   const raw = await llmJsonResponse({ settings, system, userText, images })
   const parsed = JSON.parse(raw) as Partial<SoloAiResult>
   const score = Math.min(10, Math.max(1, Number(parsed.score) || 1))
@@ -142,7 +187,12 @@ export async function judgeBattle(args: {
   players: { id: string; name: string; text: string; imageDataUrl: string | null }[]
 }): Promise<BattleJudgeResult> {
   const { settings, locale, quest, players } = args
-  const system = `You judge a friendly micro-quest competition. Prefer objective evidence in photos/text (what the quest asked: layout, colors, counts, visible details). Tie or low scores if evidence is missing or subjective only. Be fair and encouraging. Language: ${langName[locale]}. Reply JSON only with:
+  const photoMode = quest.preferPhoto
+  const modeRules = photoMode
+    ? 'This is a PHOTO task: judge mainly from each player photo; ignore empty or irrelevant text. Missing photo = weak submission.'
+    : 'This is a TEXT task: judge mainly from written answers; ignore photos if any. Empty text = weak submission.'
+
+  const system = `You judge a friendly micro-quest competition. ${modeRules} Be fair and encouraging. Language: ${langName[locale]}. Reply JSON only with:
 winnerId: string player id or "tie"
 summary: string (2-3 sentences overall)
 ranking: array of player ids from best to worst (all players included)
@@ -153,9 +203,9 @@ If evidence is weak for everyone, you may use tie. Never insult; critique gently
     (p, i) =>
       `${i + 1}. id=${p.id} name=${p.name}\n text: ${p.text || '(none)'}\n   photo: ${p.imageDataUrl ? 'yes' : 'no'}`,
   )
-  const userText = `Quest: ${quest.text}\nPrefer photo: ${quest.preferPhoto}\nPlayers:\n${lines.join('\n')}`
+  const userText = `Quest: ${quest.text}\nTask type: ${photoMode ? 'photo-only' : 'text-only'}\n${modeRules}\nPlayers:\n${lines.join('\n')}`
 
-  const images = players.map((p) => p.imageDataUrl).filter(Boolean) as string[]
+  const images = photoMode ? (players.map((p) => p.imageDataUrl).filter(Boolean) as string[]) : []
   const raw = await llmJsonResponse({ settings, system, userText, images })
   const parsed = JSON.parse(raw) as {
     winnerId?: string

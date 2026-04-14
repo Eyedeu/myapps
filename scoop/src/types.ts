@@ -34,6 +34,6 @@ export interface BattleJudgeResult {
 
 export interface QuestSpec {
   text: string
-  /** If true, user should upload a photo proof when possible */
+  /** true → photo-only submission; false → text-only (reasoning / puzzle), no photo. */
   preferPhoto: boolean
 }

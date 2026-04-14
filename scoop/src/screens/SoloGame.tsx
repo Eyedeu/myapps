@@ -123,6 +123,14 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
       setErr(t.needApiKey)
       return
     }
+    if (quest.preferPhoto && !image) {
+      setErr(t.submitNeedPhoto)
+      return
+    }
+    if (!quest.preferPhoto && !text.trim()) {
+      setErr(t.submitNeedText)
+      return
+    }
     setBusy(true)
     setResult(null)
     try {
@@ -131,8 +139,8 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
         settings,
         locale,
         quest,
-        answer: text,
-        imageDataUrl: image,
+        answer: quest.preferPhoto ? '' : text,
+        imageDataUrl: quest.preferPhoto ? image : null,
         timing: wt.usedTimer ? { limitSec: ROUND_SEC, elapsedSec: wt.elapsedSec } : undefined,
       })
       setResult(r)
@@ -160,7 +168,11 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
       <main className="card">
         <p className="quest-label">{t.questLabel}</p>
         <p className="quest">{quest.text}</p>
-        {quest.preferPhoto && <p className="photo-hint">{t.requirePhotoQuest}</p>}
+        {quest.preferPhoto ? (
+          <p className="photo-hint">{t.questPhotoOnly}</p>
+        ) : (
+          <p className="muted small">{t.questTextOnly}</p>
+        )}
 
         {phase === 'ready' && (
           <div className="actions">
@@ -197,26 +209,28 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
 
         {(phase === 'wrap' || result) && (
           <>
-            <label className="field">
-              <span className="field-label">{t.yourAnswer}</span>
-              <textarea
-                className="textarea"
-                rows={4}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                maxLength={2000}
-              />
-            </label>
-
-            <label className="field">
-              <span className="field-label">{t.photoOptional}</span>
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={(e) => void onPickImage(e.target.files?.[0] ?? null)}
-              />
-            </label>
+            {quest.preferPhoto ? (
+              <label className="field">
+                <span className="field-label">{t.photoProofLabel}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(e) => void onPickImage(e.target.files?.[0] ?? null)}
+                />
+              </label>
+            ) : (
+              <label className="field">
+                <span className="field-label">{t.yourAnswer}</span>
+                <textarea
+                  className="textarea"
+                  rows={4}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  maxLength={2000}
+                />
+              </label>
+            )}
 
             {err && <p className="error">{err}</p>}
 
