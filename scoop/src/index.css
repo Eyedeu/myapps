@@ -200,6 +200,10 @@ body {
   color: var(--strong);
 }
 
+.select.full {
+  width: 100%;
+}
+
 .home-cards {
   display: flex;
   flex-direction: column;

@@ -1,0 +1,105 @@
+/**
+ * Model IDs from Google AI Studio / Gemini API (update if Google renames).
+ * Primary: higher free-tier RPM on Flash Lite; fallback: Gemini 3 Flash.
+ */
+export const GEMINI_MODEL_PRIMARY = 'gemini-3.1-flash-lite-preview'
+export const GEMINI_MODEL_FALLBACK = 'gemini-3-flash-preview'
+
+const GEMINI_GENERATE_BASE = 'https://generativelanguage.googleapis.com/v1beta'
+
+function splitDataUrl(dataUrl: string): { mimeType: string; data: string } | null {
+  const m = /^data:([^;]+);base64,(.+)$/i.exec(dataUrl.trim())
+  if (!m) return null
+  return { mimeType: m[1] ?? 'image/jpeg', data: m[2] ?? '' }
+}
+
+function buildUserParts(userText: string, images: string[]) {
+  const parts: Array<
+    { text: string } | { inlineData: { mimeType: string; data: string } }
+  > = [{ text: userText }]
+
+  for (const img of images) {
+    if (!img) continue
+    const parsed = splitDataUrl(img)
+    if (parsed) {
+      parts.push({
+        inlineData: { mimeType: parsed.mimeType, data: parsed.data },
+      })
+    }
+  }
+  return parts
+}
+
+async function geminiGenerateContent(args: {
+  apiKey: string
+  model: string
+  system: string
+  userText: string
+  images: string[]
+}): Promise<string> {
+  const { apiKey, model, system, userText, images } = args
+  const url = `${GEMINI_GENERATE_BASE}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`
+
+  const body = {
+    systemInstruction: {
+      parts: [{ text: system }],
+    },
+    contents: [
+      {
+        role: 'user',
+        parts: buildUserParts(userText, images),
+      },
+    ],
+    generationConfig: {
+      temperature: 0.45,
+      responseMimeType: 'application/json',
+    },
+  }
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  if (!res.ok) {
+    const errText = await res.text()
+    throw new Error(`${model}: ${errText.slice(0, 400)}`)
+  }
+
+  const data = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[]
+    error?: { message?: string }
+  }
+
+  if (data.error?.message) {
+    throw new Error(`${model}: ${data.error.message}`)
+  }
+
+  const text =
+    data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? ''
+  return text.trim() || '{}'
+}
+
+export async function geminiJsonWithFallback(args: {
+  apiKey: string
+  system: string
+  userText: string
+  images?: string[]
+}): Promise<string> {
+  const { apiKey, system, userText, images = [] } = args
+  if (!apiKey.trim()) throw new Error('Missing API key')
+
+  const models = [GEMINI_MODEL_PRIMARY, GEMINI_MODEL_FALLBACK]
+  let lastErr: Error | null = null
+
+  for (const model of models) {
+    try {
+      return await geminiGenerateContent({ apiKey, model, system, userText, images })
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e))
+    }
+  }
+
+  throw lastErr ?? new Error('Gemini request failed')
+}

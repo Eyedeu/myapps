@@ -2,7 +2,11 @@ export type Locale = 'en' | 'tr' | 'de'
 
 export type Screen = 'home' | 'solo' | 'online' | 'local'
 
+export type AiProvider = 'openai' | 'gemini'
+
 export interface AppSettings {
+  /** OpenAI-compatible chat/completions vs Google Gemini generateContent */
+  aiProvider: AiProvider
   apiKey: string
   apiBase: string
   model: string

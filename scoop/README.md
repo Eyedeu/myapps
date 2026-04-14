@@ -10,7 +10,10 @@ Micro-quests with **OpenAI-compatible** APIs (text + optional image) and optiona
 
 ## Setup
 
-1. **AI:** open **AI & Firebase** in the app. Use an OpenAI-compatible `chat/completions` endpoint (default `https://api.openai.com/v1`) and a model that supports **JSON mode** + **vision** for images (e.g. `gpt-4o-mini`). Keys are stored in `localStorage` only.
+1. **AI:** open **AI & Firebase** in the app.
+   - **Google Gemini:** choose *Google Gemini (AI Studio key)*, paste your key from [Google AI Studio](https://aistudio.google.com/) → API keys. The app calls **Gemini 3.1 Flash Lite** first, then **Gemini 3 Flash** if the first request fails (model IDs in `src/ai/gemini.ts` — update if Google renames them).
+   - **OpenAI-compatible:** choose *OpenAI-compatible*, set base URL (e.g. `https://api.openai.com/v1`) and a model with **JSON** + **vision** (e.g. `gpt-4o-mini`).
+   Keys stay in `localStorage` only.
 
 2. **Online mode:** create a Firebase project → enable **Firestore** → add a web app → paste the **firebaseConfig** JSON into settings. For demos you can use permissive rules (not for production):
 

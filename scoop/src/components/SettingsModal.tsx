@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { AppSettings } from '../types'
+import type { AiProvider, AppSettings } from '../types'
 import { useAppI18n } from '../settings/useAppI18n'
 import { STRINGS } from '../i18n/strings'
 
@@ -30,6 +30,24 @@ function SettingsForm({
         <p className="modal-note">{t.settingsNote}</p>
 
         <label className="field">
+          <span className="field-label">{t.aiProviderLabel}</span>
+          <select
+            className="select full"
+            value={draft.aiProvider}
+            onChange={(e) =>
+              setDraft((d) => ({ ...d, aiProvider: e.target.value as AiProvider }))
+            }
+          >
+            <option value="gemini">{t.providerGemini}</option>
+            <option value="openai">{t.providerOpenai}</option>
+          </select>
+        </label>
+
+        {draft.aiProvider === 'gemini' && (
+          <p className="modal-help">{t.geminiModelsHint}</p>
+        )}
+
+        <label className="field">
           <span className="field-label">{t.apiKey}</span>
           <input
             className="input"
@@ -39,24 +57,29 @@ function SettingsForm({
             onChange={(e) => setDraft((d) => ({ ...d, apiKey: e.target.value }))}
           />
         </label>
+        {draft.aiProvider === 'gemini' && <p className="modal-help">{t.geminiKeyHint}</p>}
 
-        <label className="field">
-          <span className="field-label">{t.apiBase}</span>
-          <input
-            className="input"
-            value={draft.apiBase}
-            onChange={(e) => setDraft((d) => ({ ...d, apiBase: e.target.value }))}
-          />
-        </label>
+        {draft.aiProvider === 'openai' && (
+          <>
+            <label className="field">
+              <span className="field-label">{t.apiBase}</span>
+              <input
+                className="input"
+                value={draft.apiBase}
+                onChange={(e) => setDraft((d) => ({ ...d, apiBase: e.target.value }))}
+              />
+            </label>
 
-        <label className="field">
-          <span className="field-label">{t.model}</span>
-          <input
-            className="input"
-            value={draft.model}
-            onChange={(e) => setDraft((d) => ({ ...d, model: e.target.value }))}
-          />
-        </label>
+            <label className="field">
+              <span className="field-label">{t.model}</span>
+              <input
+                className="input"
+                value={draft.model}
+                onChange={(e) => setDraft((d) => ({ ...d, model: e.target.value }))}
+              />
+            </label>
+          </>
+        )}
 
         <label className="field">
           <span className="field-label">{t.firebaseJson}</span>

@@ -1,5 +1,5 @@
 import type { AppSettings, BattleJudgeResult, Locale, QuestSpec, SoloAiResult } from '../types'
-import { openaiJsonResponse } from './openai'
+import { llmJsonResponse } from './llm'
 
 const langName: Record<Locale, string> = {
   en: 'English',
@@ -14,7 +14,7 @@ export async function generateAiQuest(
   const system =
     'You write short, safe micro-quests. Reply with JSON only, no markdown. Keys: quest (string), preferPhoto (boolean). preferPhoto true only when a photo proof is clearly useful.'
   const userText = `Create ONE micro-quest doable in about 3 minutes indoors or in everyday life. No danger, no medical claims, no illegal acts, no humiliation. Language: ${langName[locale]}.`
-  const raw = await openaiJsonResponse({ settings, system, userText })
+  const raw = await llmJsonResponse({ settings, system, userText })
   const parsed = JSON.parse(raw) as { quest?: string; preferPhoto?: boolean }
   const text = typeof parsed.quest === 'string' ? parsed.quest.trim() : ''
   if (!text) throw new Error('Invalid quest JSON')
@@ -32,7 +32,7 @@ export async function judgeSolo(args: {
   const system = `You are a fair, kind judge for a playful micro-quest. Be concise. Language for feedback: ${langName[locale]}. Reply JSON only with keys: score (integer 1-10), feedback (string,2-4 sentences), completed (boolean: did they plausibly complete the spirit of the quest?). If text is empty and no image, score low.`
   const userText = `Quest: ${quest.text}\nPrefer photo: ${quest.preferPhoto}\nUser text:\n${answer || '(none)'}\n(Photo attached if provided.)`
   const images = imageDataUrl ? [imageDataUrl] : []
-  const raw = await openaiJsonResponse({ settings, system, userText, images })
+  const raw = await llmJsonResponse({ settings, system, userText, images })
   const parsed = JSON.parse(raw) as Partial<SoloAiResult>
   const score = Math.min(10, Math.max(1, Number(parsed.score) || 1))
   const feedback = typeof parsed.feedback === 'string' ? parsed.feedback : ''
@@ -61,7 +61,7 @@ If evidence is weak for everyone, you may use tie. Never insult; critique gently
   const userText = `Quest: ${quest.text}\nPrefer photo: ${quest.preferPhoto}\nPlayers:\n${lines.join('\n')}`
 
   const images = players.map((p) => p.imageDataUrl).filter(Boolean) as string[]
-  const raw = await openaiJsonResponse({ settings, system, userText, images })
+  const raw = await llmJsonResponse({ settings, system, userText, images })
   const parsed = JSON.parse(raw) as {
     winnerId?: string
     summary?: string

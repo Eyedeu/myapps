@@ -7,6 +7,7 @@ const KEYS = {
 } as const
 
 const defaultSettings: AppSettings = {
+  aiProvider: 'openai',
   apiKey: '',
   apiBase: 'https://api.openai.com/v1',
   model: 'gpt-4o-mini',
@@ -18,7 +19,11 @@ export function loadSettings(): AppSettings {
     const raw = localStorage.getItem(KEYS.settings)
     if (!raw) return { ...defaultSettings }
     const parsed = JSON.parse(raw) as Partial<AppSettings>
-    return { ...defaultSettings, ...parsed }
+    const merged = { ...defaultSettings, ...parsed }
+    if (merged.aiProvider !== 'openai' && merged.aiProvider !== 'gemini') {
+      merged.aiProvider = 'openai'
+    }
+    return merged
   } catch {
     return { ...defaultSettings }
   }
