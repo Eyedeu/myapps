@@ -81,6 +81,7 @@ export const STRINGS: Record<
     submitNeedText: string
     photoProofLabel: string
     answerNow: string
+    noTimerRound: string
   }
 > = {
   en: {
@@ -111,7 +112,7 @@ export const STRINGS: Record<
       'Keys stay in this browser (localStorage). For production / Play Store, move calls to your backend.',
     soloTitle: 'Solo scoop',
     soloIntro:
-      'New or AI quests start a 5-minute timer automatically. Add text and/or a photo; AI scores your proof and (if you used the timer) how you used the time.',
+      'New or AI quests start a 5-minute countdown while you answer. Time stops only when you submit to AI; it scores proof and (with the timer) how you used the time.',
     questLabel: 'Quest',
     newQuest: 'Different quest',
     aiQuest: 'AI quest',
@@ -166,6 +167,7 @@ export const STRINGS: Record<
     submitNeedText: 'Write an answer before submitting.',
     photoProofLabel: 'Photo proof',
     answerNow: 'Answer now (no timer)',
+    noTimerRound: 'No time limit — submit when ready.',
   },
   tr: {
     tagline:
@@ -196,7 +198,7 @@ export const STRINGS: Record<
       'Anahtarlar bu tarayıcıda kalır (localStorage). Play Store için çağrıları sunucunuza taşıyın.',
     soloTitle: 'Tek başına',
     soloIntro:
-      'Yeni veya yapay zeka görevinde süre otomatik başlar (5 dk). Metin ve/veya fotoğraf ekle; yapay zeka kanıtı ve (süreyi kullandıysan) zamanı da dikkate alır.',
+      'Yeni veya yapay zeka görevinde 5 dakikalık geri sayım cevap verirken işler. Süre yalnızca yapay zekaya gönderdiğinde durur; kanıt ve (süre kullanıyorsan) zamanı değerlendirir.',
     questLabel: 'Görev',
     newQuest: 'Başka görev',
     aiQuest: 'Yapay zeka görevi',
@@ -251,6 +253,7 @@ export const STRINGS: Record<
     submitNeedText: 'Göndermeden önce bir cevap yazın.',
     photoProofLabel: 'Fotoğraf kanıtı',
     answerNow: 'Şimdi cevapla (süresiz)',
+    noTimerRound: 'Süre sınırı yok — hazır olunca gönder.',
   },
   de: {
     tagline:
@@ -281,7 +284,7 @@ export const STRINGS: Record<
       'Schlüssel bleiben im Browser (localStorage). Für den Play Store bitte Backend nutzen.',
     soloTitle: 'Solo',
     soloIntro:
-      'Neue oder KI-Aufgaben starten automatisch einen 5-Minuten-Timer. Text und/oder Foto hinzufügen; die KI bewertet den Nachweis und (bei genutztem Timer) den Zeitfaktor.',
+      'Neue oder KI-Aufgaben starten einen 5-Minuten-Countdown beim Antworten. Die Zeit stoppt erst beim Absenden an die KI; sie bewertet Nachweis und (mit Timer) den Zeitfaktor.',
     questLabel: 'Aufgabe',
     newQuest: 'Andere Aufgabe',
     aiQuest: 'KI-Aufgabe',
@@ -336,5 +339,6 @@ export const STRINGS: Record<
     submitNeedText: 'Bitte vor dem Absenden eine Antwort schreiben.',
     photoProofLabel: 'Fotonachweis',
     answerNow: 'Jetzt antworten (ohne Timer)',
+    noTimerRound: 'Kein Zeitlimit — absenden wenn fertig.',
   },
 }
