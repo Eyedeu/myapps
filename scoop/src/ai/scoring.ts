@@ -11,14 +11,20 @@ export async function generateAiQuest(
   settings: AppSettings,
   locale: Locale,
 ): Promise<QuestSpec> {
-  const system =
-    'You write short, safe micro-quests. Reply with JSON only, no markdown. Keys: quest (string), preferPhoto (boolean). preferPhoto true only when a photo proof is clearly useful.'
-  const userText = `Create ONE micro-quest doable in about 3 minutes indoors or in everyday life. No danger, no medical claims, no illegal acts, no humiliation. Language: ${langName[locale]}.`
+  const system = `You write micro-quests that a judge can SCORE from the user's short text and/or one photo.
+Rules:
+- Ask only for observable, checkable things: counts, colors, shapes, arrangements, visible text, before/after layout, ordering by size, simple scavenger hunts in the room.
+- preferPhoto must be true unless the answer is clearly verifiable from a short factual list the user types (e.g. list 3 visible brand names).
+- Forbidden: memories, nostalgia, dreams, emotions or opinions as the main deliverable, meditation/breathing-only, private acts you cannot see (messages sent, water drunk), therapy-like prompts, medical claims, danger, illegal acts, humiliation.
+- One sentence, under ~220 characters in the target language.
+Reply JSON only, no markdown. Keys: quest (string), preferPhoto (boolean).`
+  const userText = `Create ONE micro-quest doable in about 3 minutes indoors. Language: ${langName[locale]}. The grader only sees text + optional photo—design so pass/fail is obvious from that evidence.`
   const raw = await llmJsonResponse({ settings, system, userText })
   const parsed = JSON.parse(raw) as { quest?: string; preferPhoto?: boolean }
   const text = typeof parsed.quest === 'string' ? parsed.quest.trim() : ''
   if (!text) throw new Error('Invalid quest JSON')
-  return { text, preferPhoto: Boolean(parsed.preferPhoto) }
+  const preferPhoto = Boolean(parsed.preferPhoto)
+  return { text, preferPhoto }
 }
 
 export async function judgeSolo(args: {
@@ -29,7 +35,7 @@ export async function judgeSolo(args: {
   imageDataUrl: string | null
 }): Promise<SoloAiResult> {
   const { settings, locale, quest, answer, imageDataUrl } = args
-  const system = `You are a fair, kind judge for a playful micro-quest. Be concise. Language for feedback: ${langName[locale]}. Reply JSON only with keys: score (integer 1-10), feedback (string,2-4 sentences), completed (boolean: did they plausibly complete the spirit of the quest?). If text is empty and no image, score low.`
+  const system = `You are a fair judge for a micro-quest. Score mainly from objective evidence: does the photo/text plausibly show what the quest asked (counts, colors, arrangement, visible text, etc.)? If the quest required a photo and none is provided, score low. Do not reward pure vibes or unverifiable inner thoughts. Be kind and concise. Language for feedback: ${langName[locale]}. Reply JSON only: score (integer 1-10), feedback (string, 2-4 sentences), completed (boolean: evidence matches the quest well enough). If text is empty and no image, score low.`
   const userText = `Quest: ${quest.text}\nPrefer photo: ${quest.preferPhoto}\nUser text:\n${answer || '(none)'}\n(Photo attached if provided.)`
   const images = imageDataUrl ? [imageDataUrl] : []
   const raw = await llmJsonResponse({ settings, system, userText, images })
@@ -47,7 +53,7 @@ export async function judgeBattle(args: {
   players: { id: string; name: string; text: string; imageDataUrl: string | null }[]
 }): Promise<BattleJudgeResult> {
   const { settings, locale, quest, players } = args
-  const system = `You judge a friendly real-life micro-quest competition. Be fair and encouraging. Language: ${langName[locale]}. Reply JSON only with:
+  const system = `You judge a friendly micro-quest competition. Prefer objective evidence in photos/text (what the quest asked: layout, colors, counts, visible details). Tie or low scores if evidence is missing or subjective only. Be fair and encouraging. Language: ${langName[locale]}. Reply JSON only with:
 winnerId: string player id or "tie"
 summary: string (2-3 sentences overall)
 ranking: array of player ids from best to worst (all players included)

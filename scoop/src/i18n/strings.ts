@@ -54,6 +54,8 @@ export const STRINGS: Record<
     players: string
     copyCode: string
     copied: string
+    copyInviteLink: string
+    roomMissingOrClosed: string
     submit: string
     waitingOthers: string
     battleResult: string
@@ -130,6 +132,8 @@ export const STRINGS: Record<
     players: 'Players',
     copyCode: 'Copy code',
     copied: 'Copied',
+    copyInviteLink: 'Copy invite link',
+    roomMissingOrClosed: 'This room no longer exists or the connection was lost.',
     submit: 'Submit',
     waitingOthers: 'Waiting for other players…',
     battleResult: 'Results',
@@ -206,6 +210,8 @@ export const STRINGS: Record<
     players: 'Oyuncular',
     copyCode: 'Kodu kopyala',
     copied: 'Kopyalandı',
+    copyInviteLink: 'Davet linkini kopyala',
+    roomMissingOrClosed: 'Oda artık yok veya bağlantı koptu.',
     submit: 'Gönder',
     waitingOthers: 'Diğer oyuncular bekleniyor…',
     battleResult: 'Sonuç',
@@ -282,6 +288,8 @@ export const STRINGS: Record<
     players: 'Spieler',
     copyCode: 'Code kopieren',
     copied: 'Kopiert',
+    copyInviteLink: 'Einladungslink kopieren',
+    roomMissingOrClosed: 'Dieser Raum existiert nicht mehr oder die Verbindung wurde getrennt.',
     submit: 'Absenden',
     waitingOthers: 'Warte auf andere…',
     battleResult: 'Ergebnis',

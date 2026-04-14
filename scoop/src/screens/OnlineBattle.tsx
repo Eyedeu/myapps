@@ -16,6 +16,14 @@ import {
 } from '../firebase/roomService'
 import { compressImageToDataUrl } from '../lib/image'
 import { makeRoomCode, normalizeRoomCode } from '../lib/roomCode'
+import {
+  buildInviteUrl,
+  clearOnlineSession,
+  getJoinCodeFromLocation,
+  loadOnlineSession,
+  saveOnlineSession,
+  stripJoinParamsFromUrl,
+} from '../lib/roomSession'
 import { randomStaticQuest } from '../quests/static'
 import { getOrCreatePlayerId } from '../settings/storage'
 import { useAppI18n } from '../settings/useAppI18n'
@@ -40,13 +48,54 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   const [text, setText] = useState('')
   const [image, setImage] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
+  const [roomGone, setRoomGone] = useState(false)
+
+  const leaveToMenu = useCallback(() => {
+    clearOnlineSession()
+    setRoomId('')
+    setRoom(null)
+    setUi('menu')
+  }, [])
+
+  useEffect(() => {
+    const saved = loadOnlineSession()
+    if (saved?.roomId) {
+      if (!db) {
+        clearOnlineSession()
+        return
+      }
+      setRoomId(saved.roomId)
+      if (saved.displayName) setName(saved.displayName)
+      setUi('inRoom')
+      return
+    }
+    const fromUrl = getJoinCodeFromLocation()
+    if (fromUrl && db) {
+      setJoinCode(fromUrl)
+      setUi('joinForm')
+    }
+  }, [db])
 
   useEffect(() => {
     if (!db || !roomId) {
       setRoom(null)
+      setRoomGone(false)
       return
     }
-    return subscribeRoom(db, roomId, setRoom)
+    setRoomGone(false)
+    let first = true
+    return subscribeRoom(db, roomId, (doc) => {
+      if (first) {
+        first = false
+        setRoomGone(doc === null)
+      } else if (doc === null) {
+        setRoomGone(true)
+      } else {
+        setRoomGone(false)
+      }
+      setRoom(doc)
+    })
   }, [db, roomId])
 
   useEffect(() => {
@@ -115,6 +164,11 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
         maxPlayers,
       })
       setRoomId(code)
+      saveOnlineSession({
+        roomId: code,
+        role: 'host',
+        displayName: name.trim(),
+      })
       setDraftQuest(randomStaticQuest(locale, null))
       setUi('inRoom')
     } catch (e) {
@@ -139,6 +193,12 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
       else if (res === 'full') setErr(t.errorGeneric)
       else {
         setRoomId(code)
+        saveOnlineSession({
+          roomId: code,
+          role: 'join',
+          displayName: name.trim(),
+        })
+        stripJoinParamsFromUrl()
         setUi('inRoom')
       }
     } catch (e) {
@@ -185,7 +245,19 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     try {
       await navigator.clipboard.writeText(roomId)
       setCopied(true)
+      setLinkCopied(false)
       window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setErr(t.errorGeneric)
+    }
+  }, [roomId, t])
+
+  const copyInviteLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(buildInviteUrl(roomId))
+      setLinkCopied(true)
+      setCopied(false)
+      window.setTimeout(() => setLinkCopied(false), 2000)
     } catch {
       setErr(t.errorGeneric)
     }
@@ -296,7 +368,14 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     return (
       <div className="app">
         <header className="header">
-          <button type="button" className="linkish" onClick={() => setUi('menu')}>
+          <button
+            type="button"
+            className="linkish"
+            onClick={() => {
+              stripJoinParamsFromUrl()
+              setUi('menu')
+            }}
+          >
             ← {t.back}
           </button>
           <h1 className="title">{t.joinRoom}</h1>
@@ -325,7 +404,24 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   if (!room) {
     return (
       <div className="app">
-        <p className="lede">{t.waitingLobby}</p>
+        <header className="header">
+          <h1 className="title">{t.onlineTitle}</h1>
+        </header>
+        <main className="card">
+          {roomGone ? (
+            <p className="error">{t.roomMissingOrClosed}</p>
+          ) : (
+            <>
+              <p className="lede">{t.waitingLobby}</p>
+              <p className="muted small">{roomId}</p>
+            </>
+          )}
+          <div className="actions">
+            <button type="button" className="btn ghost" onClick={leaveToMenu}>
+              {t.back}
+            </button>
+          </div>
+        </main>
       </div>
     )
   }
@@ -336,14 +432,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     return (
       <div className="app">
         <header className="header">
-          <button
-            type="button"
-            className="linkish"
-            onClick={() => {
-              setUi('menu')
-              setRoomId('')
-            }}
-          >
+          <button type="button" className="linkish" onClick={leaveToMenu}>
             ← {t.back}
           </button>
           <h1 className="title">{t.onlineTitle}</h1>
@@ -351,6 +440,9 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
             {t.roomCode}: <strong>{roomId}</strong>{' '}
             <button type="button" className="linkish" onClick={() => void copyCode()}>
               {copied ? t.copied : t.copyCode}
+            </button>{' '}
+            <button type="button" className="linkish" onClick={() => void copyInviteLink()}>
+              {linkCopied ? t.copied : t.copyInviteLink}
             </button>
           </p>
           <p className="muted small">
@@ -477,14 +569,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
           </>
         )}
         <div className="actions">
-          <button
-            type="button"
-            className="btn primary"
-            onClick={() => {
-              setRoomId('')
-              setUi('menu')
-            }}
-          >
+          <button type="button" className="btn primary" onClick={leaveToMenu}>
             {t.back}
           </button>
         </div>
