@@ -1,5 +1,6 @@
 import { doc, getDoc } from 'firebase/firestore'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AiQuestLoadingOverlay } from '../components/AiQuestLoadingOverlay'
 import { judgeBattle, generateAiQuest } from '../ai/scoring'
 import { getFirestoreFromJson } from '../firebase/init'
 import {
@@ -45,6 +46,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   const [draftQuest, setDraftQuest] = useState<QuestSpec>(() => randomStaticQuest(locale, null))
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [aiQuestLoading, setAiQuestLoading] = useState(false)
   const [text, setText] = useState('')
   const [image, setImage] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -274,7 +276,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
       setErr(t.needApiKey)
       return
     }
-    setBusy(true)
+    setAiQuestLoading(true)
     try {
       const q = await generateAiQuest(settings, locale, {
         avoidTexts: recentAiQuestsRef.current,
@@ -284,7 +286,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     } catch (e) {
       setErr(e instanceof Error ? e.message : t.errorGeneric)
     } finally {
-      setBusy(false)
+      setAiQuestLoading(false)
     }
   }, [settings, locale, t])
 
@@ -433,8 +435,10 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   if (room.phase === 'lobby') {
     const isHost = room.hostPlayerId === playerId
     const playerRows = Object.entries(room.players ?? {})
+    const lobbyBusy = busy || aiQuestLoading
     return (
       <div className="app">
+        <AiQuestLoadingOverlay open={aiQuestLoading} message={t.aiQuestLoading} />
         <header className="header">
           <button type="button" className="linkish" onClick={leaveToMenu}>
             ← {t.back}
@@ -470,17 +474,17 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
               <p className="quest-label">{t.questLabel}</p>
               <p className="quest small">{draftQuest.text}</p>
               <div className="actions">
-                <button type="button" className="btn ghost" onClick={refreshDraft} disabled={busy}>
+                <button type="button" className="btn ghost" onClick={refreshDraft} disabled={lobbyBusy}>
                   {t.newQuest}
                 </button>
-                <button type="button" className="btn ghost" onClick={() => void draftAi()} disabled={busy}>
+                <button type="button" className="btn ghost" onClick={() => void draftAi()} disabled={lobbyBusy}>
                   {t.aiQuest}
                 </button>
                 <button
                   type="button"
                   className="btn primary"
                   onClick={() => void startMatch()}
-                  disabled={busy || playerRows.length < 2}
+                  disabled={lobbyBusy || playerRows.length < 2}
                 >
                   {t.startMatch}
                 </button>

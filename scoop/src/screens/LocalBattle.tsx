@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import { AiQuestLoadingOverlay } from '../components/AiQuestLoadingOverlay'
 import { judgeBattle, generateAiQuest } from '../ai/scoring'
 import { compressImageToDataUrl } from '../lib/image'
 import { randomStaticQuest } from '../quests/static'
@@ -16,6 +17,7 @@ export function LocalBattle({ onBack }: { onBack: () => void }) {
   const [p2Text, setP2Text] = useState('')
   const [p2Img, setP2Img] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [aiQuestLoading, setAiQuestLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [judge, setJudge] = useState<BattleJudgeResult | null>(null)
   const recentAiQuestsRef = useRef<string[]>([])
@@ -37,7 +39,7 @@ export function LocalBattle({ onBack }: { onBack: () => void }) {
       setErr(t.needApiKey)
       return
     }
-    setBusy(true)
+    setAiQuestLoading(true)
     try {
       const q = await generateAiQuest(settings, locale, {
         avoidTexts: recentAiQuestsRef.current,
@@ -53,7 +55,7 @@ export function LocalBattle({ onBack }: { onBack: () => void }) {
     } catch (e) {
       setErr(e instanceof Error ? e.message : t.errorGeneric)
     } finally {
-      setBusy(false)
+      setAiQuestLoading(false)
     }
   }, [settings, locale, t])
 
@@ -99,8 +101,11 @@ export function LocalBattle({ onBack }: { onBack: () => void }) {
     }
   }, [settings, locale, quest, p1Text, p1Img, p2Text, p2Img, t])
 
+  const blockUi = busy || aiQuestLoading
+
   return (
     <div className="app">
+      <AiQuestLoadingOverlay open={aiQuestLoading} message={t.aiQuestLoading} />
       <header className="header">
         <button type="button" className="linkish" onClick={onBack}>
           ← {t.back}
@@ -116,10 +121,10 @@ export function LocalBattle({ onBack }: { onBack: () => void }) {
         {quest.preferPhoto && <p className="photo-hint">{t.requirePhotoQuest}</p>}
 
         <div className="actions">
-          <button type="button" className="btn ghost" onClick={nextStatic} disabled={busy}>
+          <button type="button" className="btn ghost" onClick={nextStatic} disabled={blockUi}>
             {t.newQuest}
           </button>
-          <button type="button" className="btn ghost" onClick={() => void aiQuest()} disabled={busy}>
+          <button type="button" className="btn ghost" onClick={() => void aiQuest()} disabled={blockUi}>
             {t.aiQuest}
           </button>
         </div>
@@ -177,7 +182,7 @@ export function LocalBattle({ onBack }: { onBack: () => void }) {
               />
             </label>
             <div className="actions">
-              <button type="button" className="btn primary" onClick={() => void runJudge()} disabled={busy}>
+              <button type="button" className="btn primary" onClick={() => void runJudge()} disabled={blockUi}>
                 {busy ? t.analyzing : t.runJudge}
               </button>
             </div>
@@ -208,7 +213,7 @@ export function LocalBattle({ onBack }: { onBack: () => void }) {
               </div>
             </div>
             <div className="actions">
-              <button type="button" className="btn primary" onClick={nextStatic} disabled={busy}>
+              <button type="button" className="btn primary" onClick={nextStatic} disabled={blockUi}>
                 {t.newQuest}
               </button>
             </div>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { AiQuestLoadingOverlay } from '../components/AiQuestLoadingOverlay'
 import { judgeSolo, generateAiQuest } from '../ai/scoring'
 import { compressImageToDataUrl } from '../lib/image'
 import { randomStaticQuest } from '../quests/static'
@@ -21,6 +22,7 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
   const [text, setText] = useState('')
   const [image, setImage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [aiQuestLoading, setAiQuestLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [result, setResult] = useState<SoloAiResult | null>(null)
   const recentAiQuestsRef = useRef<string[]>([])
@@ -55,7 +57,7 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
       setErr(t.needApiKey)
       return
     }
-    setBusy(true)
+    setAiQuestLoading(true)
     try {
       const q = await generateAiQuest(settings, locale, {
         avoidTexts: recentAiQuestsRef.current,
@@ -70,7 +72,7 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
     } catch (e) {
       setErr(e instanceof Error ? e.message : t.errorGeneric)
     } finally {
-      setBusy(false)
+      setAiQuestLoading(false)
     }
   }, [settings, locale, t])
 
@@ -117,8 +119,11 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
     }
   }, [settings, locale, quest, text, image, t])
 
+  const blockUi = busy || aiQuestLoading
+
   return (
     <div className="app">
+      <AiQuestLoadingOverlay open={aiQuestLoading} message={t.aiQuestLoading} />
       <header className="header">
         <button type="button" className="linkish" onClick={onBack}>
           ← {t.back}
@@ -135,16 +140,16 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
 
         {phase === 'ready' && (
           <div className="actions">
-            <button type="button" className="btn primary" onClick={startTimer} disabled={busy}>
+            <button type="button" className="btn primary" onClick={startTimer} disabled={blockUi}>
               {t.startTimer} ({formatTime(ROUND_SEC)})
             </button>
-            <button type="button" className="btn ghost" onClick={() => setPhase('wrap')} disabled={busy}>
+            <button type="button" className="btn ghost" onClick={() => setPhase('wrap')} disabled={blockUi}>
               {t.answerNow}
             </button>
-            <button type="button" className="btn ghost" onClick={nextStatic} disabled={busy}>
+            <button type="button" className="btn ghost" onClick={nextStatic} disabled={blockUi}>
               {t.newQuest}
             </button>
-            <button type="button" className="btn ghost" onClick={() => void aiQuest()} disabled={busy}>
+            <button type="button" className="btn ghost" onClick={() => void aiQuest()} disabled={blockUi}>
               {t.aiQuest}
             </button>
           </div>
@@ -192,7 +197,7 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
             {err && <p className="error">{err}</p>}
 
             <div className="actions">
-              <button type="button" className="btn primary" onClick={() => void submit()} disabled={busy}>
+              <button type="button" className="btn primary" onClick={() => void submit()} disabled={blockUi}>
                 {busy ? t.analyzing : t.submitAi}
               </button>
               <button
@@ -202,7 +207,7 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
                   nextStatic()
                   setPhase('ready')
                 }}
-                disabled={busy}
+                disabled={blockUi}
               >
                 {t.newQuest}
               </button>

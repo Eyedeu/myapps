@@ -30,6 +30,7 @@ export const STRINGS: Record<
     questLabel: string
     newQuest: string
     aiQuest: string
+    aiQuestLoading: string
     startTimer: string
     timer: string
     done: string
@@ -108,6 +109,7 @@ export const STRINGS: Record<
     questLabel: 'Quest',
     newQuest: 'Different quest',
     aiQuest: 'AI quest',
+    aiQuestLoading: 'Creating your quest…',
     startTimer: 'Start timer',
     timer: 'Time',
     done: "I'm done",
@@ -186,6 +188,7 @@ export const STRINGS: Record<
     questLabel: 'Görev',
     newQuest: 'Başka görev',
     aiQuest: 'Yapay zeka görevi',
+    aiQuestLoading: 'Görev oluşturuluyor…',
     startTimer: 'Süreyi başlat',
     timer: 'Süre',
     done: 'Bitti',
@@ -264,6 +267,7 @@ export const STRINGS: Record<
     questLabel: 'Aufgabe',
     newQuest: 'Andere Aufgabe',
     aiQuest: 'KI-Aufgabe',
+    aiQuestLoading: 'Aufgabe wird erstellt…',
     startTimer: 'Timer starten',
     timer: 'Zeit',
     done: 'Fertig',
