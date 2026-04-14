@@ -7,3 +7,9 @@ Thumbs.db
 **/.env
 **/.env.local
 **/.env.*.local
+
+# Tooling / artifacts
+**/coverage/
+**/*.tsbuildinfo
+**/playwright-report/
+**/test-results/
