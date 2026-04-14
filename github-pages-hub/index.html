@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>myapps</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Source+Sans+3:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0f1115;
+        --card: #171a21;
+        --line: #2a303c;
+        --text: #c8cdd8;
+        --strong: #f2f4f8;
+        --accent: #e8a54b;
+        --accent2: #6ee7b7;
+        --accent3: #7dd3fc;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100svh;
+        font-family: 'Source Sans 3', system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.5;
+      }
+      .wrap {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: clamp(1.5rem, 5vw, 2.5rem) 1.25rem 3rem;
+      }
+      h1 {
+        font-family: 'Fraunces', Georgia, serif;
+        font-size: clamp(2rem, 6vw, 2.75rem);
+        color: var(--strong);
+        margin: 0 0 0.35rem;
+        letter-spacing: -0.02em;
+      }
+      .lede {
+        margin: 0 0 2rem;
+        max-width: 50ch;
+      }
+      .grid {
+        display: grid;
+        gap: 1rem;
+      }
+      @media (min-width: 560px) {
+        .grid {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+      a.card {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 1.15rem 1.1rem 1.25rem;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+        transition: border-color 0.15s ease, transform 0.1s ease;
+      }
+      a.card:hover {
+        border-color: #3d4556;
+        transform: translateY(-2px);
+      }
+      a.card h2 {
+        font-family: 'Fraunces', Georgia, serif;
+        font-size: 1.2rem;
+        margin: 0 0 0.4rem;
+        color: var(--strong);
+      }
+      a.card p {
+        margin: 0;
+        font-size: 0.95rem;
+      }
+      .tag {
+        display: inline-block;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+        color: var(--bg);
+        padding: 0.2rem 0.5rem;
+        border-radius: 999px;
+      }
+      .t-odd {
+        background: var(--accent);
+      }
+      .t-floret {
+        background: var(--accent2);
+        color: #0b1210;
+      }
+      .t-scoop {
+        background: var(--accent3);
+        color: #0c1420;
+      }
+      footer {
+        margin-top: 2.5rem;
+        font-size: 0.85rem;
+        color: #7d8696;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>myapps</h1>
+      <p class="lede">
+        Three small browser apps for short breaks. Use the cards below to open each
+        app.
+      </p>
+      <div class="grid">
+        <a class="card" href="oddbridge/">
+          <span class="tag t-odd">Words</span>
+          <h2>Oddbridge</h2>
+          <p>Link two random words in one sentence before the timer runs out.</p>
+        </a>
+        <a class="card" href="floret/">
+          <span class="tag t-floret">Rhythm</span>
+          <h2>Floret</h2>
+          <p>Tap in rhythm and grow a tiny procedural flower on the canvas.</p>
+        </a>
+        <a class="card" href="scoop/">
+          <span class="tag t-scoop">Quest</span>
+          <h2>Scoop</h2>
+          <p>Quick real-world micro-quests you can finish in a few minutes.</p>
+        </a>
+      </div>
+      <footer>
+        <p>
+          Publishing: GitHub repo → Settings → Pages → Build and deployment → Source:
+          GitHub Actions.
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>

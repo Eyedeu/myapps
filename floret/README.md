@@ -1,5 +1,5 @@
 # Floret
 
-Procedural “tap a rhythm → grow a flower” micro-session app. Scaffold TBD (e.g. Vite + Canvas).
+Tap-to-grow procedural flower (Canvas + React). Local dev: `npm install` then `npm run dev`.
 
-Sibling apps: `../scoop`, Oddbridge in `../oddbridge`.
+GitHub Pages build uses `npm run build -- --base=/<repo>/floret/` via the repo workflow.
