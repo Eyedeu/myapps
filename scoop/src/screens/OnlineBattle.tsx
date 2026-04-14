@@ -1,5 +1,5 @@
 import { doc, getDoc } from 'firebase/firestore'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { judgeBattle, generateAiQuest } from '../ai/scoring'
 import { getFirestoreFromJson } from '../firebase/init'
 import {
@@ -50,6 +50,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   const [copied, setCopied] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
   const [roomGone, setRoomGone] = useState(false)
+  const recentAiQuestsRef = useRef<string[]>([])
 
   const leaveToMenu = useCallback(() => {
     clearOnlineSession()
@@ -275,7 +276,10 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     }
     setBusy(true)
     try {
-      const q = await generateAiQuest(settings, locale)
+      const q = await generateAiQuest(settings, locale, {
+        avoidTexts: recentAiQuestsRef.current,
+      })
+      recentAiQuestsRef.current = [q.text, ...recentAiQuestsRef.current].slice(0, 8)
       setDraftQuest(q)
     } catch (e) {
       setErr(e instanceof Error ? e.message : t.errorGeneric)

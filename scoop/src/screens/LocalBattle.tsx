@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { judgeBattle, generateAiQuest } from '../ai/scoring'
 import { compressImageToDataUrl } from '../lib/image'
 import { randomStaticQuest } from '../quests/static'
@@ -18,6 +18,7 @@ export function LocalBattle({ onBack }: { onBack: () => void }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [judge, setJudge] = useState<BattleJudgeResult | null>(null)
+  const recentAiQuestsRef = useRef<string[]>([])
 
   const nextStatic = useCallback(() => {
     setQuest((q) => randomStaticQuest(locale, q))
@@ -38,7 +39,10 @@ export function LocalBattle({ onBack }: { onBack: () => void }) {
     }
     setBusy(true)
     try {
-      const q = await generateAiQuest(settings, locale)
+      const q = await generateAiQuest(settings, locale, {
+        avoidTexts: recentAiQuestsRef.current,
+      })
+      recentAiQuestsRef.current = [q.text, ...recentAiQuestsRef.current].slice(0, 8)
       setQuest(q)
       setStep(1)
       setP1Text('')

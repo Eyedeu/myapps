@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { judgeSolo, generateAiQuest } from '../ai/scoring'
 import { compressImageToDataUrl } from '../lib/image'
 import { randomStaticQuest } from '../quests/static'
@@ -23,6 +23,7 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [result, setResult] = useState<SoloAiResult | null>(null)
+  const recentAiQuestsRef = useRef<string[]>([])
 
   useEffect(() => {
     if (phase !== 'running') return
@@ -56,7 +57,10 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
     }
     setBusy(true)
     try {
-      const q = await generateAiQuest(settings, locale)
+      const q = await generateAiQuest(settings, locale, {
+        avoidTexts: recentAiQuestsRef.current,
+      })
+      recentAiQuestsRef.current = [q.text, ...recentAiQuestsRef.current].slice(0, 8)
       setQuest(q)
       setPhase('ready')
       setSecondsLeft(ROUND_SEC)
