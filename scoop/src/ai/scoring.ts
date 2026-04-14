@@ -79,7 +79,7 @@ Rules:
 - CREATIVE MANDATE: Follow the CREATIVE_AXIS exactly for this request. Make it feel like a fresh mini-game, not "arrange three things again" unless the axis explicitly asks a new twist.
 - One sentence, under ~230 characters in the target language.
 Reply JSON only, no markdown. Keys: quest (string), preferPhoto (boolean).`
-  const userText = `Create ONE micro-quest doable in about 3 minutes indoors. Language: ${langName[locale]}. The grader only sees text + optional photo—pass/fail must be obvious from evidence.
+  const userText = `Create ONE micro-quest doable in about 5 minutes indoors. Language: ${langName[locale]}. The grader only sees text + optional photo—pass/fail must be obvious from evidence.
 
 CREATIVE_AXIS (follow this structure and intent; translate fully into ${langName[locale]}):
 ${axis}
@@ -92,16 +92,40 @@ If the axis involves a color scavenger, prefer this color unless impossible: ${c
   return { text, preferPhoto }
 }
 
+function formatMmSs(totalSec: number): string {
+  const m = Math.floor(totalSec / 60)
+  const s = totalSec % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+export type SoloJudgeTiming = {
+  /** Total time allowed for the round (seconds). */
+  limitSec: number
+  /** Seconds from start until the user tapped "done" or the timer ran out. */
+  elapsedSec: number
+}
+
 export async function judgeSolo(args: {
   settings: AppSettings
   locale: Locale
   quest: QuestSpec
   answer: string
   imageDataUrl: string | null
+  /** Set when the user used the timed round; omit if they skipped the timer from the first screen. */
+  timing?: SoloJudgeTiming
 }): Promise<SoloAiResult> {
-  const { settings, locale, quest, answer, imageDataUrl } = args
-  const system = `You are a fair judge for a micro-quest. Score mainly from objective evidence: does the photo/text plausibly show what the quest asked (counts, colors, arrangement, visible text, etc.)? If the quest required a photo and none is provided, score low. Do not reward pure vibes or unverifiable inner thoughts. Be kind and concise. Language for feedback: ${langName[locale]}. Reply JSON only: score (integer 1-10), feedback (string, 2-4 sentences), completed (boolean: evidence matches the quest well enough). If text is empty and no image, score low.`
-  const userText = `Quest: ${quest.text}\nPrefer photo: ${quest.preferPhoto}\nUser text:\n${answer || '(none)'}\n(Photo attached if provided.)`
+  const { settings, locale, quest, answer, imageDataUrl, timing } = args
+  const timingBlock =
+    timing && timing.limitSec > 0
+      ? `\nTimed round: limit ${timing.limitSec}s (${formatMmSs(timing.limitSec)}), elapsed ${timing.elapsedSec}s (${formatMmSs(timing.elapsedSec)}), about ${Math.round((timing.elapsedSec / timing.limitSec) * 100)}% of limit used.`
+      : '\nTimed round: user skipped the timer (went straight to answer). Judge only photo/text; do not reward or penalize for speed.'
+
+  const system = `You are a fair judge for a micro-quest. PRIMARY: score from objective evidence—does the photo/text plausibly satisfy the quest (counts, colors, arrangement, visible text, etc.)? If a photo was clearly expected and missing or useless, score low. Do not reward pure vibes.
+
+TIME (only when timed-round data is provided): Finishing clearly faster than the limit with strong proof may add a SMALL bonus (at most ~1 point on the 1–10 scale) on top of quality—never let speed alone outweigh weak evidence. Using most of the limit with excellent proof is perfectly fine. Suspiciously fast + thin proof should not get a time bonus. If timed-round data says the user skipped the timer, ignore time completely.
+
+Be kind and concise. Language for feedback: ${langName[locale]}. Reply JSON only: score (integer 1-10), feedback (string, 2-4 sentences; briefly mention timing only when timed data exists and it mattered), completed (boolean: evidence matches the quest well enough). If text is empty and no image, score low.`
+  const userText = `Quest: ${quest.text}\nPrefer photo: ${quest.preferPhoto}${timingBlock}\nUser text:\n${answer || '(none)'}\n(Photo attached if provided.)`
   const images = imageDataUrl ? [imageDataUrl] : []
   const raw = await llmJsonResponse({ settings, system, userText, images })
   const parsed = JSON.parse(raw) as Partial<SoloAiResult>

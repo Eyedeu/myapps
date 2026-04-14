@@ -105,7 +105,8 @@ export const STRINGS: Record<
     settingsNote:
       'Keys stay in this browser (localStorage). For production / Play Store, move calls to your backend.',
     soloTitle: 'Solo scoop',
-    soloIntro: 'Complete the quest, add text and/or a photo, then let AI score it.',
+    soloIntro:
+      'New or AI quests start a 5-minute timer automatically. Add text and/or a photo; AI scores your proof and (if you used the timer) how you used the time.',
     questLabel: 'Quest',
     newQuest: 'Different quest',
     aiQuest: 'AI quest',
@@ -184,7 +185,8 @@ export const STRINGS: Record<
     settingsNote:
       'Anahtarlar bu tarayıcıda kalır (localStorage). Play Store için çağrıları sunucunuza taşıyın.',
     soloTitle: 'Tek başına',
-    soloIntro: 'Görevi yap, metin ve/veya fotoğraf ekle, yapay zekaya puanlatsın.',
+    soloIntro:
+      'Yeni veya yapay zeka görevinde süre otomatik başlar (5 dk). Metin ve/veya fotoğraf ekle; yapay zeka kanıtı ve (süreyi kullandıysan) zamanı da dikkate alır.',
     questLabel: 'Görev',
     newQuest: 'Başka görev',
     aiQuest: 'Yapay zeka görevi',
@@ -263,7 +265,8 @@ export const STRINGS: Record<
     settingsNote:
       'Schlüssel bleiben im Browser (localStorage). Für den Play Store bitte Backend nutzen.',
     soloTitle: 'Solo',
-    soloIntro: 'Erfülle die Aufgabe, Text und/oder Foto hinzufügen, KI bewertet.',
+    soloIntro:
+      'Neue oder KI-Aufgaben starten automatisch einen 5-Minuten-Timer. Text und/oder Foto hinzufügen; die KI bewertet den Nachweis und (bei genutztem Timer) den Zeitfaktor.',
     questLabel: 'Aufgabe',
     newQuest: 'Andere Aufgabe',
     aiQuest: 'KI-Aufgabe',

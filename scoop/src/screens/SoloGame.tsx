@@ -6,7 +6,10 @@ import { randomStaticQuest } from '../quests/static'
 import { useAppI18n } from '../settings/useAppI18n'
 import type { QuestSpec, SoloAiResult } from '../types'
 
-const ROUND_SEC = 180
+/** Five-minute cap; elapsed time is sent to the judge when the timed path is used. */
+const ROUND_SEC = 300
+
+type WrapTiming = { usedTimer: boolean; elapsedSec: number }
 
 function formatTime(total: number): string {
   const m = Math.floor(total / 60)
@@ -26,12 +29,19 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
   const [err, setErr] = useState<string | null>(null)
   const [result, setResult] = useState<SoloAiResult | null>(null)
   const recentAiQuestsRef = useRef<string[]>([])
+  const secondsLeftRef = useRef(ROUND_SEC)
+  const wrapTimingRef = useRef<WrapTiming>({ usedTimer: false, elapsedSec: 0 })
+
+  useEffect(() => {
+    secondsLeftRef.current = secondsLeft
+  }, [secondsLeft])
 
   useEffect(() => {
     if (phase !== 'running') return
     const id = window.setInterval(() => {
       setSecondsLeft((s) => {
         if (s <= 1) {
+          wrapTimingRef.current = { usedTimer: true, elapsedSec: ROUND_SEC }
           setPhase('wrap')
           return 0
         }
@@ -43,8 +53,9 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
 
   const nextStatic = useCallback(() => {
     setQuest((q) => randomStaticQuest(locale, q))
-    setPhase('ready')
+    setPhase('running')
     setSecondsLeft(ROUND_SEC)
+    secondsLeftRef.current = ROUND_SEC
     setText('')
     setImage(null)
     setResult(null)
@@ -64,8 +75,9 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
       })
       recentAiQuestsRef.current = [q.text, ...recentAiQuestsRef.current].slice(0, 8)
       setQuest(q)
-      setPhase('ready')
+      setPhase('running')
       setSecondsLeft(ROUND_SEC)
+      secondsLeftRef.current = ROUND_SEC
       setText('')
       setImage(null)
       setResult(null)
@@ -78,10 +90,20 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
 
   const startTimer = useCallback(() => {
     setSecondsLeft(ROUND_SEC)
+    secondsLeftRef.current = ROUND_SEC
     setPhase('running')
   }, [])
 
   const finishEarly = useCallback(() => {
+    wrapTimingRef.current = {
+      usedTimer: true,
+      elapsedSec: Math.min(ROUND_SEC, Math.max(0, ROUND_SEC - secondsLeftRef.current)),
+    }
+    setPhase('wrap')
+  }, [])
+
+  const skipTimerToWrap = useCallback(() => {
+    wrapTimingRef.current = { usedTimer: false, elapsedSec: 0 }
     setPhase('wrap')
   }, [])
 
@@ -104,12 +126,14 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
     setBusy(true)
     setResult(null)
     try {
+      const wt = wrapTimingRef.current
       const r = await judgeSolo({
         settings,
         locale,
         quest,
         answer: text,
         imageDataUrl: image,
+        timing: wt.usedTimer ? { limitSec: ROUND_SEC, elapsedSec: wt.elapsedSec } : undefined,
       })
       setResult(r)
     } catch (e) {
@@ -143,7 +167,7 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
             <button type="button" className="btn primary" onClick={startTimer} disabled={blockUi}>
               {t.startTimer} ({formatTime(ROUND_SEC)})
             </button>
-            <button type="button" className="btn ghost" onClick={() => setPhase('wrap')} disabled={blockUi}>
+            <button type="button" className="btn ghost" onClick={skipTimerToWrap} disabled={blockUi}>
               {t.answerNow}
             </button>
             <button type="button" className="btn ghost" onClick={nextStatic} disabled={blockUi}>
@@ -158,7 +182,7 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
         {phase === 'running' && (
           <>
             <div className="timer" aria-label={t.timer}>
-              <span className={secondsLeft <= 30 ? 'warn' : ''}>{formatTime(secondsLeft)}</span>
+              <span className={secondsLeft <= 60 ? 'warn' : ''}>{formatTime(secondsLeft)}</span>
             </div>
             <div className="actions">
               <button type="button" className="btn primary" onClick={finishEarly}>
@@ -205,7 +229,6 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
                 className="btn ghost"
                 onClick={() => {
                   nextStatic()
-                  setPhase('ready')
                 }}
                 disabled={blockUi}
               >
