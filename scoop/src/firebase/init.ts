@@ -1,8 +1,5 @@
-import { initializeApp, type FirebaseOptions } from 'firebase/app'
+import { getApp, getApps, initializeApp, type FirebaseOptions } from 'firebase/app'
 import { getFirestore, type Firestore } from 'firebase/firestore'
-
-let lastJson = ''
-let db: Firestore | null = null
 
 function hashConfig(s: string): string {
   let h = 0
@@ -10,17 +7,21 @@ function hashConfig(s: string): string {
   return `scoop_${Math.abs(h)}`
 }
 
+/**
+ * Returns Firestore for the given web config JSON.
+ * Reuses an existing FirebaseApp when the config hash matches so we never hit
+ * duplicate-app errors or get stuck returning null after a failed re-init.
+ */
 export function getFirestoreFromJson(json: string): Firestore | null {
   const trimmed = json.trim()
   if (!trimmed) return null
   try {
-    if (trimmed === lastJson && db) return db
     const cfg = JSON.parse(trimmed) as FirebaseOptions
     if (!cfg.apiKey || !cfg.projectId) return null
-    lastJson = trimmed
-    const firebaseApp = initializeApp(cfg, hashConfig(trimmed))
-    db = getFirestore(firebaseApp)
-    return db
+    const name = hashConfig(trimmed)
+    const existing = getApps().find((a) => a.name === name)
+    const app = existing ?? initializeApp(cfg, name)
+    return getFirestore(app)
   } catch {
     return null
   }
