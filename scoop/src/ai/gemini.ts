@@ -36,8 +36,9 @@ async function geminiGenerateContent(args: {
   system: string
   userText: string
   images: string[]
+  timeoutMs: number
 }): Promise<string> {
-  const { apiKey, model, system, userText, images } = args
+  const { apiKey, model, system, userText, images, timeoutMs } = args
   const url = `${GEMINI_GENERATE_BASE}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`
 
   const body = {
@@ -56,11 +57,19 @@ async function geminiGenerateContent(args: {
     },
   }
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
+  const ctrl = new AbortController()
+  const timer = window.setTimeout(() => ctrl.abort(), timeoutMs)
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  } finally {
+    window.clearTimeout(timer)
+  }
 
   if (!res.ok) {
     const errText = await res.text()
@@ -86,8 +95,9 @@ export async function geminiJsonWithFallback(args: {
   system: string
   userText: string
   images?: string[]
+  timeoutMs?: number
 }): Promise<string> {
-  const { apiKey, system, userText, images = [] } = args
+  const { apiKey, system, userText, images = [], timeoutMs = 15000 } = args
   if (!apiKey.trim()) throw new Error('Missing API key')
 
   const models = [GEMINI_MODEL_PRIMARY, GEMINI_MODEL_FALLBACK]
@@ -95,7 +105,7 @@ export async function geminiJsonWithFallback(args: {
 
   for (const model of models) {
     try {
-      return await geminiGenerateContent({ apiKey, model, system, userText, images })
+      return await geminiGenerateContent({ apiKey, model, system, userText, images, timeoutMs })
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e))
     }

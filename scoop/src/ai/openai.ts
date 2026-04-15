@@ -9,8 +9,9 @@ export async function openaiJsonResponse(args: {
   system: string
   userText: string
   images?: string[]
+  timeoutMs?: number
 }): Promise<string> {
-  const { settings, system, userText, images = [] } = args
+  const { settings, system, userText, images = [], timeoutMs = 15000 } = args
   if (!settings.apiKey.trim()) {
     throw new Error('Missing API key')
   }
@@ -20,22 +21,30 @@ export async function openaiJsonResponse(args: {
     if (url) content.push({ type: 'image_url', image_url: { url } })
   }
 
-  const res = await fetch(`${base}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${settings.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: settings.model,
-      temperature: 0.45,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content },
-      ],
-    }),
-  })
+  const ctrl = new AbortController()
+  const timer = window.setTimeout(() => ctrl.abort(), timeoutMs)
+  let res: Response
+  try {
+    res = await fetch(`${base}/chat/completions`, {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${settings.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: settings.model,
+        temperature: 0.45,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content },
+        ],
+      }),
+    })
+  } finally {
+    window.clearTimeout(timer)
+  }
 
   if (!res.ok) {
     const errText = await res.text()

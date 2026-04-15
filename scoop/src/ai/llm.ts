@@ -7,8 +7,9 @@ export async function llmJsonResponse(args: {
   system: string
   userText: string
   images?: string[]
+  timeoutMs?: number
 }): Promise<string> {
-  const { settings, system, userText, images = [] } = args
+  const { settings, system, userText, images = [], timeoutMs } = args
 
   if (settings.aiProvider === 'gemini') {
     return geminiJsonWithFallback({
@@ -16,8 +17,9 @@ export async function llmJsonResponse(args: {
       system,
       userText,
       images,
+      timeoutMs,
     })
   }
 
-  return openaiJsonResponse({ settings, system, userText, images })
+  return openaiJsonResponse({ settings, system, userText, images, timeoutMs })
 }

@@ -211,12 +211,29 @@ If evidence is weak for everyone, you may use tie. Never insult; critique gently
   const userText = `Quest: ${quest.text}\nTask type: ${photoMode ? 'photo-only' : 'text-only'}\n${modeRules}\nPlayers:\n${lines.join('\n')}`
 
   const images = photoMode ? (players.map((p) => p.imageDataUrl).filter(Boolean) as string[]) : []
-  const raw = await llmJsonResponse({ settings, system, userText, images })
-  const parsed = JSON.parse(raw) as {
+  const fallback = quickBattleFallback({ locale, quest, players })
+  let parsed: {
     winnerId?: string
     summary?: string
     ranking?: string[]
     byPlayer?: Record<string, { score?: number; feedback?: string }>
+  }
+  try {
+    const raw = await llmJsonResponse({
+      settings,
+      system,
+      userText,
+      images,
+      timeoutMs: 9500,
+    })
+    parsed = JSON.parse(raw) as {
+      winnerId?: string
+      summary?: string
+      ranking?: string[]
+      byPlayer?: Record<string, { score?: number; feedback?: string }>
+    }
+  } catch {
+    return fallback
   }
 
   let winnerId: string | 'tie' = 'tie'
@@ -228,23 +245,97 @@ If evidence is weak for everyone, you may use tie. Never insult; critique gently
     winnerId = parsed.winnerId
   }
 
-  const summary = typeof parsed.summary === 'string' ? parsed.summary : ''
+  const summary = typeof parsed.summary === 'string' ? parsed.summary : fallback.summary
   const ranking = Array.isArray(parsed.ranking)
     ? parsed.ranking.filter((id) => players.some((p) => p.id === id))
-    : players.map((p) => p.id)
+    : fallback.ranking
 
   const byPlayer: BattleJudgeResult['byPlayer'] = {}
   for (const p of players) {
     const row = parsed.byPlayer?.[p.id]
+    const fallbackRow = fallback.byPlayer[p.id]
     byPlayer[p.id] = {
-      score: Math.min(10, Math.max(1, Number(row?.score) || 1)),
-      feedback: typeof row?.feedback === 'string' ? row.feedback : '',
+      score: Math.min(10, Math.max(1, Number(row?.score) || fallbackRow.score)),
+      feedback: typeof row?.feedback === 'string' ? row.feedback : fallbackRow.feedback,
     }
   }
 
   return {
-    winnerId: winnerId === 'tie' ? 'tie' : winnerId,
+    winnerId: winnerId === 'tie' ? fallback.winnerId : winnerId,
     summary,
+    ranking,
+    byPlayer,
+  }
+}
+
+function quickBattleFallback(args: {
+  locale: Locale
+  quest: QuestSpec
+  players: { id: string; name: string; text: string; imageDataUrl: string | null; elapsedSec?: number }[]
+}): BattleJudgeResult {
+  const { locale, quest, players } = args
+  const localized = {
+    en: {
+      summary: 'Quick auto-result was used because AI analysis timed out. Correctness is prioritized, speed is used as tie-break.',
+      photoGood: 'Photo submitted on time.',
+      photoMissing: 'No valid photo was submitted before timeout.',
+      textGood: 'Answer submitted on time.',
+      textMissing: 'No valid text answer was submitted before timeout.',
+    },
+    tr: {
+      summary: 'Yapay zeka analizi zaman asimina ugradigi icin hizli otomatik sonuc kullanildi. Oncelik dogrulukta, hiz esitlik bozucu olarak kullanildi.',
+      photoGood: 'Fotograf zamaninda gonderildi.',
+      photoMissing: 'Sure bitmeden gecerli fotograf gonderilmedi.',
+      textGood: 'Cevap zamaninda gonderildi.',
+      textMissing: 'Sure bitmeden gecerli metin cevabi gonderilmedi.',
+    },
+    de: {
+      summary: 'Die KI-Analyse hat das Zeitlimit ueberschritten; daher wurde ein schnelles Auto-Ergebnis genutzt. Korrektheit hat Vorrang, Tempo dient als Tie-Breaker.',
+      photoGood: 'Foto wurde rechtzeitig eingereicht.',
+      photoMissing: 'Kein gueltiges Foto vor Ablauf eingereicht.',
+      textGood: 'Antwort wurde rechtzeitig eingereicht.',
+      textMissing: 'Keine gueltige Textantwort vor Ablauf eingereicht.',
+    },
+  }[locale]
+
+  const scored = players.map((p) => {
+    const hasContent = quest.preferPhoto ? Boolean(p.imageDataUrl) : p.text.trim().length > 0
+    const speedBonus =
+      typeof p.elapsedSec === 'number' && Number.isFinite(p.elapsedSec)
+        ? Math.max(0, Math.min(1.5, (300 - Math.max(0, p.elapsedSec)) / 200))
+        : 0
+    const base = hasContent ? 6 : 1
+    const score = Math.min(10, Math.max(1, Math.round(base + speedBonus)))
+    return {
+      id: p.id,
+      score,
+      hasContent,
+      feedback: hasContent
+        ? quest.preferPhoto
+          ? localized.photoGood
+          : localized.textGood
+        : quest.preferPhoto
+          ? localized.photoMissing
+          : localized.textMissing,
+    }
+  })
+
+  const ranking = scored
+    .slice()
+    .sort((a, b) => b.score - a.score)
+    .map((x) => x.id)
+
+  const top = scored.filter((x) => x.score === scored[0]?.score)
+  const winnerId: string | 'tie' = top.length === 1 ? top[0]!.id : 'tie'
+
+  const byPlayer: BattleJudgeResult['byPlayer'] = {}
+  for (const s of scored) {
+    byPlayer[s.id] = { score: s.score, feedback: s.feedback }
+  }
+
+  return {
+    winnerId,
+    summary: localized.summary,
     ranking,
     byPlayer,
   }
