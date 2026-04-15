@@ -183,6 +183,11 @@ body {
   display: block;
 }
 
+.linkish.inline-link {
+  display: inline;
+  margin: 0;
+}
+
 .lang-row {
   display: flex;
   flex-direction: column;

@@ -48,6 +48,9 @@ export const STRINGS: Record<
     createRoom: string
     joinRoom: string
     roomCode: string
+    openRooms: string
+    noOpenRooms: string
+    useRoom: string
     yourName: string
     maxPlayers: string
     waitingLobby: string
@@ -139,6 +142,9 @@ export const STRINGS: Record<
     createRoom: 'Create room',
     joinRoom: 'Join room',
     roomCode: 'Room code',
+    openRooms: 'Open rooms',
+    noOpenRooms: 'No open rooms right now. You can still join with a code.',
+    useRoom: 'Use room',
     yourName: 'Your name',
     maxPlayers: 'Max players',
     waitingLobby: 'Waiting for players…',
@@ -231,6 +237,9 @@ export const STRINGS: Record<
     createRoom: 'Oda kur',
     joinRoom: 'Odaya katıl',
     roomCode: 'Oda kodu',
+    openRooms: 'Acik odalar',
+    noOpenRooms: 'Su an acik oda yok. Yine de kod ile katilabilirsin.',
+    useRoom: 'Bu odayi sec',
     yourName: 'Adın',
     maxPlayers: 'En fazla oyuncu',
     waitingLobby: 'Oyuncular bekleniyor…',
@@ -323,6 +332,9 @@ export const STRINGS: Record<
     createRoom: 'Raum erstellen',
     joinRoom: 'Raum beitreten',
     roomCode: 'Raumcode',
+    openRooms: 'Offene Raeume',
+    noOpenRooms: 'Zurzeit keine offenen Raeume. Du kannst trotzdem per Code beitreten.',
+    useRoom: 'Diesen Raum waehlen',
     yourName: 'Dein Name',
     maxPlayers: 'Max. Spieler',
     waitingLobby: 'Warte auf Spieler…',

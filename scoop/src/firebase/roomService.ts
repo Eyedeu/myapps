@@ -1,11 +1,14 @@
 import {
+  collection,
   deleteDoc,
   deleteField,
   doc,
   getDoc,
   onSnapshot,
+  query,
   setDoc,
   updateDoc,
+  where,
   type Firestore,
   type Unsubscribe,
 } from 'firebase/firestore'
@@ -34,6 +37,14 @@ export interface RoomDoc {
   players: Record<string, RoomPlayer>
   judging?: boolean
   judge?: BattleJudgeResult
+  createdAt: number
+}
+
+export interface LobbyRoomSummary {
+  roomId: string
+  hostName: string
+  players: number
+  maxPlayers: number
   createdAt: number
 }
 
@@ -220,5 +231,31 @@ export function subscribeRoom(
       return
     }
     cb(snap.data() as RoomDoc)
+  })
+}
+
+export function subscribeLobbyRooms(
+  db: Firestore,
+  cb: (rooms: LobbyRoomSummary[]) => void,
+): Unsubscribe {
+  const q = query(collection(db, ROOM_COLLECTION), where('phase', '==', 'lobby'))
+  return onSnapshot(q, (snap) => {
+    const rooms = snap.docs
+      .map((d) => {
+        const data = d.data() as RoomDoc
+        const playerRows = Object.values(data.players ?? {})
+        const playerCount = playerRows.length
+        if (playerCount < 1 || playerCount >= data.maxPlayers) return null
+        return {
+          roomId: d.id,
+          hostName: data.players?.[data.hostPlayerId]?.name ?? 'Host',
+          players: playerCount,
+          maxPlayers: data.maxPlayers,
+          createdAt: data.createdAt ?? 0,
+        } as LobbyRoomSummary
+      })
+      .filter(Boolean)
+      .sort((a, b) => (b?.createdAt ?? 0) - (a?.createdAt ?? 0)) as LobbyRoomSummary[]
+    cb(rooms)
   })
 }

@@ -10,11 +10,13 @@ import {
   lockJudging,
   releaseJudging,
   ROOM_COLLECTION,
+  subscribeLobbyRooms,
   setPlayerReady,
   startRoomGame,
   submitOnline,
   subscribeRoom,
   writeJudge,
+  type LobbyRoomSummary,
   type RoomDoc,
 } from '../firebase/roomService'
 import { compressImageToDataUrl } from '../lib/image'
@@ -54,6 +56,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   const [linkCopied, setLinkCopied] = useState(false)
   const [roomGone, setRoomGone] = useState(false)
   const [tickNow, setTickNow] = useState(() => Date.now())
+  const [lobbyRooms, setLobbyRooms] = useState<LobbyRoomSummary[]>([])
   const recentAiQuestsRef = useRef<string[]>([])
   const timeoutAutoSubmitTokenRef = useRef('')
 
@@ -118,6 +121,14 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
       setRoom(doc)
     })
   }, [db, roomId])
+
+  useEffect(() => {
+    if (!db) {
+      setLobbyRooms([])
+      return
+    }
+    return subscribeLobbyRooms(db, setLobbyRooms)
+  }, [db])
 
   useEffect(() => {
     if (!db || !roomId || !settings.apiKey.trim()) return
@@ -472,6 +483,21 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
           <h1 className="title">{t.joinRoom}</h1>
         </header>
         <main className="card">
+          <p className="quest-label">{t.openRooms}</p>
+          {lobbyRooms.length === 0 ? (
+            <p className="muted small">{t.noOpenRooms}</p>
+          ) : (
+            <ul className="list">
+              {lobbyRooms.map((r) => (
+                <li key={r.roomId}>
+                  <strong>{r.roomId}</strong> · {r.hostName} · {r.players}/{r.maxPlayers}{' '}
+                  <button type="button" className="linkish inline-link" onClick={() => setJoinCode(r.roomId)}>
+                    {t.useRoom}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           <label className="field">
             <span className="field-label">{t.roomCode}</span>
             <input className="input" value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase())} />
