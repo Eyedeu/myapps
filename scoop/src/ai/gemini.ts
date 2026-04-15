@@ -60,12 +60,19 @@ async function geminiGenerateContent(args: {
   const timer = window.setTimeout(() => ctrl.abort(), timeoutMs)
   let res: Response
   try {
-    res = await fetch(url, {
-      method: 'POST',
-      signal: ctrl.signal,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        signal: ctrl.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        throw new Error(`${model}: request timed out`)
+      }
+      throw e
+    }
   } finally {
     window.clearTimeout(timer)
   }

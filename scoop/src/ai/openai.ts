@@ -25,23 +25,30 @@ export async function openaiJsonResponse(args: {
   const timer = window.setTimeout(() => ctrl.abort(), timeoutMs)
   let res: Response
   try {
-    res = await fetch(`${base}/chat/completions`, {
-      method: 'POST',
-      signal: ctrl.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${settings.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: settings.model,
-        temperature: 0.45,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content },
-        ],
-      }),
-    })
+    try {
+      res = await fetch(`${base}/chat/completions`, {
+        method: 'POST',
+        signal: ctrl.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${settings.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: settings.model,
+          temperature: 0.45,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content },
+          ],
+        }),
+      })
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        throw new Error('AI request timed out')
+      }
+      throw e
+    }
   } finally {
     window.clearTimeout(timer)
   }

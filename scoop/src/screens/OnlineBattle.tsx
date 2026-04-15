@@ -33,6 +33,7 @@ import {
   saveOnlineSession,
   stripJoinParamsFromUrl,
 } from '../lib/roomSession'
+import { randomStaticQuest } from '../quests/static'
 import { getOrCreatePlayerId } from '../settings/storage'
 import { useAppI18n } from '../settings/useAppI18n'
 import type { BattleJudgeResult, QuestSpec } from '../types'
@@ -365,16 +366,28 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     setAiQuestLoading(true)
     setErr(null)
     try {
-      const quest = await generateAiQuest(settings, locale, {
-        avoidTexts: recentAiQuestsRef.current,
-      })
-      recentAiQuestsRef.current = [quest.text, ...recentAiQuestsRef.current].slice(0, 8)
-      const questByLocale = await localizeQuestText({
-        settings,
-        sourceLocale: locale,
-        quest,
-        targetLocales: ['en', 'tr', 'de'],
-      })
+      let quest: QuestSpec
+      let questByLocale: Partial<Record<'en' | 'tr' | 'de', string>> | undefined
+      try {
+        quest = await generateAiQuest(settings, locale, {
+          avoidTexts: recentAiQuestsRef.current,
+        })
+        recentAiQuestsRef.current = [quest.text, ...recentAiQuestsRef.current].slice(0, 8)
+        questByLocale = await localizeQuestText({
+          settings,
+          sourceLocale: locale,
+          quest,
+          targetLocales: ['en', 'tr', 'de'],
+        })
+      } catch {
+        quest = randomStaticQuest(locale, null)
+        questByLocale = {
+          en: quest.text,
+          tr: quest.text,
+          de: quest.text,
+        }
+        setErr('AI quest unavailable; started with a static quest.')
+      }
       const ok = await startRoomGame({
         db,
         roomId,
