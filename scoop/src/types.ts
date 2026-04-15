@@ -27,7 +27,9 @@ export interface PlayerJudge {
 export interface BattleJudgeResult {
   winnerId: string | 'tie'
   summary: string
+  summaryByLocale?: Partial<Record<Locale, string>>
   byPlayer: Record<string, PlayerJudge>
+  feedbackByPlayerLocale?: Record<string, Partial<Record<Locale, string>>>
   /** Best-first player ids */
   ranking: string[]
 }

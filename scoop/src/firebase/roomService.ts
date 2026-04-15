@@ -18,6 +18,7 @@ export const ROOM_COLLECTION = 'scoopRooms_v1'
 
 export interface RoomPlayer {
   name: string
+  locale: Locale
   ready: boolean
   text: string
   imageDataUrl: string | null
@@ -31,6 +32,7 @@ export interface RoomDoc {
   maxPlayers: number
   phase: 'lobby' | 'playing' | 'done'
   questText: string
+  questByLocale?: Partial<Record<Locale, string>>
   preferPhoto: boolean
   roundLimitSec?: number
   startedAt?: number
@@ -69,6 +71,7 @@ export async function createRoom(args: {
     players: {
       [hostPlayerId]: {
         name: hostName,
+        locale,
         ready: false,
         text: '',
         imageDataUrl: null,
@@ -89,8 +92,9 @@ export async function joinRoom(args: {
   roomId: string
   playerId: string
   name: string
+  locale: Locale
 }): Promise<'ok' | 'full' | 'missing'> {
-  const { db, roomId, playerId, name } = args
+  const { db, roomId, playerId, name, locale } = args
   const ref = doc(db, ROOM_COLLECTION, roomId)
   const snap = await getDoc(ref)
   if (!snap.exists()) return 'missing'
@@ -102,6 +106,7 @@ export async function joinRoom(args: {
   await updateDoc(ref, {
     [`players.${playerId}`]: {
       name,
+      locale,
       ready: false,
       text: '',
       imageDataUrl: null,
@@ -128,9 +133,10 @@ export async function startRoomGame(args: {
   roomId: string
   hostPlayerId: string
   quest: QuestSpec
+  questByLocale?: Partial<Record<Locale, string>>
   roundLimitSec: number
 }): Promise<boolean> {
-  const { db, roomId, hostPlayerId, quest, roundLimitSec } = args
+  const { db, roomId, hostPlayerId, quest, questByLocale, roundLimitSec } = args
   const ref = doc(db, ROOM_COLLECTION, roomId)
   const snap = await getDoc(ref)
   if (!snap.exists()) return false
@@ -143,6 +149,7 @@ export async function startRoomGame(args: {
   const updates: Record<string, unknown> = {
     phase: 'playing',
     questText: quest.text,
+    questByLocale: questByLocale ?? { [data.locale]: quest.text },
     preferPhoto: quest.preferPhoto,
     roundLimitSec: Math.min(300, Math.max(180, Math.floor(roundLimitSec))),
     startedAt: Date.now(),

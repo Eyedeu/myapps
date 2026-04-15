@@ -268,6 +268,90 @@ If evidence is weak for everyone, you may use tie. Never insult; critique gently
   }
 }
 
+export async function localizeQuestText(args: {
+  settings: AppSettings
+  sourceLocale: Locale
+  quest: QuestSpec
+  targetLocales: Locale[]
+}): Promise<Partial<Record<Locale, string>>> {
+  const { settings, sourceLocale, quest, targetLocales } = args
+  const unique = Array.from(new Set(targetLocales))
+  const base: Partial<Record<Locale, string>> = { [sourceLocale]: quest.text }
+  if (unique.every((l) => l === sourceLocale)) return base
+
+  const system = `You translate one micro-quest into requested locales while preserving intent exactly.
+Rules:
+- Keep preferPhoto intent unchanged; do not add extra instructions.
+- Keep tone concise and natural.
+- Return JSON only: { "byLocale": { "en": "...", "tr": "...", "de": "..." } }`
+  const userText = `Source locale: ${sourceLocale}
+Source quest: ${quest.text}
+Requested locales: ${unique.join(', ')}`
+  try {
+    const raw = await llmJsonResponse({
+      settings,
+      system,
+      userText,
+      timeoutMs: 5000,
+    })
+    const parsed = JSON.parse(raw) as { byLocale?: Partial<Record<Locale, string>> }
+    const byLocale = parsed.byLocale ?? {}
+    const out: Partial<Record<Locale, string>> = { ...base }
+    for (const l of unique) {
+      const v = byLocale[l]
+      if (typeof v === 'string' && v.trim()) out[l] = v.trim()
+    }
+    return out
+  } catch {
+    return base
+  }
+}
+
+export async function localizeBattleJudge(args: {
+  settings: AppSettings
+  judge: BattleJudgeResult
+  playerLocales: Record<string, Locale>
+}): Promise<BattleJudgeResult> {
+  const { settings, judge, playerLocales } = args
+  const locales = Array.from(new Set(Object.values(playerLocales)))
+  if (locales.length === 0) return judge
+  const system = `You localize battle results into multiple languages.
+Return JSON only:
+{
+  "summaryByLocale": { "en": "...", "tr": "...", "de": "..." },
+  "feedbackByPlayerLocale": {
+    "playerId": { "en": "...", "tr": "...", "de": "..." }
+  }
+}
+Preserve meaning and keep feedback concise.`
+  const userText = `Target locales: ${locales.join(', ')}
+Summary: ${judge.summary}
+Per player feedback:
+${Object.entries(judge.byPlayer)
+  .map(([id, row]) => `${id}: ${row.feedback}`)
+  .join('\n')}`
+  try {
+    const raw = await llmJsonResponse({
+      settings,
+      system,
+      userText,
+      timeoutMs: 4500,
+    })
+    const parsed = JSON.parse(raw) as {
+      summaryByLocale?: Partial<Record<Locale, string>>
+      feedbackByPlayerLocale?: Record<string, Partial<Record<Locale, string>>>
+    }
+    return {
+      ...judge,
+      summaryByLocale: parsed.summaryByLocale ?? judge.summaryByLocale,
+      feedbackByPlayerLocale:
+        parsed.feedbackByPlayerLocale ?? judge.feedbackByPlayerLocale,
+    }
+  } catch {
+    return judge
+  }
+}
+
 function quickBattleFallback(args: {
   locale: Locale
   quest: QuestSpec

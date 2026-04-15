@@ -1,7 +1,7 @@
 import { doc, getDoc } from 'firebase/firestore'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AiQuestLoadingOverlay } from '../components/AiQuestLoadingOverlay'
-import { judgeBattle, generateAiQuest } from '../ai/scoring'
+import { judgeBattle, generateAiQuest, localizeBattleJudge, localizeQuestText } from '../ai/scoring'
 import { getFirestoreFromJson } from '../firebase/init'
 import {
   createRoom,
@@ -34,6 +34,7 @@ import {
 import { getOrCreatePlayerId } from '../settings/storage'
 import { useAppI18n } from '../settings/useAppI18n'
 import type { BattleJudgeResult, QuestSpec } from '../types'
+import { STRINGS } from '../i18n/strings'
 
 type UiMode = 'menu' | 'createForm' | 'joinForm' | 'inRoom'
 
@@ -90,7 +91,24 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
       const winnerId: string | 'tie' = survivors.length > 0 ? survivors[0]! : 'tie'
       const ranking = survivors.concat(forfeiterId)
       const byPlayer: BattleJudgeResult['byPlayer'] = {}
+      const feedbackByPlayerLocale: BattleJudgeResult['feedbackByPlayerLocale'] = {}
+      const summaryByLocale: BattleJudgeResult['summaryByLocale'] = {
+        en: STRINGS.en.forfeitSummary,
+        tr: STRINGS.tr.forfeitSummary,
+        de: STRINGS.de.forfeitSummary,
+      }
       for (const id of ids) {
+        const loseByLocale = {
+          en: STRINGS.en.forfeitLoseFeedback,
+          tr: STRINGS.tr.forfeitLoseFeedback,
+          de: STRINGS.de.forfeitLoseFeedback,
+        }
+        const winByLocale = {
+          en: STRINGS.en.forfeitWinFeedback,
+          tr: STRINGS.tr.forfeitWinFeedback,
+          de: STRINGS.de.forfeitWinFeedback,
+        }
+        feedbackByPlayerLocale[id] = id === forfeiterId ? loseByLocale : winByLocale
         byPlayer[id] =
           id === forfeiterId
             ? { score: 1, feedback: t.forfeitLoseFeedback }
@@ -102,8 +120,10 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
       return {
         winnerId,
         summary: t.forfeitSummary,
+        summaryByLocale,
         ranking,
         byPlayer,
+        feedbackByPlayerLocale,
       }
     },
     [t],
@@ -176,10 +196,11 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
         const fresh = snap.data() as RoomDoc | undefined
         if (!fresh) return
         const questObj: QuestSpec = {
-          text: fresh.questText,
+          text: fresh.questByLocale?.[fresh.locale] ?? fresh.questText,
           preferPhoto: fresh.preferPhoto,
         }
         const startAt = fresh.startedAt ?? 0
+        const playerLocales: Record<string, 'en' | 'tr' | 'de'> = {}
         const players = Object.entries(fresh.players).map(([id, p]) => ({
           id,
           name: p.name,
@@ -190,14 +211,22 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
               ? Math.max(0, Math.floor((p.submittedAt - startAt) / 1000))
               : undefined,
         }))
+        for (const [id, p] of Object.entries(fresh.players)) {
+          playerLocales[id] = p.locale ?? fresh.locale
+        }
         const judge = await judgeBattle({
           settings,
           locale,
           quest: questObj,
           players,
         })
+        const localizedJudge = await localizeBattleJudge({
+          settings,
+          judge,
+          playerLocales,
+        })
         if (cancelled) return
-        await writeJudge({ db, roomId, judge })
+        await writeJudge({ db, roomId, judge: localizedJudge })
       } catch {
         if (!cancelled && db) {
           await releaseJudging(db, roomId)
@@ -252,7 +281,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     if (!code || !name.trim()) return
     setBusy(true)
     try {
-      const res = await joinRoom({ db, roomId: code, playerId, name: name.trim() })
+      const res = await joinRoom({ db, roomId: code, playerId, name: name.trim(), locale })
       if (res === 'missing') setErr(t.roomNotFound)
       else if (res === 'full') setErr(t.errorGeneric)
       else {
@@ -270,7 +299,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     } finally {
       setBusy(false)
     }
-  }, [db, joinCode, name, playerId, t])
+  }, [db, joinCode, name, playerId, t, locale])
 
   const startMatch = useCallback(async () => {
     if (!db || !room) return
@@ -287,11 +316,18 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
         avoidTexts: recentAiQuestsRef.current,
       })
       recentAiQuestsRef.current = [quest.text, ...recentAiQuestsRef.current].slice(0, 8)
+      const questByLocale = await localizeQuestText({
+        settings,
+        sourceLocale: locale,
+        quest,
+        targetLocales: ['en', 'tr', 'de'],
+      })
       const ok = await startRoomGame({
         db,
         roomId,
         hostPlayerId: playerId,
         quest,
+        questByLocale,
         roundLimitSec: getQuestRoundLimitSec(quest),
       })
       if (!ok) setErr(t.errorGeneric)
@@ -689,6 +725,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   }
 
   if (room.phase === 'playing') {
+    const localizedQuest = room.questByLocale?.[locale] ?? room.questText
     const self = room.players[playerId]
     const submitted = Boolean(self?.submitted)
     const allDone = Object.values(room.players).every((p) => p.submitted)
@@ -706,7 +743,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
       <div className="app">
         <header className="header">
           <h1 className="title">{t.questLabel}</h1>
-          <p className="quest">{room.questText}</p>
+          <p className="quest">{localizedQuest}</p>
           <div className="timer" aria-label={t.timer}>
             <span className={secondsLeft <= 60 ? 'warn' : ''}>{formatRoundTime(secondsLeft)}</span>
           </div>
@@ -776,6 +813,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
 
   // done
   const j = room.judge
+  const localizedSummary = j?.summaryByLocale?.[locale] ?? j?.summary
   return (
     <div className="app">
       <header className="header">
@@ -785,7 +823,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
         {j && (
           <>
             <p className="result-line">
-              <strong>{t.summary}:</strong> {j.summary}
+              <strong>{t.summary}:</strong> {localizedSummary}
             </p>
             <p className="result-line">
               <strong>{t.winner}:</strong>{' '}
@@ -796,7 +834,8 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
             <div className="split-feedback">
               {Object.entries(room.players).map(([id, p]) => (
                 <div key={id}>
-                  <strong>{p.name}</strong> — {j.byPlayer[id]?.score ?? '—'}: {j.byPlayer[id]?.feedback}
+                  <strong>{p.name}</strong> — {j.byPlayer[id]?.score ?? '—'}:{' '}
+                  {j.feedbackByPlayerLocale?.[id]?.[locale] ?? j.byPlayer[id]?.feedback}
                 </div>
               ))}
             </div>
