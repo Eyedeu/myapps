@@ -11,11 +11,13 @@ import {
   releaseJudging,
   ROOM_COLLECTION,
   setRoomSecondsLeft,
+  sweepInactiveRooms,
   subscribeLobbyRooms,
   setPlayerReady,
   startRoomGame,
   submitOnline,
   subscribeRoom,
+  touchPlayerPresence,
   writeJudge,
   type LobbyRoomSummary,
   type RoomDoc,
@@ -174,8 +176,23 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
       setLobbyRooms([])
       return
     }
+    // Best-effort cleanup for rooms with no active users.
+    void sweepInactiveRooms({ db })
     return subscribeLobbyRooms(db, setLobbyRooms)
   }, [db])
+
+  useEffect(() => {
+    if (!db || !roomId) return
+    const ping = () =>
+      touchPlayerPresence({
+        db,
+        roomId,
+        playerId,
+      }).catch(() => {})
+    ping()
+    const id = window.setInterval(ping, 15000)
+    return () => window.clearInterval(id)
+  }, [db, roomId, playerId])
 
   useEffect(() => {
     if (!db || !roomId) return

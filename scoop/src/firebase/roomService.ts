@@ -3,6 +3,7 @@ import {
   deleteDoc,
   deleteField,
   doc,
+  getDocs,
   getDoc,
   onSnapshot,
   query,
@@ -19,6 +20,7 @@ export const ROOM_COLLECTION = 'scoopRooms_v1'
 export interface RoomPlayer {
   name: string
   locale: Locale
+  lastSeenAt?: number
   ready: boolean
   text: string
   imageDataUrl: string | null
@@ -74,6 +76,7 @@ export async function createRoom(args: {
       [hostPlayerId]: {
         name: hostName,
         locale,
+        lastSeenAt: Date.now(),
         ready: false,
         text: '',
         imageDataUrl: null,
@@ -110,6 +113,7 @@ export async function joinRoom(args: {
     [`players.${playerId}`]: {
       name,
       locale,
+      lastSeenAt: Date.now(),
       ready: false,
       text: '',
       imageDataUrl: null,
@@ -130,6 +134,18 @@ export async function setPlayerReady(args: {
   const { db, roomId, playerId, ready } = args
   const ref = doc(db, ROOM_COLLECTION, roomId)
   await updateDoc(ref, { [`players.${playerId}.ready`]: ready })
+}
+
+export async function touchPlayerPresence(args: {
+  db: Firestore
+  roomId: string
+  playerId: string
+}): Promise<void> {
+  const { db, roomId, playerId } = args
+  const ref = doc(db, ROOM_COLLECTION, roomId)
+  await updateDoc(ref, {
+    [`players.${playerId}.lastSeenAt`]: Date.now(),
+  })
 }
 
 export async function startRoomGame(args: {
@@ -286,6 +302,28 @@ export async function leaveRoomAndCleanup(args: {
   }
 
   await updateDoc(ref, updates)
+}
+
+export async function sweepInactiveRooms(args: {
+  db: Firestore
+  staleAfterMs?: number
+}): Promise<void> {
+  const { db, staleAfterMs = 120000 } = args
+  const now = Date.now()
+  const snap = await getDocs(collection(db, ROOM_COLLECTION))
+
+  for (const d of snap.docs) {
+    const data = d.data() as RoomDoc
+    const players = Object.values(data.players ?? {})
+    if (players.length === 0) {
+      await deleteDoc(doc(db, ROOM_COLLECTION, d.id))
+      continue
+    }
+    const activeCount = players.filter((p) => now - (p.lastSeenAt ?? 0) < staleAfterMs).length
+    if (activeCount === 0) {
+      await deleteDoc(doc(db, ROOM_COLLECTION, d.id))
+    }
+  }
 }
 
 export function subscribeRoom(
