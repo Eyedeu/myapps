@@ -43,7 +43,10 @@ type UiMode = 'menu' | 'createForm' | 'joinForm' | 'inRoom'
 
 export function OnlineBattle({ onBack }: { onBack: () => void }) {
   const { t, settings, locale } = useAppI18n()
-  const db = useMemo(() => getFirestoreFromJson(settings.firebaseJson), [settings.firebaseJson])
+  const { db, error: firestoreInitError } = useMemo(
+    () => getFirestoreFromJson(settings.firebaseJson),
+    [settings.firebaseJson],
+  )
   const playerId = useMemo(() => getOrCreatePlayerId(), [])
 
   const [ui, setUi] = useState<UiMode>('menu')
@@ -332,7 +335,9 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   const handleCreate = useCallback(async () => {
     setErr(null)
     if (!db) {
-      setErr(t.firebaseMissing)
+      setErr(
+        firestoreInitError ? `${t.firebaseMissing} (${firestoreInitError})` : t.firebaseMissing,
+      )
       return
     }
     if (!name.trim()) {
@@ -362,12 +367,14 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     } finally {
       setBusy(false)
     }
-  }, [db, name, playerId, locale, maxPlayers, t])
+  }, [db, firestoreInitError, name, playerId, locale, maxPlayers, t])
 
   const handleJoin = useCallback(async () => {
     setErr(null)
     if (!db) {
-      setErr(t.firebaseMissing)
+      setErr(
+        firestoreInitError ? `${t.firebaseMissing} (${firestoreInitError})` : t.firebaseMissing,
+      )
       return
     }
     const code = normalizeRoomCode(joinCode)
@@ -395,7 +402,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     } finally {
       setBusy(false)
     }
-  }, [db, joinCode, name, playerId, t, locale])
+  }, [db, firestoreInitError, joinCode, name, playerId, t, locale])
 
   const startMatch = useCallback(async () => {
     if (!db || !room) return
@@ -688,7 +695,16 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
           <p className="lede">{t.homeOnlineHint}</p>
         </header>
         <main className="card">
-          {!db && <p className="error">{t.firebaseMissing}</p>}
+          {!db && (
+            <>
+              <p className="error">{t.firebaseMissing}</p>
+              {firestoreInitError ? (
+                <p className="error small" style={{ wordBreak: 'break-word' }}>
+                  {firestoreInitError}
+                </p>
+              ) : null}
+            </>
+          )}
           <div className="actions column">
             <button type="button" className="btn primary" disabled={!db} onClick={() => setUi('createForm')}>
               {t.createRoom}
