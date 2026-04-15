@@ -455,3 +455,7 @@ body {
   color: var(--muted);
   font-size: 0.88rem;
 }
+
+.analysis-status {
+  min-height: 3.2rem;
+}

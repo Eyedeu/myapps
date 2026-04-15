@@ -62,14 +62,17 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   const [roomGone, setRoomGone] = useState(false)
   const [lobbyRooms, setLobbyRooms] = useState<LobbyRoomSummary[]>([])
   const [statusNow, setStatusNow] = useState(() => Date.now())
+  const [analyzingStartedAt, setAnalyzingStartedAt] = useState<number | null>(null)
   const recentAiQuestsRef = useRef<string[]>([])
   const timeoutAutoSubmitTokenRef = useRef('')
   const hostTimerLastSentRef = useRef<number | null>(null)
+  const lastStaticQuestRef = useRef<QuestSpec | null>(null)
 
   const leaveToMenu = useCallback(() => {
     clearOnlineSession()
     setRoomId('')
     setRoom(null)
+    setAnalyzingStartedAt(null)
     setUi('menu')
   }, [])
 
@@ -266,6 +269,23 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     }
   }, [db, roomId, room, settings, locale, playerId])
 
+  useEffect(() => {
+    if (!room || room.phase !== 'playing') {
+      setAnalyzingStartedAt(null)
+      return
+    }
+    if (room.judge) {
+      setAnalyzingStartedAt(null)
+      return
+    }
+    const allDone = Object.values(room.players ?? {}).every((p) => p.submitted)
+    if (!allDone) {
+      setAnalyzingStartedAt(null)
+      return
+    }
+    setAnalyzingStartedAt((prev) => prev ?? Date.now())
+  }, [room])
+
   // Watchdog: if judging lock is stale, release it so someone can retry.
   useEffect(() => {
     if (!db || !roomId || !room) return
@@ -374,14 +394,23 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
           avoidTexts: recentAiQuestsRef.current,
         })
         recentAiQuestsRef.current = [quest.text, ...recentAiQuestsRef.current].slice(0, 8)
-        questByLocale = await localizeQuestText({
-          settings,
-          sourceLocale: locale,
-          quest,
-          targetLocales: ['en', 'tr', 'de'],
-        })
+        try {
+          questByLocale = await localizeQuestText({
+            settings,
+            sourceLocale: locale,
+            quest,
+            targetLocales: ['en', 'tr', 'de'],
+          })
+        } catch {
+          questByLocale = {
+            en: quest.text,
+            tr: quest.text,
+            de: quest.text,
+          }
+        }
       } catch {
-        quest = randomStaticQuest(locale, null)
+        quest = randomStaticQuest(locale, lastStaticQuestRef.current)
+        lastStaticQuestRef.current = quest
         questByLocale = {
           en: quest.text,
           tr: quest.text,
@@ -586,10 +615,10 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   }, [db, room, roomId, playerId, text, image, t])
 
   useEffect(() => {
-    if (room?.phase !== 'playing' || !room?.judging) return
+    if (room?.phase !== 'playing' || room?.judge || !analyzingStartedAt) return
     const id = window.setInterval(() => setStatusNow(Date.now()), 1000)
     return () => window.clearInterval(id)
-  }, [room?.phase, room?.judging])
+  }, [room?.phase, room?.judge, analyzingStartedAt])
 
   if (ui === 'menu') {
     return (
@@ -815,8 +844,8 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
         ? Math.max(0, self.submittedAtRemainingSec)
         : null
     const judgingElapsedSec =
-      room.judging && typeof room.judgingAt === 'number' && room.judgingAt > 0
-        ? Math.max(0, Math.floor((statusNow - room.judgingAt) / 1000))
+      analyzingStartedAt
+        ? Math.max(0, Math.floor((statusNow - analyzingStartedAt) / 1000))
         : 0
     return (
       <div className="app">
@@ -880,12 +909,10 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
               )}
               <p className="muted">{allDone ? t.analyzing : t.waitingOthers}</p>
               {allDone && (
-                <>
+                <div className="analysis-status">
                   <p className="muted small">{t.analyzingDetail}</p>
-                  {room.judging && (
-                    <p className="muted small">{t.analyzingElapsed.replace('{time}', formatRoundTime(judgingElapsedSec))}</p>
-                  )}
-                </>
+                  <p className="muted small">{t.analyzingElapsed.replace('{time}', formatRoundTime(judgingElapsedSec))}</p>
+                </div>
               )}
               <div className="actions">
                 <button type="button" className="btn ghost" disabled={busy} onClick={() => void leaveDuringBattle()}>
