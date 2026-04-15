@@ -268,8 +268,8 @@ export async function leaveRoomAndCleanup(args: {
   delete players[playerId]
   const remainingIds = Object.keys(players)
 
-  // No active duel is possible with fewer than 2 players; delete room.
-  if (remainingIds.length < 2) {
+  // Delete room only when nobody remains.
+  if (remainingIds.length === 0) {
     await deleteDoc(ref)
     return
   }
