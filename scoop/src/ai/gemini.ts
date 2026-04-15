@@ -1,9 +1,8 @@
 /**
  * Model IDs from Google AI Studio / Gemini API (update if Google renames).
- * Primary: higher free-tier RPM on Flash Lite; fallback: Gemini 3 Flash.
+ * Scoop is pinned to Flash Lite only.
  */
 export const GEMINI_MODEL_PRIMARY = 'gemini-3.1-flash-lite-preview'
-export const GEMINI_MODEL_FALLBACK = 'gemini-3-flash-preview'
 
 const GEMINI_GENERATE_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -90,17 +89,6 @@ async function geminiGenerateContent(args: {
   return text.trim() || '{}'
 }
 
-function isGeminiQuotaOrRateLimit(err: unknown): boolean {
-  if (!(err instanceof Error)) return false
-  const m = err.message.toLowerCase()
-  return (
-    m.includes('quota exceeded') ||
-    m.includes('rate limit') ||
-    m.includes('"code": 429') ||
-    m.includes(' code: 429')
-  )
-}
-
 export async function geminiJsonWithFallback(args: {
   apiKey: string
   system: string
@@ -111,7 +99,7 @@ export async function geminiJsonWithFallback(args: {
   const { apiKey, system, userText, images = [], timeoutMs = 15000 } = args
   if (!apiKey.trim()) throw new Error('Missing API key')
 
-  const models = [GEMINI_MODEL_PRIMARY, GEMINI_MODEL_FALLBACK]
+  const models = [GEMINI_MODEL_PRIMARY]
   let lastErr: Error | null = null
 
   for (const model of models) {
@@ -119,11 +107,6 @@ export async function geminiJsonWithFallback(args: {
       return await geminiGenerateContent({ apiKey, model, system, userText, images, timeoutMs })
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e))
-      // If free-tier quota/rate-limit is hit on primary model, do not
-      // fall through to fallback model (same quota pool, clearer error).
-      if (isGeminiQuotaOrRateLimit(lastErr)) {
-        break
-      }
     }
   }
 

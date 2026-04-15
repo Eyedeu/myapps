@@ -114,7 +114,7 @@ export const STRINGS: Record<
     providerOpenai: 'OpenAI-compatible (chat/completions)',
     providerGemini: 'Google Gemini (AI Studio key)',
     geminiModelsHint:
-      'Tries Gemini 3.1 Flash Lite first, then Gemini 3 Flash if the request errors (rate limits, etc.).',
+      'Uses Gemini 3.1 Flash Lite only.',
     geminiKeyHint: 'Create an API key in Google AI Studio → API keys.',
     apiKey: 'API key',
     apiBase: 'API base URL',
@@ -215,7 +215,7 @@ export const STRINGS: Record<
     providerOpenai: 'OpenAI uyumlu (chat/completions)',
     providerGemini: 'Google Gemini (AI Studio anahtarı)',
     geminiModelsHint:
-      'Önce Gemini 3.1 Flash Lite, hata olursa Gemini 3 Flash (limit vb.) kullanılır.',
+      'Yalnızca Gemini 3.1 Flash Lite kullanılır.',
     geminiKeyHint: 'Google AI Studio → API keys bölümünden anahtar oluşturun.',
     apiKey: 'API anahtarı',
     apiBase: 'API taban URL',
@@ -316,7 +316,7 @@ export const STRINGS: Record<
     providerOpenai: 'OpenAI-kompatibel (chat/completions)',
     providerGemini: 'Google Gemini (AI Studio-Schlüssel)',
     geminiModelsHint:
-      'Zuerst Gemini 3.1 Flash Lite, bei Fehler Gemini 3 Flash (z. B. Rate Limits).',
+      'Es wird nur Gemini 3.1 Flash Lite verwendet.',
     geminiKeyHint: 'API-Schlüssel in Google AI Studio unter API keys anlegen.',
     apiKey: 'API-Schlüssel',
     apiBase: 'API-Basis-URL',
