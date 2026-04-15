@@ -1,7 +1,7 @@
 import { doc, getDoc } from 'firebase/firestore'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AiQuestLoadingOverlay } from '../components/AiQuestLoadingOverlay'
-import { judgeBattle, generateAiQuest, localizeBattleJudge, localizeQuestText } from '../ai/scoring'
+import { judgeBattle, generateAiQuest, localizeQuestText } from '../ai/scoring'
 import { getFirestoreFromJson } from '../firebase/init'
 import {
   createRoom,
@@ -223,7 +223,6 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
           preferPhoto: fresh.preferPhoto,
         }
         const startAt = fresh.startedAt ?? 0
-        const playerLocales: Record<string, 'en' | 'tr' | 'de'> = {}
         const players = Object.entries(fresh.players).map(([id, p]) => ({
           id,
           name: p.name,
@@ -234,22 +233,14 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
               ? Math.max(0, Math.floor((p.submittedAt - startAt) / 1000))
               : undefined,
         }))
-        for (const [id, p] of Object.entries(fresh.players)) {
-          playerLocales[id] = p.locale ?? fresh.locale
-        }
         const judge = await judgeBattle({
           settings,
           locale,
           quest: questObj,
           players,
         })
-        const localizedJudge = await localizeBattleJudge({
-          settings,
-          judge,
-          playerLocales,
-        })
         if (cancelled) return
-        await writeJudge({ db, roomId, judge: localizedJudge })
+        await writeJudge({ db, roomId, judge })
         wroteJudge = true
       } catch {
         if (!cancelled && db) {
@@ -390,9 +381,20 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
       let quest: QuestSpec
       let questByLocale: Partial<Record<'en' | 'tr' | 'de', string>> | undefined
       try {
-        quest = await generateAiQuest(settings, locale, {
-          avoidTexts: recentAiQuestsRef.current,
-        })
+        let lastQuestErr: unknown = null
+        let generated: QuestSpec | null = null
+        for (let i = 0; i < 2; i++) {
+          try {
+            generated = await generateAiQuest(settings, locale, {
+              avoidTexts: recentAiQuestsRef.current,
+            })
+            break
+          } catch (e) {
+            lastQuestErr = e
+          }
+        }
+        if (!generated) throw (lastQuestErr ?? new Error('AI quest generation failed'))
+        quest = generated
         recentAiQuestsRef.current = [quest.text, ...recentAiQuestsRef.current].slice(0, 8)
         try {
           questByLocale = await localizeQuestText({

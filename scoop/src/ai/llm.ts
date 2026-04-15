@@ -8,8 +8,16 @@ export async function llmJsonResponse(args: {
   userText: string
   images?: string[]
   timeoutMs?: number
+  retryOnTransient?: boolean
 }): Promise<string> {
-  const { settings, system, userText, images = [], timeoutMs = 30000 } = args
+  const {
+    settings,
+    system,
+    userText,
+    images = [],
+    timeoutMs = 30000,
+    retryOnTransient = true,
+  } = args
 
   const call = async (ms: number) => {
     if (settings.aiProvider === 'gemini') {
@@ -28,6 +36,7 @@ export async function llmJsonResponse(args: {
   try {
     return await call(timeoutMs)
   } catch (firstErr) {
+    if (!retryOnTransient) throw firstErr
     const m = firstErr instanceof Error ? firstErr.message.toLowerCase() : String(firstErr).toLowerCase()
     const retriable =
       m.includes('timed out') ||

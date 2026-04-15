@@ -218,7 +218,8 @@ Language: ${langName[locale]}.`
       system,
       userText,
       images,
-      timeoutMs: 32000,
+      timeoutMs: 18000,
+      retryOnTransient: false,
     })
     parsed = JSON.parse(raw) as {
       winnerId?: string
