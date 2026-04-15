@@ -107,6 +107,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     if (!db || !roomId || !settings.apiKey.trim()) return
     if (!room) return
+    if (room.hostPlayerId !== playerId) return
     if (room.phase !== 'playing') return
     if (room.judging || room.judge) return
     const entries = Object.entries(room.players ?? {})
@@ -149,7 +150,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     return () => {
       cancelled = true
     }
-  }, [db, roomId, room, settings, locale])
+  }, [db, roomId, room, settings, locale, playerId])
 
   const handleCreate = useCallback(async () => {
     setErr(null)

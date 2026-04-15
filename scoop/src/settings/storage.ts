@@ -6,12 +6,25 @@ const KEYS = {
   playerId: 'scoop_player_id_v1',
 } as const
 
+const DEFAULT_FIREBASE_CONFIG_JSON = JSON.stringify(
+  {
+    apiKey: 'AIzaSyCZ4htbzs7z7lWo71QfPlv9EceAV4O2Cl8',
+    authDomain: 'gen-lang-client-0509202377.firebaseapp.com',
+    projectId: 'gen-lang-client-0509202377',
+    storageBucket: 'gen-lang-client-0509202377.firebasestorage.app',
+    messagingSenderId: '1011248477810',
+    appId: '1:1011248477810:web:c4d70282cec962b0fe74eb',
+  },
+  null,
+  2,
+)
+
 const defaultSettings: AppSettings = {
   aiProvider: 'openai',
   apiKey: '',
   apiBase: 'https://api.openai.com/v1',
   model: 'gpt-4o-mini',
-  firebaseJson: '',
+  firebaseJson: DEFAULT_FIREBASE_CONFIG_JSON,
 }
 
 export function loadSettings(): AppSettings {
@@ -22,6 +35,9 @@ export function loadSettings(): AppSettings {
     const merged = { ...defaultSettings, ...parsed }
     if (merged.aiProvider !== 'openai' && merged.aiProvider !== 'gemini') {
       merged.aiProvider = 'openai'
+    }
+    if (!merged.firebaseJson.trim()) {
+      merged.firebaseJson = DEFAULT_FIREBASE_CONFIG_JSON
     }
     return merged
   } catch {
