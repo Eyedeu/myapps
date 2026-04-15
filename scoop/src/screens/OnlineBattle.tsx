@@ -67,6 +67,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   const timeoutAutoSubmitTokenRef = useRef('')
   const hostTimerLastSentRef = useRef<number | null>(null)
   const lastStaticQuestRef = useRef<QuestSpec | null>(null)
+  const judgingInFlightRef = useRef(false)
 
   const leaveToMenu = useCallback(() => {
     clearOnlineSession()
@@ -185,7 +186,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     void sweepInactiveRooms({ db })
     const sweepId = window.setInterval(() => {
       void sweepInactiveRooms({ db })
-    }, 30000)
+    }, 60_000)
     const unsub = subscribeLobbyRooms(db, setLobbyRooms)
     return () => {
       window.clearInterval(sweepId)
@@ -211,26 +212,27 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     if (!room) return
     if (room.phase !== 'playing') return
     if (room.judging || room.judge) return
+    if (judgingInFlightRef.current) return
     const entries = Object.entries(room.players ?? {})
     if (entries.length < 2) return
     if (!entries.every(([, p]) => p.submitted)) return
 
-    let cancelled = false
+    judgingInFlightRef.current = true
     ;(async () => {
       let gotLock = false
-      let wroteJudge = false
+      let freshRoom: RoomDoc | undefined
       try {
-        gotLock = await lockJudging({ db, roomId })
-        if (!gotLock || cancelled) return
+        gotLock = await lockJudging({ db, roomId, playerId })
+        if (!gotLock) return
         const snap = await getDoc(doc(db, ROOM_COLLECTION, roomId))
-        const fresh = snap.data() as RoomDoc | undefined
-        if (!fresh) return
+        freshRoom = snap.data() as RoomDoc | undefined
+        if (!freshRoom || freshRoom.phase !== 'playing') return
         const questObj: QuestSpec = {
-          text: fresh.questByLocale?.[fresh.locale] ?? fresh.questText,
-          preferPhoto: fresh.preferPhoto,
+          text: freshRoom.questByLocale?.[freshRoom.locale] ?? freshRoom.questText,
+          preferPhoto: freshRoom.preferPhoto,
         }
-        const startAt = fresh.startedAt ?? 0
-        const players = Object.entries(fresh.players).map(([id, p]) => ({
+        const startAt = freshRoom.startedAt ?? 0
+        const players = Object.entries(freshRoom.players).map(([id, p]) => ({
           id,
           name: p.name,
           text: p.text,
@@ -246,25 +248,38 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
           quest: questObj,
           players,
         })
-        if (cancelled) return
         await writeJudge({ db, roomId, judge })
-        wroteJudge = true
       } catch {
-        if (!cancelled && db) {
-          await releaseJudging(db, roomId)
+        if (db && gotLock) {
+          try {
+            const src = freshRoom ?? room
+            const ids = Object.keys(src?.players ?? {})
+            if (ids.length > 0) {
+              const emergencyJudge: BattleJudgeResult = {
+                winnerId: 'tie',
+                summary: 'Analysis could not be completed. Auto-result applied.',
+                summaryByLocale: {
+                  en: 'Analysis could not be completed. Auto-result applied.',
+                  tr: 'Analiz tamamlanamadı. Otomatik sonuç uygulandı.',
+                  de: 'Analyse konnte nicht abgeschlossen werden. Auto-Ergebnis angewendet.',
+                },
+                ranking: ids,
+                byPlayer: Object.fromEntries(
+                  ids.map((id) => [id, { score: 5, feedback: '' }]),
+                ),
+              }
+              await writeJudge({ db, roomId, judge: emergencyJudge })
+            } else {
+              await releaseJudging(db, roomId, playerId).catch(() => {})
+            }
+          } catch {
+            await releaseJudging(db, roomId, playerId).catch(() => {})
+          }
         }
       } finally {
-        // If this client acquired the judging lock but unmounted/re-rendered
-        // before writing a result, force-unlock so others can finish judging.
-        if (gotLock && !wroteJudge && db) {
-          await releaseJudging(db, roomId)
-        }
+        judgingInFlightRef.current = false
       }
     })()
-
-    return () => {
-      cancelled = true
-    }
   }, [db, roomId, room, settings, locale, playerId])
 
   useEffect(() => {
@@ -284,7 +299,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     setAnalyzingStartedAt((prev) => prev ?? Date.now())
   }, [room])
 
-  // Watchdog: if judging lock is stale, release it so someone can retry.
+  // Watchdog: if judging lock is stale for a long time, release it so someone can retry.
   useEffect(() => {
     if (!db || !roomId || !room) return
     if (room.phase !== 'playing') return
@@ -292,7 +307,8 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
 
     const now = Date.now()
     const ageMs = now - (room.judgingAt ?? now)
-    const waitMs = Math.max(1000, 14000 - ageMs)
+    const staleAfterMs = 90000
+    const waitMs = Math.max(1000, staleAfterMs - ageMs)
 
     const id = window.setTimeout(() => {
       void (async () => {
@@ -300,7 +316,8 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
           const snap = await getDoc(doc(db, ROOM_COLLECTION, roomId))
           const fresh = snap.data() as RoomDoc | undefined
           if (!fresh) return
-          if (fresh.phase === 'playing' && fresh.judging && !fresh.judge) {
+          const freshAgeMs = Date.now() - (fresh.judgingAt ?? Date.now())
+          if (fresh.phase === 'playing' && fresh.judging && !fresh.judge && freshAgeMs >= staleAfterMs) {
             await releaseJudging(db, roomId)
           }
         } catch {
@@ -506,7 +523,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     setBusy(true)
     setErr(null)
     try {
-      const gotLock = await lockJudging({ db, roomId })
+      const gotLock = await lockJudging({ db, roomId, playerId })
       if (gotLock) {
         const judge = buildForfeitJudge(room, playerId)
         await writeJudge({ db, roomId, judge })
@@ -557,6 +574,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     if (room?.phase === 'playing') {
       setText('')
       setImage(null)
+      setErr(null)
     }
   }, [room?.phase, room?.questText])
 

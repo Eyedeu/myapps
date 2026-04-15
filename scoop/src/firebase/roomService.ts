@@ -7,6 +7,7 @@ import {
   getDoc,
   onSnapshot,
   query,
+  runTransaction,
   setDoc,
   updateDoc,
   where,
@@ -43,6 +44,7 @@ export interface RoomDoc {
   players: Record<string, RoomPlayer>
   judging?: boolean
   judgingAt?: number
+  judgingBy?: string
   judge?: BattleJudgeResult
   createdAt: number
 }
@@ -211,15 +213,20 @@ export async function submitOnline(args: {
 export async function lockJudging(args: {
   db: Firestore
   roomId: string
+  playerId: string
 }): Promise<boolean> {
-  const { db, roomId } = args
+  const { db, roomId, playerId } = args
   const ref = doc(db, ROOM_COLLECTION, roomId)
-  const snap = await getDoc(ref)
-  if (!snap.exists()) return false
-  const data = snap.data() as RoomDoc
-  if (data.judging || data.judge) return false
-  await updateDoc(ref, { judging: true, judgingAt: Date.now() })
-  return true
+  const locked = await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref)
+    if (!snap.exists()) return false
+    const data = snap.data() as RoomDoc
+    if (data.phase !== 'playing') return false
+    if (data.judging || data.judge) return false
+    tx.update(ref, { judging: true, judgingAt: Date.now(), judgingBy: playerId })
+    return true
+  })
+  return Boolean(locked)
 }
 
 export async function writeJudge(args: {
@@ -234,12 +241,24 @@ export async function writeJudge(args: {
     phase: 'done',
     judging: false,
     judgingAt: 0,
+    judgingBy: '',
   })
 }
 
-export async function releaseJudging(db: Firestore, roomId: string): Promise<void> {
+export async function releaseJudging(
+  db: Firestore,
+  roomId: string,
+  expectedPlayerId?: string,
+): Promise<void> {
   const ref = doc(db, ROOM_COLLECTION, roomId)
-  await updateDoc(ref, { judging: false, judgingAt: 0 })
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref)
+    if (!snap.exists()) return
+    const data = snap.data() as RoomDoc
+    if (!data.judging) return
+    if (expectedPlayerId && data.judgingBy && data.judgingBy !== expectedPlayerId) return
+    tx.update(ref, { judging: false, judgingAt: 0, judgingBy: '' })
+  })
 }
 
 export async function setRoomSecondsLeft(args: {
@@ -306,9 +325,10 @@ export async function leaveRoomAndCleanup(args: {
 
 export async function sweepInactiveRooms(args: {
   db: Firestore
-  staleAfterMs?: number
+  lobbyStaleMs?: number
+  playingStaleMs?: number
 }): Promise<void> {
-  const { db, staleAfterMs = 45000 } = args
+  const { db, lobbyStaleMs = 120_000, playingStaleMs = 300_000 } = args
   const now = Date.now()
   const snap = await getDocs(collection(db, ROOM_COLLECTION))
 
@@ -316,11 +336,20 @@ export async function sweepInactiveRooms(args: {
     const data = d.data() as RoomDoc
     const players = data.players ?? {}
     const allIds = Object.keys(players)
+
     if (allIds.length === 0) {
       await deleteDoc(doc(db, ROOM_COLLECTION, d.id))
       continue
     }
-    const activeIds = allIds.filter((id) => now - (players[id]?.lastSeenAt ?? 0) < staleAfterMs)
+
+    // Auto-delete finished rooms older than 10 minutes.
+    if (data.phase === 'done' && now - data.createdAt > 600_000) {
+      await deleteDoc(doc(db, ROOM_COLLECTION, d.id))
+      continue
+    }
+
+    const staleMs = data.phase === 'playing' ? playingStaleMs : lobbyStaleMs
+    const activeIds = allIds.filter((id) => now - (players[id]?.lastSeenAt ?? 0) < staleMs)
     const staleIds = allIds.filter((id) => !activeIds.includes(id))
 
     if (activeIds.length === 0) {
