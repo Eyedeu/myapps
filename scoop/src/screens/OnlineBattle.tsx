@@ -5,9 +5,9 @@ import { judgeBattle, generateAiQuest, localizeBattleJudge, localizeQuestText } 
 import { getFirestoreFromJson } from '../firebase/init'
 import {
   createRoom,
-  deleteRoom,
   joinRoom,
   lockJudging,
+  leaveRoomAndCleanup,
   releaseJudging,
   ROOM_COLLECTION,
   setRoomSecondsLeft,
@@ -70,19 +70,19 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   }, [])
 
   const leaveAndMaybeDeleteRoom = useCallback(async () => {
-    const shouldDelete = Boolean(db && room && room.hostPlayerId === playerId && roomId)
+    const canCleanup = Boolean(db && roomId)
     try {
-      if (shouldDelete) {
-        await deleteRoom({
+      if (canCleanup) {
+        await leaveRoomAndCleanup({
           db: db!,
           roomId,
-          hostPlayerId: playerId,
+          playerId,
         })
       }
     } finally {
       leaveToMenu()
     }
-  }, [db, room, roomId, playerId, leaveToMenu])
+  }, [db, roomId, playerId, leaveToMenu])
 
   const buildForfeitJudge = useCallback(
     (currentRoom: RoomDoc, forfeiterId: string): BattleJudgeResult => {

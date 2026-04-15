@@ -252,6 +252,40 @@ export async function deleteRoom(args: { db: Firestore; roomId: string; hostPlay
   return true
 }
 
+export async function leaveRoomAndCleanup(args: {
+  db: Firestore
+  roomId: string
+  playerId: string
+}): Promise<void> {
+  const { db, roomId, playerId } = args
+  const ref = doc(db, ROOM_COLLECTION, roomId)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return
+  const data = snap.data() as RoomDoc
+  const players = { ...(data.players ?? {}) }
+  if (!players[playerId]) return
+
+  delete players[playerId]
+  const remainingIds = Object.keys(players)
+
+  // No active duel is possible with fewer than 2 players; delete room.
+  if (remainingIds.length < 2) {
+    await deleteDoc(ref)
+    return
+  }
+
+  const updates: Record<string, unknown> = {
+    [`players.${playerId}`]: deleteField(),
+  }
+
+  // If host leaves but room still has enough users, transfer host to first remaining player.
+  if (data.hostPlayerId === playerId) {
+    updates.hostPlayerId = remainingIds[0]!
+  }
+
+  await updateDoc(ref, updates)
+}
+
 export function subscribeRoom(
   db: Firestore,
   roomId: string,
