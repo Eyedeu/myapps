@@ -189,8 +189,10 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
 
     let cancelled = false
     ;(async () => {
+      let gotLock = false
+      let wroteJudge = false
       try {
-        const gotLock = await lockJudging({ db, roomId })
+        gotLock = await lockJudging({ db, roomId })
         if (!gotLock || cancelled) return
         const snap = await getDoc(doc(db, ROOM_COLLECTION, roomId))
         const fresh = snap.data() as RoomDoc | undefined
@@ -227,8 +229,15 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
         })
         if (cancelled) return
         await writeJudge({ db, roomId, judge: localizedJudge })
+        wroteJudge = true
       } catch {
         if (!cancelled && db) {
+          await releaseJudging(db, roomId)
+        }
+      } finally {
+        // If this client acquired the judging lock but unmounted/re-rendered
+        // before writing a result, force-unlock so others can finish judging.
+        if (gotLock && !wroteJudge && db) {
           await releaseJudging(db, roomId)
         }
       }
