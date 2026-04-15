@@ -40,6 +40,7 @@ export interface RoomDoc {
   secondsLeft?: number
   players: Record<string, RoomPlayer>
   judging?: boolean
+  judgingAt?: number
   judge?: BattleJudgeResult
   createdAt: number
 }
@@ -201,7 +202,7 @@ export async function lockJudging(args: {
   if (!snap.exists()) return false
   const data = snap.data() as RoomDoc
   if (data.judging || data.judge) return false
-  await updateDoc(ref, { judging: true })
+  await updateDoc(ref, { judging: true, judgingAt: Date.now() })
   return true
 }
 
@@ -216,12 +217,13 @@ export async function writeJudge(args: {
     judge,
     phase: 'done',
     judging: false,
+    judgingAt: 0,
   })
 }
 
 export async function releaseJudging(db: Firestore, roomId: string): Promise<void> {
   const ref = doc(db, ROOM_COLLECTION, roomId)
-  await updateDoc(ref, { judging: false })
+  await updateDoc(ref, { judging: false, judgingAt: 0 })
 }
 
 export async function setRoomSecondsLeft(args: {

@@ -179,7 +179,6 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     if (!db || !roomId) return
-    if (!settings.apiKey.trim()) return
     if (!room) return
     if (room.phase !== 'playing') return
     if (room.judging || room.judge) return
@@ -247,6 +246,34 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
       cancelled = true
     }
   }, [db, roomId, room, settings, locale, playerId])
+
+  // Watchdog: if judging lock is stale, release it so someone can retry.
+  useEffect(() => {
+    if (!db || !roomId || !room) return
+    if (room.phase !== 'playing') return
+    if (!room.judging || room.judge) return
+
+    const now = Date.now()
+    const ageMs = now - (room.judgingAt ?? now)
+    const waitMs = Math.max(1000, 14000 - ageMs)
+
+    const id = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const snap = await getDoc(doc(db, ROOM_COLLECTION, roomId))
+          const fresh = snap.data() as RoomDoc | undefined
+          if (!fresh) return
+          if (fresh.phase === 'playing' && fresh.judging && !fresh.judge) {
+            await releaseJudging(db, roomId)
+          }
+        } catch {
+          // best-effort watchdog
+        }
+      })()
+    }, waitMs)
+
+    return () => window.clearTimeout(id)
+  }, [db, roomId, room])
 
   const handleCreate = useCallback(async () => {
     setErr(null)
