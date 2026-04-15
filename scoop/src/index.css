@@ -411,3 +411,38 @@ body {
   color: var(--strong);
   line-height: 1.45;
 }
+
+.test-ad {
+  margin-top: 0.5rem;
+  border: 1px dashed #3a4251;
+  border-radius: 14px;
+  padding: 0.9rem 0.95rem;
+  background:
+    linear-gradient(180deg, rgba(125, 211, 252, 0.08), rgba(125, 211, 252, 0.03)),
+    #11151c;
+}
+
+.test-ad-chip {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #0c1420;
+  background: var(--accent);
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.test-ad-title {
+  margin: 0 0 0.2rem;
+  color: var(--strong);
+  font-weight: 600;
+}
+
+.test-ad-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}

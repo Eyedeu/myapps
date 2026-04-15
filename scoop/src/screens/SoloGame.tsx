@@ -2,18 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AiQuestLoadingOverlay } from '../components/AiQuestLoadingOverlay'
 import { judgeSolo, generateAiQuest } from '../ai/scoring'
 import { compressImageToDataUrl } from '../lib/image'
+import { formatRoundTime, getQuestRoundLimitSec, MAX_ROUND_SEC } from '../lib/roundTimer'
 import { randomStaticQuest } from '../quests/static'
 import { useAppI18n } from '../settings/useAppI18n'
 import type { QuestSpec, SoloAiResult } from '../types'
-
-/** Five-minute cap; elapsed = limit − secondsLeft at submit when timed. */
-const ROUND_SEC = 300
-
-function formatTime(total: number): string {
-  const m = Math.floor(total / 60)
-  const s = total % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
 
 type Phase = 'ready' | 'playing' | 'result'
 type TimerMode = 'timed' | 'untimed'
@@ -23,7 +15,7 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
   const [quest, setQuest] = useState<QuestSpec>(() => randomStaticQuest(locale, null))
   const [phase, setPhase] = useState<Phase>('ready')
   const [timerMode, setTimerMode] = useState<TimerMode>('timed')
-  const [secondsLeft, setSecondsLeft] = useState(ROUND_SEC)
+  const [secondsLeft, setSecondsLeft] = useState(MAX_ROUND_SEC)
   const [text, setText] = useState('')
   const [image, setImage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -31,7 +23,8 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
   const [err, setErr] = useState<string | null>(null)
   const [result, setResult] = useState<SoloAiResult | null>(null)
   const recentAiQuestsRef = useRef<string[]>([])
-  const secondsLeftRef = useRef(ROUND_SEC)
+  const secondsLeftRef = useRef(MAX_ROUND_SEC)
+  const limitSec = getQuestRoundLimitSec(quest)
 
   useEffect(() => {
     secondsLeftRef.current = secondsLeft
@@ -46,16 +39,18 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
   }, [phase, timerMode])
 
   const nextStatic = useCallback(() => {
-    setQuest((q) => randomStaticQuest(locale, q))
+    const nextQuest = randomStaticQuest(locale, quest)
+    setQuest(nextQuest)
     setTimerMode('timed')
     setPhase('playing')
-    setSecondsLeft(ROUND_SEC)
-    secondsLeftRef.current = ROUND_SEC
+    const nextLimit = getQuestRoundLimitSec(nextQuest)
+    setSecondsLeft(nextLimit)
+    secondsLeftRef.current = nextLimit
     setText('')
     setImage(null)
     setResult(null)
     setErr(null)
-  }, [locale])
+  }, [locale, quest])
 
   const aiQuest = useCallback(async () => {
     setErr(null)
@@ -72,8 +67,9 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
       setQuest(q)
       setTimerMode('timed')
       setPhase('playing')
-      setSecondsLeft(ROUND_SEC)
-      secondsLeftRef.current = ROUND_SEC
+      const nextLimit = getQuestRoundLimitSec(q)
+      setSecondsLeft(nextLimit)
+      secondsLeftRef.current = nextLimit
       setText('')
       setImage(null)
       setResult(null)
@@ -86,10 +82,11 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
 
   const startTimer = useCallback(() => {
     setTimerMode('timed')
-    setSecondsLeft(ROUND_SEC)
-    secondsLeftRef.current = ROUND_SEC
+    const nextLimit = getQuestRoundLimitSec(quest)
+    setSecondsLeft(nextLimit)
+    secondsLeftRef.current = nextLimit
     setPhase('playing')
-  }, [])
+  }, [quest])
 
   const startUntimed = useCallback(() => {
     setTimerMode('untimed')
@@ -124,11 +121,11 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
     setResult(null)
     try {
       const elapsedSec = Math.min(
-        ROUND_SEC,
-        Math.max(0, ROUND_SEC - secondsLeftRef.current),
+        limitSec,
+        Math.max(0, limitSec - secondsLeftRef.current),
       )
       const timing =
-        timerMode === 'timed' ? { limitSec: ROUND_SEC, elapsedSec } : undefined
+        timerMode === 'timed' ? { limitSec, elapsedSec } : undefined
 
       const r = await judgeSolo({
         settings,
@@ -147,7 +144,7 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
     } finally {
       setBusy(false)
     }
-  }, [settings, locale, quest, text, image, t, timerMode])
+  }, [settings, locale, quest, text, image, t, timerMode, limitSec])
 
   const blockUi = busy || aiQuestLoading
 
@@ -181,7 +178,7 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
             {questBlock}
             <div className="actions">
               <button type="button" className="btn primary" onClick={startTimer} disabled={blockUi}>
-                {t.startTimer} ({formatTime(ROUND_SEC)})
+                {t.startTimer} ({formatRoundTime(limitSec)})
               </button>
               <button type="button" className="btn ghost" onClick={startUntimed} disabled={blockUi}>
                 {t.answerNow}
@@ -201,7 +198,7 @@ export function SoloGame({ onBack }: { onBack: () => void }) {
               <>
                 {timerMode === 'timed' ? (
                   <div className="timer" aria-label={t.timer}>
-                    <span className={secondsLeft <= 60 ? 'warn' : ''}>{formatTime(secondsLeft)}</span>
+                    <span className={secondsLeft <= 60 ? 'warn' : ''}>{formatRoundTime(secondsLeft)}</span>
                   </div>
                 ) : (
                   <p className="muted small">{t.noTimerRound}</p>

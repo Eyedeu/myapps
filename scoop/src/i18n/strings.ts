@@ -52,6 +52,10 @@ export const STRINGS: Record<
     maxPlayers: string
     waitingLobby: string
     startMatch: string
+    readyUp: string
+    unready: string
+    readyTag: string
+    waitingReady: string
     players: string
     copyCode: string
     copied: string
@@ -112,7 +116,7 @@ export const STRINGS: Record<
       'Keys stay in this browser (localStorage). For production / Play Store, move calls to your backend.',
     soloTitle: 'Solo scoop',
     soloIntro:
-      'New or AI quests start a 5-minute countdown while you answer. Time stops only when you submit to AI; it scores proof and (with the timer) how you used the time.',
+      'New or AI quests start a dynamic 3–5 minute countdown based on quest difficulty. Time stops only when you submit to AI; it scores proof and (with the timer) how you used the time.',
     questLabel: 'Quest',
     newQuest: 'Different quest',
     aiQuest: 'AI quest',
@@ -138,6 +142,10 @@ export const STRINGS: Record<
     maxPlayers: 'Max players',
     waitingLobby: 'Waiting for players…',
     startMatch: 'Start quest',
+    readyUp: 'I am ready',
+    unready: 'Not ready',
+    readyTag: 'Ready',
+    waitingReady: 'Everyone must tap ready before the host can start.',
     players: 'Players',
     copyCode: 'Copy code',
     copied: 'Copied',
@@ -198,7 +206,7 @@ export const STRINGS: Record<
       'Anahtarlar bu tarayıcıda kalır (localStorage). Play Store için çağrıları sunucunuza taşıyın.',
     soloTitle: 'Tek başına',
     soloIntro:
-      'Yeni veya yapay zeka görevinde 5 dakikalık geri sayım cevap verirken işler. Süre yalnızca yapay zekaya gönderdiğinde durur; kanıt ve (süre kullanıyorsan) zamanı değerlendirir.',
+      'Yeni veya yapay zeka görevinde görevin zorluğuna göre 3-5 dakikalık geri sayım başlar. Süre yalnızca yapay zekaya gönderdiğinde durur; kanıtı ve (zamanlıysa) süre kullanımını değerlendirir.',
     questLabel: 'Görev',
     newQuest: 'Başka görev',
     aiQuest: 'Yapay zeka görevi',
@@ -224,6 +232,10 @@ export const STRINGS: Record<
     maxPlayers: 'En fazla oyuncu',
     waitingLobby: 'Oyuncular bekleniyor…',
     startMatch: 'Görevi başlat',
+    readyUp: 'Hazırım',
+    unready: 'Hazır değilim',
+    readyTag: 'Hazır',
+    waitingReady: 'Sunucunun başlatması için herkes hazır olmalı.',
     players: 'Oyuncular',
     copyCode: 'Kodu kopyala',
     copied: 'Kopyalandı',
@@ -284,7 +296,7 @@ export const STRINGS: Record<
       'Schlüssel bleiben im Browser (localStorage). Für den Play Store bitte Backend nutzen.',
     soloTitle: 'Solo',
     soloIntro:
-      'Neue oder KI-Aufgaben starten einen 5-Minuten-Countdown beim Antworten. Die Zeit stoppt erst beim Absenden an die KI; sie bewertet Nachweis und (mit Timer) den Zeitfaktor.',
+      'Neue oder KI-Aufgaben starten je nach Schwierigkeit einen 3- bis 5-Minuten-Countdown. Die Zeit stoppt erst beim Absenden an die KI; sie bewertet Nachweis und (mit Timer) den Zeitfaktor.',
     questLabel: 'Aufgabe',
     newQuest: 'Andere Aufgabe',
     aiQuest: 'KI-Aufgabe',
@@ -310,6 +322,10 @@ export const STRINGS: Record<
     maxPlayers: 'Max. Spieler',
     waitingLobby: 'Warte auf Spieler…',
     startMatch: 'Aufgabe starten',
+    readyUp: 'Ich bin bereit',
+    unready: 'Nicht bereit',
+    readyTag: 'Bereit',
+    waitingReady: 'Alle müssen auf bereit stehen, bevor der Host starten kann.',
     players: 'Spieler',
     copyCode: 'Code kopieren',
     copied: 'Kopiert',

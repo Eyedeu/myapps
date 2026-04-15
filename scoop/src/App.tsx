@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { SettingsModal } from './components/SettingsModal'
+import { TestAdBanner } from './components/TestAdBanner'
 import { getJoinCodeFromLocation } from './lib/roomSession'
 import { Home } from './screens/Home'
 import { LocalBattle } from './screens/LocalBattle'
@@ -22,6 +23,7 @@ export default function App() {
       {screen === 'online' && <OnlineBattle onBack={() => setScreen('home')} />}
       {screen === 'local' && <LocalBattle onBack={() => setScreen('home')} />}
       <SettingsModal />
+      <TestAdBanner />
     </>
   )
 }

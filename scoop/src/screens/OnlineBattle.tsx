@@ -9,6 +9,7 @@ import {
   lockJudging,
   releaseJudging,
   ROOM_COLLECTION,
+  setPlayerReady,
   startRoomGame,
   submitOnline,
   subscribeRoom,
@@ -17,6 +18,7 @@ import {
 } from '../firebase/roomService'
 import { compressImageToDataUrl } from '../lib/image'
 import { makeRoomCode, normalizeRoomCode } from '../lib/roomCode'
+import { formatRoundTime, getQuestRoundLimitSec, MAX_ROUND_SEC } from '../lib/roundTimer'
 import {
   buildInviteUrl,
   clearOnlineSession,
@@ -52,6 +54,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   const [copied, setCopied] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
   const [roomGone, setRoomGone] = useState(false)
+  const [tickNow, setTickNow] = useState(() => Date.now())
   const recentAiQuestsRef = useRef<string[]>([])
 
   const leaveToMenu = useCallback(() => {
@@ -222,6 +225,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
         roomId,
         hostPlayerId: playerId,
         quest: draftQuest,
+        roundLimitSec: getQuestRoundLimitSec(draftQuest),
       })
       if (!ok) setErr(t.errorGeneric)
     } catch (e) {
@@ -230,6 +234,26 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
       setBusy(false)
     }
   }, [db, room, playerId, roomId, draftQuest, t])
+
+  const toggleReady = useCallback(async () => {
+    if (!db || !roomId || !room) return
+    const self = room.players[playerId]
+    if (!self || room.phase !== 'lobby') return
+    setBusy(true)
+    setErr(null)
+    try {
+      await setPlayerReady({
+        db,
+        roomId,
+        playerId,
+        ready: !self.ready,
+      })
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : t.errorGeneric)
+    } finally {
+      setBusy(false)
+    }
+  }, [db, roomId, room, playerId, t])
 
   const submit = useCallback(async () => {
     if (!db || !roomId || !room) return
@@ -323,6 +347,12 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
       setImage(null)
     }
   }, [room?.phase, room?.questText])
+
+  useEffect(() => {
+    if (room?.phase !== 'playing') return
+    const id = window.setInterval(() => setTickNow(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [room?.phase])
 
   if (ui === 'menu') {
     return (
@@ -449,7 +479,10 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
 
   if (room.phase === 'lobby') {
     const isHost = room.hostPlayerId === playerId
+    const self = room.players[playerId]
     const playerRows = Object.entries(room.players ?? {})
+    const allReady = playerRows.length >= 2 && playerRows.every(([, p]) => p.ready)
+    const lobbyLimitSec = getQuestRoundLimitSec(draftQuest)
     const lobbyBusy = busy || aiQuestLoading
     return (
       <div className="app">
@@ -480,9 +513,17 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
                 {p.name}
                 {id === playerId ? ` (${t.you})` : ''}
                 {id === room.hostPlayerId ? ` · ${t.hostTag}` : ''}
+                {p.ready ? ` · ${t.readyTag}` : ''}
               </li>
             ))}
           </ul>
+
+          <div className="actions">
+            <button type="button" className="btn ghost" onClick={() => void toggleReady()} disabled={lobbyBusy || !self}>
+              {self?.ready ? t.unready : t.readyUp}
+            </button>
+          </div>
+          {!allReady && <p className="muted small">{t.waitingReady}</p>}
 
           {isHost && (
             <>
@@ -504,9 +545,9 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
                   type="button"
                   className="btn primary"
                   onClick={() => void startMatch()}
-                  disabled={lobbyBusy || playerRows.length < 2}
+                  disabled={lobbyBusy || !allReady}
                 >
-                  {t.startMatch}
+                  {t.startMatch} ({formatRoundTime(lobbyLimitSec)})
                 </button>
               </div>
             </>
@@ -524,11 +565,18 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     const self = room.players[playerId]
     const submitted = Boolean(self?.submitted)
     const allDone = Object.values(room.players).every((p) => p.submitted)
+    const limitSec = room.roundLimitSec ?? MAX_ROUND_SEC
+    const startedAt = room.startedAt ?? 0
+    const elapsedSec = startedAt > 0 ? Math.max(0, Math.floor((tickNow - startedAt) / 1000)) : 0
+    const secondsLeft = Math.max(0, limitSec - elapsedSec)
     return (
       <div className="app">
         <header className="header">
           <h1 className="title">{t.questLabel}</h1>
           <p className="quest">{room.questText}</p>
+          <div className="timer" aria-label={t.timer}>
+            <span className={secondsLeft <= 60 ? 'warn' : ''}>{formatRoundTime(secondsLeft)}</span>
+          </div>
           {room.preferPhoto ? (
             <p className="photo-hint">{t.questPhotoOnly}</p>
           ) : (

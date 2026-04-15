@@ -14,6 +14,7 @@ export const ROOM_COLLECTION = 'scoopRooms_v1'
 
 export interface RoomPlayer {
   name: string
+  ready: boolean
   text: string
   imageDataUrl: string | null
   submitted: boolean
@@ -26,6 +27,8 @@ export interface RoomDoc {
   phase: 'lobby' | 'playing' | 'done'
   questText: string
   preferPhoto: boolean
+  roundLimitSec?: number
+  startedAt?: number
   players: Record<string, RoomPlayer>
   judging?: boolean
   judge?: BattleJudgeResult
@@ -52,11 +55,14 @@ export async function createRoom(args: {
     players: {
       [hostPlayerId]: {
         name: hostName,
+        ready: false,
         text: '',
         imageDataUrl: null,
         submitted: false,
       },
     },
+    roundLimitSec: 300,
+    startedAt: 0,
     createdAt: Date.now(),
   }
   await setDoc(ref, payload)
@@ -80,6 +86,7 @@ export async function joinRoom(args: {
   await updateDoc(ref, {
     [`players.${playerId}`]: {
       name,
+      ready: false,
       text: '',
       imageDataUrl: null,
       submitted: false,
@@ -88,13 +95,25 @@ export async function joinRoom(args: {
   return 'ok'
 }
 
+export async function setPlayerReady(args: {
+  db: Firestore
+  roomId: string
+  playerId: string
+  ready: boolean
+}): Promise<void> {
+  const { db, roomId, playerId, ready } = args
+  const ref = doc(db, ROOM_COLLECTION, roomId)
+  await updateDoc(ref, { [`players.${playerId}.ready`]: ready })
+}
+
 export async function startRoomGame(args: {
   db: Firestore
   roomId: string
   hostPlayerId: string
   quest: QuestSpec
+  roundLimitSec: number
 }): Promise<boolean> {
-  const { db, roomId, hostPlayerId, quest } = args
+  const { db, roomId, hostPlayerId, quest, roundLimitSec } = args
   const ref = doc(db, ROOM_COLLECTION, roomId)
   const snap = await getDoc(ref)
   if (!snap.exists()) return false
@@ -102,14 +121,19 @@ export async function startRoomGame(args: {
   if (data.hostPlayerId !== hostPlayerId) return false
   const ids = Object.keys(data.players ?? {})
   if (ids.length < 2) return false
+  const everyoneReady = ids.every((id) => data.players?.[id]?.ready)
+  if (!everyoneReady) return false
   const updates: Record<string, unknown> = {
     phase: 'playing',
     questText: quest.text,
     preferPhoto: quest.preferPhoto,
+    roundLimitSec: Math.min(300, Math.max(180, Math.floor(roundLimitSec))),
+    startedAt: Date.now(),
     judging: false,
     judge: deleteField(),
   }
   for (const id of ids) {
+    updates[`players.${id}.ready`] = false
     updates[`players.${id}.text`] = ''
     updates[`players.${id}.imageDataUrl`] = null
     updates[`players.${id}.submitted`] = false
