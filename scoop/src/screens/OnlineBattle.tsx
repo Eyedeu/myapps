@@ -71,6 +71,8 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   const hostTimerLastSentRef = useRef<number | null>(null)
   const lastStaticQuestRef = useRef<QuestSpec | null>(null)
   const judgingInFlightRef = useRef(false)
+  /** Session / ?join= bootstrap must run only once per OnlineBattle mount so it cannot override createForm. */
+  const onlineBootstrapRef = useRef(false)
 
   const leaveToMenu = useCallback(() => {
     clearOnlineSession()
@@ -141,19 +143,23 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   )
 
   useEffect(() => {
+    if (!db) {
+      const saved = loadOnlineSession()
+      if (saved?.roomId) clearOnlineSession()
+      return
+    }
+    if (onlineBootstrapRef.current) return
+    onlineBootstrapRef.current = true
+
     const saved = loadOnlineSession()
     if (saved?.roomId) {
-      if (!db) {
-        clearOnlineSession()
-        return
-      }
       setRoomId(saved.roomId)
       if (saved.displayName) setName(saved.displayName)
       setUi('inRoom')
       return
     }
     const fromUrl = getJoinCodeFromLocation()
-    if (fromUrl && db) {
+    if (fromUrl) {
       setJoinCode(fromUrl)
       setUi('joinForm')
     }
