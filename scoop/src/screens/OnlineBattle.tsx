@@ -335,7 +335,10 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
       setErr(t.firebaseMissing)
       return
     }
-    if (!name.trim()) return
+    if (!name.trim()) {
+      setErr(t.yourName)
+      return
+    }
     setBusy(true)
     try {
       const code = makeRoomCode(6)
@@ -368,7 +371,10 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
       return
     }
     const code = normalizeRoomCode(joinCode)
-    if (!code || !name.trim()) return
+    if (!code || !name.trim()) {
+      if (!name.trim()) setErr(t.yourName)
+      return
+    }
     setBusy(true)
     try {
       const res = await joinRoom({ db, roomId: code, playerId, name: name.trim(), locale })

@@ -420,26 +420,35 @@ export function subscribeRoom(
   cb: (doc: RoomDoc | null) => void,
 ): Unsubscribe {
   const ref = doc(db, ROOM_COLLECTION, roomId)
-  let unsub: Unsubscribe
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  let unsub: Unsubscribe = () => {}
   let dead = false
 
   const attach = () => {
-    unsub = onSnapshot(
-      ref,
-      (snap) => {
-        if (!snap.exists()) {
-          cb(null)
-          return
-        }
-        cb(snap.data() as RoomDoc)
-      },
-      () => {
-        if (dead) return
+    try {
+      unsub = onSnapshot(
+        ref,
+        (snap) => {
+          if (!snap.exists()) {
+            cb(null)
+            return
+          }
+          cb(snap.data() as RoomDoc)
+        },
+        () => {
+          if (dead) return
+          window.setTimeout(() => {
+            if (!dead) attach()
+          }, 3000)
+        },
+      )
+    } catch {
+      if (!dead) {
         window.setTimeout(() => {
           if (!dead) attach()
         }, 3000)
-      },
-    )
+      }
+    }
   }
 
   attach()
@@ -454,23 +463,27 @@ export function subscribeLobbyRooms(
   cb: (rooms: LobbyRoomSummary[]) => void,
 ): Unsubscribe {
   const q = query(collection(db, ROOM_COLLECTION), where('phase', '==', 'lobby'))
-  return onSnapshot(q, (snap) => {
-    const rooms = snap.docs
-      .map((d) => {
-        const data = d.data() as RoomDoc
-        const playerRows = Object.values(data.players ?? {})
-        const playerCount = playerRows.length
-        if (playerCount < 1 || playerCount >= data.maxPlayers) return null
-        return {
-          roomId: d.id,
-          hostName: data.players?.[data.hostPlayerId]?.name ?? 'Host',
-          players: playerCount,
-          maxPlayers: data.maxPlayers,
-          createdAt: data.createdAt ?? 0,
-        } as LobbyRoomSummary
-      })
-      .filter(Boolean)
-      .sort((a, b) => (b?.createdAt ?? 0) - (a?.createdAt ?? 0)) as LobbyRoomSummary[]
-    cb(rooms)
-  })
+  return onSnapshot(
+    q,
+    (snap) => {
+      const rooms = snap.docs
+        .map((d) => {
+          const data = d.data() as RoomDoc
+          const playerRows = Object.values(data.players ?? {})
+          const playerCount = playerRows.length
+          if (playerCount < 1 || playerCount >= data.maxPlayers) return null
+          return {
+            roomId: d.id,
+            hostName: data.players?.[data.hostPlayerId]?.name ?? 'Host',
+            players: playerCount,
+            maxPlayers: data.maxPlayers,
+            createdAt: data.createdAt ?? 0,
+          } as LobbyRoomSummary
+        })
+        .filter(Boolean)
+        .sort((a, b) => (b?.createdAt ?? 0) - (a?.createdAt ?? 0)) as LobbyRoomSummary[]
+      cb(rooms)
+    },
+    () => { /* ignore lobby query errors */ },
+  )
 }
