@@ -91,6 +91,8 @@ export const STRINGS: Record<
     answerNow: string
     noTimerRound: string
     submittedAtSecond: string
+    analyzingDetail: string
+    analyzingElapsed: string
     leaveRoom: string
     leaveAndLose: string
     forfeitSummary: string
@@ -192,6 +194,8 @@ export const STRINGS: Record<
     answerNow: 'Answer now (no timer)',
     noTimerRound: 'No time limit — submit when ready.',
     submittedAtSecond: 'Submitted with {time} left.',
+    analyzingDetail: 'AI is reviewing both answers. Typical time: 10-60 seconds.',
+    analyzingElapsed: 'Elapsed: {time}',
     leaveRoom: 'Leave room',
     leaveAndLose: 'Leave (forfeit)',
     forfeitSummary: 'A player left the room during the battle and forfeited.',
@@ -293,6 +297,8 @@ export const STRINGS: Record<
     answerNow: 'Şimdi cevapla (süresiz)',
     noTimerRound: 'Süre sınırı yok — hazır olunca gönder.',
     submittedAtSecond: 'Kalan sure: {time}.',
+    analyzingDetail: 'Yapay zeka iki cevabi inceliyor. Tipik sure: 10-60 saniye.',
+    analyzingElapsed: 'Gecen sure: {time}',
     leaveRoom: 'Odadan cik',
     leaveAndLose: 'Cik (kaybet)',
     forfeitSummary: 'Bir oyuncu kapisma sirasinda odadan ciktigi icin hukmen kaybetti.',
@@ -394,6 +400,8 @@ export const STRINGS: Record<
     answerNow: 'Jetzt antworten (ohne Timer)',
     noTimerRound: 'Kein Zeitlimit — absenden wenn fertig.',
     submittedAtSecond: 'Eingereicht bei Restzeit {time}.',
+    analyzingDetail: 'Die KI prueft beide Antworten. Uebliche Dauer: 10-60 Sekunden.',
+    analyzingElapsed: 'Vergangen: {time}',
     leaveRoom: 'Raum verlassen',
     leaveAndLose: 'Verlassen (Aufgabe verloren)',
     forfeitSummary: 'Ein Spieler hat den Raum waehrend des Duells verlassen und damit aufgegeben.',

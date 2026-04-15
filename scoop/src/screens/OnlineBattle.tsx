@@ -61,6 +61,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   const [linkCopied, setLinkCopied] = useState(false)
   const [roomGone, setRoomGone] = useState(false)
   const [lobbyRooms, setLobbyRooms] = useState<LobbyRoomSummary[]>([])
+  const [statusNow, setStatusNow] = useState(() => Date.now())
   const recentAiQuestsRef = useRef<string[]>([])
   const timeoutAutoSubmitTokenRef = useRef('')
   const hostTimerLastSentRef = useRef<number | null>(null)
@@ -584,6 +585,12 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     })
   }, [db, room, roomId, playerId, text, image, t])
 
+  useEffect(() => {
+    if (room?.phase !== 'playing' || !room?.judging) return
+    const id = window.setInterval(() => setStatusNow(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [room?.phase, room?.judging])
+
   if (ui === 'menu') {
     return (
       <div className="app">
@@ -807,6 +814,10 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
       self && typeof self.submittedAtRemainingSec === 'number'
         ? Math.max(0, self.submittedAtRemainingSec)
         : null
+    const judgingElapsedSec =
+      room.judging && typeof room.judgingAt === 'number' && room.judgingAt > 0
+        ? Math.max(0, Math.floor((statusNow - room.judgingAt) / 1000))
+        : 0
     return (
       <div className="app">
         <header className="header">
@@ -868,6 +879,14 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
                 </p>
               )}
               <p className="muted">{allDone ? t.analyzing : t.waitingOthers}</p>
+              {allDone && (
+                <>
+                  <p className="muted small">{t.analyzingDetail}</p>
+                  {room.judging && (
+                    <p className="muted small">{t.analyzingElapsed.replace('{time}', formatRoundTime(judgingElapsedSec))}</p>
+                  )}
+                </>
+              )}
               <div className="actions">
                 <button type="button" className="btn ghost" disabled={busy} onClick={() => void leaveDuringBattle()}>
                   {t.leaveAndLose}
