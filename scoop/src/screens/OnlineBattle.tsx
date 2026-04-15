@@ -179,6 +179,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     if (!db || !roomId) return
+    if (!settings.apiKey.trim()) return
     if (!room) return
     if (room.phase !== 'playing') return
     if (room.judging || room.judge) return
