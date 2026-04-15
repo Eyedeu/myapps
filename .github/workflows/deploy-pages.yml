@@ -22,44 +22,14 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
           cache: npm
-          cache-dependency-path: |
-            oddbridge/package-lock.json
-            floret/package-lock.json
-            scoop/package-lock.json
+          cache-dependency-path: "**/package-lock.json"
 
-      - name: Build Oddbridge
+      - name: Build and assemble site
         env:
-          REPO: ${{ github.event.repository.name }}
-        run: |
-          cd oddbridge
-          npm ci
-          npm run build -- --base=/${REPO}/oddbridge/
-
-      - name: Build Floret
-        env:
-          REPO: ${{ github.event.repository.name }}
-        run: |
-          cd floret
-          npm ci
-          npm run build -- --base=/${REPO}/floret/
-
-      - name: Build Scoop
-        env:
-          REPO: ${{ github.event.repository.name }}
-        run: |
-          cd scoop
-          npm ci
-          npm run build -- --base=/${REPO}/scoop/
-
-      - name: Assemble site
-        run: |
-          mkdir -p _site/oddbridge _site/floret _site/scoop
-          cp github-pages-hub/index.html _site/index.html
-          cp -r oddbridge/dist/. _site/oddbridge/
-          cp -r floret/dist/. _site/floret/
-          cp -r scoop/dist/. _site/scoop/
+          PAGES_REPO_NAME: ${{ github.event.repository.name }}
+        run: node scripts/publish-pages.mjs
 
       - uses: actions/upload-pages-artifact@v3
         with:

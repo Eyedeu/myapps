@@ -9,7 +9,14 @@ const outputDir = path.join(workspaceRoot, "app", "src", "generated");
 const outputFile = path.join(outputDir, "apps.json");
 const repoFile = path.join(outputDir, "repo.json");
 
-const EXCLUDED_DIRS = new Set(["apps", ".git", ".github", "node_modules"]);
+const EXCLUDED_DIRS = new Set([
+  "apps",
+  ".git",
+  ".github",
+  "node_modules",
+  "github-pages-hub",
+  "lemapp",
+]);
 const ICON_CANDIDATES = [
   "icon.svg",
   "favicon.svg",
@@ -201,8 +208,8 @@ function getAppRecord(directoryName) {
     title,
     category,
     description,
-    href: `../${directoryName}/`,
-    icon: iconFile ? `../${directoryName}/${iconFile}` : "",
+    href: `./${directoryName}/`,
+    icon: iconFile ? `./${directoryName}/${iconFile}` : "",
     accentFrom,
     accentTo,
     tags: Array.from(
