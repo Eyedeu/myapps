@@ -353,7 +353,7 @@ function quickBattleFallback(args: {
   players: { id: string; name: string; text: string; imageDataUrl: string | null; elapsedSec?: number }[]
 }): BattleJudgeResult {
   const { locale, quest, players } = args
-  const localized = {
+  const allStrings = {
     en: {
       summary: 'Quick auto-result was used because AI analysis timed out. Correctness is prioritized, speed is used as tie-break.',
       photoGood: 'Photo submitted on time.',
@@ -375,7 +375,15 @@ function quickBattleFallback(args: {
       textGood: 'Antwort wurde rechtzeitig eingereicht.',
       textMissing: 'Keine gueltige Textantwort vor Ablauf eingereicht.',
     },
-  }[locale]
+  } as const
+  const localized = allStrings[locale]
+
+  function feedbackText(hasContent: boolean, lang: Locale): string {
+    const s = allStrings[lang]
+    return hasContent
+      ? quest.preferPhoto ? s.photoGood : s.textGood
+      : quest.preferPhoto ? s.photoMissing : s.textMissing
+  }
 
   const scored = players.map((p) => {
     const hasContent = quest.preferPhoto ? Boolean(p.imageDataUrl) : p.text.trim().length > 0
@@ -385,18 +393,7 @@ function quickBattleFallback(args: {
         : 0
     const base = hasContent ? 6 : 1
     const score = Math.min(10, Math.max(1, Math.round(base + speedBonus)))
-    return {
-      id: p.id,
-      score,
-      hasContent,
-      feedback: hasContent
-        ? quest.preferPhoto
-          ? localized.photoGood
-          : localized.textGood
-        : quest.preferPhoto
-          ? localized.photoMissing
-          : localized.textMissing,
-    }
+    return { id: p.id, score, hasContent }
   })
 
   const ranking = scored
@@ -408,14 +405,26 @@ function quickBattleFallback(args: {
   const winnerId: string | 'tie' = top.length === 1 ? top[0]!.id : 'tie'
 
   const byPlayer: BattleJudgeResult['byPlayer'] = {}
+  const feedbackByPlayerLocale: NonNullable<BattleJudgeResult['feedbackByPlayerLocale']> = {}
   for (const s of scored) {
-    byPlayer[s.id] = { score: s.score, feedback: s.feedback }
+    byPlayer[s.id] = { score: s.score, feedback: feedbackText(s.hasContent, locale) }
+    feedbackByPlayerLocale[s.id] = {
+      en: feedbackText(s.hasContent, 'en'),
+      tr: feedbackText(s.hasContent, 'tr'),
+      de: feedbackText(s.hasContent, 'de'),
+    }
   }
 
   return {
     winnerId,
     summary: localized.summary,
+    summaryByLocale: {
+      en: allStrings.en.summary,
+      tr: allStrings.tr.summary,
+      de: allStrings.de.summary,
+    },
     ranking,
     byPlayer,
+    feedbackByPlayerLocale,
   }
 }

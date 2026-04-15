@@ -641,6 +641,30 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     })
   }, [db, room, roomId, playerId, text, image, t])
 
+  // Safety poll: if snapshot listener misses an update, catch it via direct read.
+  const selfSubmitted = room?.phase === 'playing' && Boolean(room?.players?.[playerId]?.submitted)
+  useEffect(() => {
+    if (!db || !roomId || !selfSubmitted) return
+    const poll = () => {
+      void (async () => {
+        try {
+          const snap = await getDoc(doc(db, ROOM_COLLECTION, roomId))
+          if (!snap.exists()) {
+            setRoom(null)
+            setRoomGone(true)
+            return
+          }
+          const fresh = snap.data() as RoomDoc
+          if (fresh.phase !== 'playing' || fresh.judge) {
+            setRoom(fresh)
+          }
+        } catch { /* best effort */ }
+      })()
+    }
+    const id = window.setInterval(poll, 4000)
+    return () => window.clearInterval(id)
+  }, [db, roomId, selfSubmitted, playerId])
+
   useEffect(() => {
     if (room?.phase !== 'playing' || room?.judge || !analyzingStartedAt) return
     const id = window.setInterval(() => setStatusNow(Date.now()), 1000)

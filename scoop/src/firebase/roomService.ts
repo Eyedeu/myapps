@@ -420,13 +420,33 @@ export function subscribeRoom(
   cb: (doc: RoomDoc | null) => void,
 ): Unsubscribe {
   const ref = doc(db, ROOM_COLLECTION, roomId)
-  return onSnapshot(ref, (snap) => {
-    if (!snap.exists()) {
-      cb(null)
-      return
-    }
-    cb(snap.data() as RoomDoc)
-  })
+  let unsub: Unsubscribe
+  let dead = false
+
+  const attach = () => {
+    unsub = onSnapshot(
+      ref,
+      (snap) => {
+        if (!snap.exists()) {
+          cb(null)
+          return
+        }
+        cb(snap.data() as RoomDoc)
+      },
+      () => {
+        if (dead) return
+        window.setTimeout(() => {
+          if (!dead) attach()
+        }, 3000)
+      },
+    )
+  }
+
+  attach()
+  return () => {
+    dead = true
+    unsub()
+  }
 }
 
 export function subscribeLobbyRooms(
