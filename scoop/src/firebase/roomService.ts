@@ -1,4 +1,5 @@
 import {
+  deleteDoc,
   deleteField,
   doc,
   getDoc,
@@ -194,6 +195,17 @@ export async function writeJudge(args: {
 export async function releaseJudging(db: Firestore, roomId: string): Promise<void> {
   const ref = doc(db, ROOM_COLLECTION, roomId)
   await updateDoc(ref, { judging: false })
+}
+
+export async function deleteRoom(args: { db: Firestore; roomId: string; hostPlayerId: string }): Promise<boolean> {
+  const { db, roomId, hostPlayerId } = args
+  const ref = doc(db, ROOM_COLLECTION, roomId)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return true
+  const data = snap.data() as RoomDoc
+  if (data.hostPlayerId !== hostPlayerId) return false
+  await deleteDoc(ref)
+  return true
 }
 
 export function subscribeRoom(

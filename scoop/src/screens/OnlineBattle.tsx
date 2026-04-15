@@ -5,6 +5,7 @@ import { judgeBattle, generateAiQuest } from '../ai/scoring'
 import { getFirestoreFromJson } from '../firebase/init'
 import {
   createRoom,
+  deleteRoom,
   joinRoom,
   lockJudging,
   releaseJudging,
@@ -62,6 +63,21 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     setRoom(null)
     setUi('menu')
   }, [])
+
+  const leaveAndMaybeDeleteRoom = useCallback(async () => {
+    const shouldDelete = Boolean(db && room && room.hostPlayerId === playerId && roomId)
+    try {
+      if (shouldDelete) {
+        await deleteRoom({
+          db: db!,
+          roomId,
+          hostPlayerId: playerId,
+        })
+      }
+    } finally {
+      leaveToMenu()
+    }
+  }, [db, room, roomId, playerId, leaveToMenu])
 
   useEffect(() => {
     const saved = loadOnlineSession()
@@ -492,7 +508,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
             </>
           )}
           <div className="actions">
-            <button type="button" className="btn ghost" onClick={leaveToMenu}>
+            <button type="button" className="btn ghost" onClick={() => void leaveAndMaybeDeleteRoom()}>
               {t.back}
             </button>
           </div>
@@ -511,7 +527,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
       <div className="app">
         <AiQuestLoadingOverlay open={aiQuestLoading} message={t.aiQuestLoading} />
         <header className="header">
-          <button type="button" className="linkish" onClick={leaveToMenu}>
+          <button type="button" className="linkish" onClick={() => void leaveAndMaybeDeleteRoom()}>
             ← {t.back}
           </button>
           <h1 className="title">{t.onlineTitle}</h1>
@@ -668,7 +684,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
           </>
         )}
         <div className="actions">
-          <button type="button" className="btn primary" onClick={leaveToMenu}>
+          <button type="button" className="btn primary" onClick={() => void leaveAndMaybeDeleteRoom()}>
             {t.back}
           </button>
         </div>
