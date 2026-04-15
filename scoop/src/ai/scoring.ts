@@ -184,7 +184,7 @@ export async function judgeBattle(args: {
   settings: AppSettings
   locale: Locale
   quest: QuestSpec
-  players: { id: string; name: string; text: string; imageDataUrl: string | null }[]
+  players: { id: string; name: string; text: string; imageDataUrl: string | null; elapsedSec?: number }[]
 }): Promise<BattleJudgeResult> {
   const { settings, locale, quest, players } = args
   const photoMode = quest.preferPhoto
@@ -192,7 +192,12 @@ export async function judgeBattle(args: {
     ? 'This is a PHOTO task: judge mainly from each player photo; ignore empty or irrelevant text. Missing photo = weak submission.'
     : 'This is a TEXT task: judge mainly from written answers; ignore photos if any. Empty text = weak submission.'
 
-  const system = `You judge a friendly micro-quest competition. ${modeRules} Be fair and encouraging. Language: ${langName[locale]}. Reply JSON only with:
+  const system = `You judge a friendly micro-quest competition. ${modeRules}
+Scoring priority:
+1) Task correctness/completion is most important.
+2) If completion quality is close, faster completion time wins.
+3) Never give the win to a clearly wrong/weak answer just because it is fast.
+Be fair and encouraging. Language: ${langName[locale]}. Reply JSON only with:
 winnerId: string player id or "tie"
 summary: string (2-3 sentences overall)
 ranking: array of player ids from best to worst (all players included)
@@ -201,7 +206,7 @@ If evidence is weak for everyone, you may use tie. Never insult; critique gently
 
   const lines = players.map(
     (p, i) =>
-      `${i + 1}. id=${p.id} name=${p.name}\n text: ${p.text || '(none)'}\n   photo: ${p.imageDataUrl ? 'yes' : 'no'}`,
+      `${i + 1}. id=${p.id} name=${p.name}\n text: ${p.text || '(none)'}\n   photo: ${p.imageDataUrl ? 'yes' : 'no'}\n   elapsedSec: ${typeof p.elapsedSec === 'number' ? p.elapsedSec : 'unknown'}`,
   )
   const userText = `Quest: ${quest.text}\nTask type: ${photoMode ? 'photo-only' : 'text-only'}\n${modeRules}\nPlayers:\n${lines.join('\n')}`
 

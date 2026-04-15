@@ -27,7 +27,6 @@ import {
   saveOnlineSession,
   stripJoinParamsFromUrl,
 } from '../lib/roomSession'
-import { randomStaticQuest } from '../quests/static'
 import { getOrCreatePlayerId } from '../settings/storage'
 import { useAppI18n } from '../settings/useAppI18n'
 import type { QuestSpec } from '../types'
@@ -45,7 +44,6 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   const [joinCode, setJoinCode] = useState('')
   const [maxPlayers, setMaxPlayers] = useState(2)
   const [room, setRoom] = useState<RoomDoc | null>(null)
-  const [draftQuest, setDraftQuest] = useState<QuestSpec>(() => randomStaticQuest(locale, null))
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [aiQuestLoading, setAiQuestLoading] = useState(false)
@@ -56,6 +54,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   const [roomGone, setRoomGone] = useState(false)
   const [tickNow, setTickNow] = useState(() => Date.now())
   const recentAiQuestsRef = useRef<string[]>([])
+  const timeoutAutoSubmitTokenRef = useRef('')
 
   const leaveToMenu = useCallback(() => {
     clearOnlineSession()
@@ -126,11 +125,16 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
           text: fresh.questText,
           preferPhoto: fresh.preferPhoto,
         }
+        const startAt = fresh.startedAt ?? 0
         const players = Object.entries(fresh.players).map(([id, p]) => ({
           id,
           name: p.name,
           text: p.text,
           imageDataUrl: p.imageDataUrl,
+          elapsedSec:
+            startAt > 0 && typeof p.submittedAt === 'number' && p.submittedAt > 0
+              ? Math.max(0, Math.floor((p.submittedAt - startAt) / 1000))
+              : undefined,
         }))
         const judge = await judgeBattle({
           settings,
@@ -176,7 +180,6 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
         role: 'host',
         displayName: name.trim(),
       })
-      setDraftQuest(randomStaticQuest(locale, null))
       setUi('inRoom')
     } catch (e) {
       setErr(e instanceof Error ? e.message : t.errorGeneric)
@@ -218,23 +221,33 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   const startMatch = useCallback(async () => {
     if (!db || !room) return
     if (room.hostPlayerId !== playerId) return
+    if (!settings.apiKey.trim()) {
+      setErr(t.needApiKey)
+      return
+    }
     setBusy(true)
+    setAiQuestLoading(true)
     setErr(null)
     try {
+      const quest = await generateAiQuest(settings, locale, {
+        avoidTexts: recentAiQuestsRef.current,
+      })
+      recentAiQuestsRef.current = [quest.text, ...recentAiQuestsRef.current].slice(0, 8)
       const ok = await startRoomGame({
         db,
         roomId,
         hostPlayerId: playerId,
-        quest: draftQuest,
-        roundLimitSec: getQuestRoundLimitSec(draftQuest),
+        quest,
+        roundLimitSec: getQuestRoundLimitSec(quest),
       })
       if (!ok) setErr(t.errorGeneric)
     } catch (e) {
       setErr(e instanceof Error ? e.message : t.errorGeneric)
     } finally {
+      setAiQuestLoading(false)
       setBusy(false)
     }
-  }, [db, room, playerId, roomId, draftQuest, t])
+  }, [db, room, playerId, roomId, t, settings, locale])
 
   const toggleReady = useCallback(async () => {
     if (!db || !roomId || !room) return
@@ -306,30 +319,6 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     }
   }, [roomId, t])
 
-  const refreshDraft = useCallback(() => {
-    setDraftQuest((q) => randomStaticQuest(locale, q))
-  }, [locale])
-
-  const draftAi = useCallback(async () => {
-    setErr(null)
-    if (!settings.apiKey.trim()) {
-      setErr(t.needApiKey)
-      return
-    }
-    setAiQuestLoading(true)
-    try {
-      const q = await generateAiQuest(settings, locale, {
-        avoidTexts: recentAiQuestsRef.current,
-      })
-      recentAiQuestsRef.current = [q.text, ...recentAiQuestsRef.current].slice(0, 8)
-      setDraftQuest(q)
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : t.errorGeneric)
-    } finally {
-      setAiQuestLoading(false)
-    }
-  }, [settings, locale, t])
-
   const onPickImage = useCallback(
     async (file: File | null) => {
       if (!file) return
@@ -354,6 +343,40 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     const id = window.setInterval(() => setTickNow(Date.now()), 1000)
     return () => window.clearInterval(id)
   }, [room?.phase])
+
+  useEffect(() => {
+    if (room?.phase !== 'playing' || !roomId) {
+      timeoutAutoSubmitTokenRef.current = ''
+      return
+    }
+    timeoutAutoSubmitTokenRef.current = `${roomId}:${room.startedAt ?? 0}`
+  }, [room?.phase, room?.startedAt, roomId])
+
+  useEffect(() => {
+    if (!db || !room || room.phase !== 'playing' || !roomId) return
+    const self = room.players[playerId]
+    if (!self || self.submitted) return
+    const limitSec = room.roundLimitSec ?? MAX_ROUND_SEC
+    const startedAt = room.startedAt ?? 0
+    if (startedAt <= 0) return
+    const elapsedSec = Math.max(0, Math.floor((tickNow - startedAt) / 1000))
+    const secondsLeft = Math.max(0, limitSec - elapsedSec)
+    if (secondsLeft > 0) return
+
+    const token = `${roomId}:${startedAt}:${playerId}`
+    if (timeoutAutoSubmitTokenRef.current === token) return
+    timeoutAutoSubmitTokenRef.current = token
+
+    void submitOnline({
+      db,
+      roomId,
+      playerId,
+      text: room.preferPhoto ? '' : (text.trim() || ''),
+      imageDataUrl: room.preferPhoto ? image : null,
+    }).catch(() => {
+      setErr(t.errorGeneric)
+    })
+  }, [db, room, roomId, playerId, tickNow, text, image, t])
 
   if (ui === 'menu') {
     return (
@@ -483,7 +506,6 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     const self = room.players[playerId]
     const playerRows = Object.entries(room.players ?? {})
     const allReady = playerRows.length >= 2 && playerRows.every(([, p]) => p.ready)
-    const lobbyLimitSec = getQuestRoundLimitSec(draftQuest)
     const lobbyBusy = busy || aiQuestLoading
     return (
       <div className="app">
@@ -528,27 +550,15 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
 
           {isHost && (
             <>
-              <p className="quest-label">{t.questLabel}</p>
-              <p className="quest small">{draftQuest.text}</p>
-              {draftQuest.preferPhoto ? (
-                <p className="photo-hint small">{t.questPhotoOnly}</p>
-              ) : (
-                <p className="muted small">{t.questTextOnly}</p>
-              )}
+              <p className="muted small">{t.onlineAiStartHint}</p>
               <div className="actions">
-                <button type="button" className="btn ghost" onClick={refreshDraft} disabled={lobbyBusy}>
-                  {t.newQuest}
-                </button>
-                <button type="button" className="btn ghost" onClick={() => void draftAi()} disabled={lobbyBusy}>
-                  {t.aiQuest}
-                </button>
                 <button
                   type="button"
                   className="btn primary"
                   onClick={() => void startMatch()}
                   disabled={lobbyBusy || !allReady}
                 >
-                  {t.startMatch} ({formatRoundTime(lobbyLimitSec)})
+                  {t.startMatch} (3-5 dk)
                 </button>
               </div>
             </>
@@ -610,7 +620,12 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
                 </label>
               )}
               <div className="actions">
-                <button type="button" className="btn primary" disabled={busy} onClick={() => void submit()}>
+                <button
+                  type="button"
+                  className="btn primary"
+                  disabled={busy || secondsLeft <= 0}
+                  onClick={() => void submit()}
+                >
                   {t.submit}
                 </button>
               </div>

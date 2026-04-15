@@ -18,6 +18,7 @@ export interface RoomPlayer {
   text: string
   imageDataUrl: string | null
   submitted: boolean
+  submittedAt?: number
 }
 
 export interface RoomDoc {
@@ -59,6 +60,7 @@ export async function createRoom(args: {
         text: '',
         imageDataUrl: null,
         submitted: false,
+        submittedAt: 0,
       },
     },
     roundLimitSec: 300,
@@ -90,6 +92,7 @@ export async function joinRoom(args: {
       text: '',
       imageDataUrl: null,
       submitted: false,
+      submittedAt: 0,
     },
   })
   return 'ok'
@@ -137,6 +140,7 @@ export async function startRoomGame(args: {
     updates[`players.${id}.text`] = ''
     updates[`players.${id}.imageDataUrl`] = null
     updates[`players.${id}.submitted`] = false
+    updates[`players.${id}.submittedAt`] = 0
   }
   await updateDoc(ref, updates)
   return true
@@ -155,6 +159,7 @@ export async function submitOnline(args: {
     [`players.${playerId}.text`]: text,
     [`players.${playerId}.imageDataUrl`]: imageDataUrl,
     [`players.${playerId}.submitted`]: true,
+    [`players.${playerId}.submittedAt`]: Date.now(),
   })
 }
 

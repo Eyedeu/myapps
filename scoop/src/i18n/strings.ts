@@ -56,6 +56,7 @@ export const STRINGS: Record<
     unready: string
     readyTag: string
     waitingReady: string
+    onlineAiStartHint: string
     players: string
     copyCode: string
     copied: string
@@ -146,6 +147,8 @@ export const STRINGS: Record<
     unready: 'Not ready',
     readyTag: 'Ready',
     waitingReady: 'Everyone must tap ready before the host can start.',
+    onlineAiStartHint:
+      'Quest stays hidden in lobby. When host taps start, AI creates one round for everyone and the timer starts immediately.',
     players: 'Players',
     copyCode: 'Copy code',
     copied: 'Copied',
@@ -236,6 +239,8 @@ export const STRINGS: Record<
     unready: 'Hazır değilim',
     readyTag: 'Hazır',
     waitingReady: 'Sunucunun başlatması için herkes hazır olmalı.',
+    onlineAiStartHint:
+      'Lobide görev görünmez. Sunucu baslatinca yapay zeka tek gorev uretir ve sure herkes icin aninda baslar.',
     players: 'Oyuncular',
     copyCode: 'Kodu kopyala',
     copied: 'Kopyalandı',
@@ -326,6 +331,8 @@ export const STRINGS: Record<
     unready: 'Nicht bereit',
     readyTag: 'Bereit',
     waitingReady: 'Alle müssen auf bereit stehen, bevor der Host starten kann.',
+    onlineAiStartHint:
+      'In der Lobby bleibt die Aufgabe verborgen. Beim Start durch den Host erzeugt die KI eine gemeinsame Aufgabe und der Timer startet sofort.',
     players: 'Spieler',
     copyCode: 'Code kopieren',
     copied: 'Kopiert',
