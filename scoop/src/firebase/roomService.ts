@@ -34,6 +34,7 @@ export interface RoomDoc {
   preferPhoto: boolean
   roundLimitSec?: number
   startedAt?: number
+  secondsLeft?: number
   players: Record<string, RoomPlayer>
   judging?: boolean
   judge?: BattleJudgeResult
@@ -77,6 +78,7 @@ export async function createRoom(args: {
     },
     roundLimitSec: 300,
     startedAt: 0,
+    secondsLeft: 300,
     createdAt: Date.now(),
   }
   await setDoc(ref, payload)
@@ -144,6 +146,7 @@ export async function startRoomGame(args: {
     preferPhoto: quest.preferPhoto,
     roundLimitSec: Math.min(300, Math.max(180, Math.floor(roundLimitSec))),
     startedAt: Date.now(),
+    secondsLeft: Math.min(300, Math.max(180, Math.floor(roundLimitSec))),
     judging: false,
     judge: deleteField(),
   }
@@ -206,6 +209,23 @@ export async function writeJudge(args: {
 export async function releaseJudging(db: Firestore, roomId: string): Promise<void> {
   const ref = doc(db, ROOM_COLLECTION, roomId)
   await updateDoc(ref, { judging: false })
+}
+
+export async function setRoomSecondsLeft(args: {
+  db: Firestore
+  roomId: string
+  hostPlayerId: string
+  secondsLeft: number
+}): Promise<boolean> {
+  const { db, roomId, hostPlayerId, secondsLeft } = args
+  const ref = doc(db, ROOM_COLLECTION, roomId)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return false
+  const data = snap.data() as RoomDoc
+  if (data.hostPlayerId !== hostPlayerId) return false
+  if (data.phase !== 'playing') return false
+  await updateDoc(ref, { secondsLeft: Math.max(0, Math.floor(secondsLeft)) })
+  return true
 }
 
 export async function deleteRoom(args: { db: Firestore; roomId: string; hostPlayerId: string }): Promise<boolean> {

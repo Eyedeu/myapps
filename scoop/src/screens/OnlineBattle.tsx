@@ -10,6 +10,7 @@ import {
   lockJudging,
   releaseJudging,
   ROOM_COLLECTION,
+  setRoomSecondsLeft,
   subscribeLobbyRooms,
   setPlayerReady,
   startRoomGame,
@@ -55,10 +56,10 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   const [copied, setCopied] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
   const [roomGone, setRoomGone] = useState(false)
-  const [tickNow, setTickNow] = useState(() => Date.now())
   const [lobbyRooms, setLobbyRooms] = useState<LobbyRoomSummary[]>([])
   const recentAiQuestsRef = useRef<string[]>([])
   const timeoutAutoSubmitTokenRef = useRef('')
+  const hostTimerLastSentRef = useRef<number | null>(null)
 
   const leaveToMenu = useCallback(() => {
     clearOnlineSession()
@@ -131,7 +132,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   }, [db])
 
   useEffect(() => {
-    if (!db || !roomId || !settings.apiKey.trim()) return
+    if (!db || !roomId) return
     if (!room) return
     if (room.hostPlayerId !== playerId) return
     if (room.phase !== 'playing') return
@@ -366,10 +367,28 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   }, [room?.phase, room?.questText])
 
   useEffect(() => {
-    if (room?.phase !== 'playing') return
-    const id = window.setInterval(() => setTickNow(Date.now()), 1000)
+    if (!db || !room || !roomId) return
+    if (room.phase !== 'playing') return
+    if (room.hostPlayerId !== playerId) return
+    const limitSec = room.roundLimitSec ?? MAX_ROUND_SEC
+    const startedAt = room.startedAt ?? 0
+    if (startedAt <= 0) return
+    const tick = () => {
+      const elapsedSec = Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
+      const nextLeft = Math.max(0, limitSec - elapsedSec)
+      if (hostTimerLastSentRef.current === nextLeft) return
+      hostTimerLastSentRef.current = nextLeft
+      void setRoomSecondsLeft({
+        db,
+        roomId,
+        hostPlayerId: playerId,
+        secondsLeft: nextLeft,
+      }).catch(() => {})
+    }
+    tick()
+    const id = window.setInterval(tick, 1000)
     return () => window.clearInterval(id)
-  }, [room?.phase])
+  }, [db, room, roomId, playerId])
 
   useEffect(() => {
     if (room?.phase !== 'playing' || !roomId) {
@@ -386,8 +405,10 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     const limitSec = room.roundLimitSec ?? MAX_ROUND_SEC
     const startedAt = room.startedAt ?? 0
     if (startedAt <= 0) return
-    const elapsedSec = Math.max(0, Math.floor((tickNow - startedAt) / 1000))
-    const secondsLeft = Math.max(0, limitSec - elapsedSec)
+    const secondsLeft = Math.max(
+      0,
+      typeof room.secondsLeft === 'number' ? room.secondsLeft : limitSec,
+    )
     if (secondsLeft > 0) return
 
     const token = `${roomId}:${startedAt}:${playerId}`
@@ -403,7 +424,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     }).catch(() => {
       setErr(t.errorGeneric)
     })
-  }, [db, room, roomId, playerId, tickNow, text, image, t])
+  }, [db, room, roomId, playerId, text, image, t])
 
   if (ui === 'menu') {
     return (
@@ -620,8 +641,14 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     const allDone = Object.values(room.players).every((p) => p.submitted)
     const limitSec = room.roundLimitSec ?? MAX_ROUND_SEC
     const startedAt = room.startedAt ?? 0
-    const elapsedSec = startedAt > 0 ? Math.max(0, Math.floor((tickNow - startedAt) / 1000)) : 0
-    const secondsLeft = Math.max(0, limitSec - elapsedSec)
+    const secondsLeft = Math.max(
+      0,
+      typeof room.secondsLeft === 'number' ? room.secondsLeft : limitSec,
+    )
+    const submitSec =
+      self && startedAt > 0 && typeof self.submittedAt === 'number' && self.submittedAt > 0
+        ? Math.max(0, Math.floor((self.submittedAt - startedAt) / 1000))
+        : null
     return (
       <div className="app">
         <header className="header">
@@ -673,7 +700,12 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
               </div>
             </>
           ) : (
-            <p className="muted">{allDone ? t.analyzing : t.waitingOthers}</p>
+            <>
+              {submitSec !== null && (
+                <p className="ok small">{t.submittedAtSecond.replace('{sec}', String(submitSec))}</p>
+              )}
+              <p className="muted">{allDone ? t.analyzing : t.waitingOthers}</p>
+            </>
           )}
           {err && <p className="error">{err}</p>}
         </main>

@@ -224,6 +224,10 @@ body {
   color: var(--muted);
 }
 
+.ok {
+  color: #6ee7b7;
+}
+
 .small {
   font-size: 0.88rem;
   margin: 0 0 0.75rem;

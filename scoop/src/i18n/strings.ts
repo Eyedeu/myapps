@@ -90,6 +90,7 @@ export const STRINGS: Record<
     photoProofLabel: string
     answerNow: string
     noTimerRound: string
+    submittedAtSecond: string
   }
 > = {
   en: {
@@ -185,6 +186,7 @@ export const STRINGS: Record<
     photoProofLabel: 'Photo proof',
     answerNow: 'Answer now (no timer)',
     noTimerRound: 'No time limit — submit when ready.',
+    submittedAtSecond: 'Submitted at second #{sec}.',
   },
   tr: {
     tagline:
@@ -280,6 +282,7 @@ export const STRINGS: Record<
     photoProofLabel: 'Fotoğraf kanıtı',
     answerNow: 'Şimdi cevapla (süresiz)',
     noTimerRound: 'Süre sınırı yok — hazır olunca gönder.',
+    submittedAtSecond: '{sec}. saniyede gonderdin.',
   },
   de: {
     tagline:
@@ -375,5 +378,6 @@ export const STRINGS: Record<
     photoProofLabel: 'Fotonachweis',
     answerNow: 'Jetzt antworten (ohne Timer)',
     noTimerRound: 'Kein Zeitlimit — absenden wenn fertig.',
+    submittedAtSecond: 'Bei Sekunde #{sec} eingereicht.',
   },
 }
