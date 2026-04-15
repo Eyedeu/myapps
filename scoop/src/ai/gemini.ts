@@ -90,6 +90,17 @@ async function geminiGenerateContent(args: {
   return text.trim() || '{}'
 }
 
+function isGeminiQuotaOrRateLimit(err: unknown): boolean {
+  if (!(err instanceof Error)) return false
+  const m = err.message.toLowerCase()
+  return (
+    m.includes('quota exceeded') ||
+    m.includes('rate limit') ||
+    m.includes('"code": 429') ||
+    m.includes(' code: 429')
+  )
+}
+
 export async function geminiJsonWithFallback(args: {
   apiKey: string
   system: string
@@ -108,6 +119,11 @@ export async function geminiJsonWithFallback(args: {
       return await geminiGenerateContent({ apiKey, model, system, userText, images, timeoutMs })
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e))
+      // If free-tier quota/rate-limit is hit on primary model, do not
+      // fall through to fallback model (same quota pool, clearer error).
+      if (isGeminiQuotaOrRateLimit(lastErr)) {
+        break
+      }
     }
   }
 
