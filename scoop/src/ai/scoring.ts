@@ -192,17 +192,11 @@ export async function judgeBattle(args: {
     ? 'This is a PHOTO task: judge mainly from each player photo; ignore empty or irrelevant text. Missing photo = weak submission.'
     : 'This is a TEXT task: judge mainly from written answers; ignore photos if any. Empty text = weak submission.'
 
-  const system = `You judge a friendly micro-quest competition. ${modeRules}
-Scoring priority:
-1) Task correctness/completion is most important.
-2) If completion quality is close, faster completion time wins.
-3) Never give the win to a clearly wrong/weak answer just because it is fast.
-Be fair and encouraging. Language: ${langName[locale]}. Reply JSON only with:
-winnerId: string player id or "tie"
-summary: string (2-3 sentences overall)
-ranking: array of player ids from best to worst (all players included)
-byPlayer: object mapping playerId -> { score: number 1-10, feedback: string short }
-If evidence is weak for everyone, you may use tie. Never insult; critique gently.`
+  const system = `Judge this micro-quest quickly and fairly. ${modeRules}
+Priority: correctness first, speed only tie-breaker for similar quality.
+Output JSON only with:
+winnerId ("tie" or player id), summary (max 2 short sentences), ranking (all ids), byPlayer {score 1-10, feedback short}.
+Language: ${langName[locale]}.`
 
   const lines = players.map(
     (p, i) =>
@@ -224,7 +218,7 @@ If evidence is weak for everyone, you may use tie. Never insult; critique gently
       system,
       userText,
       images,
-      timeoutMs: 9500,
+      timeoutMs: 32000,
     })
     parsed = JSON.parse(raw) as {
       winnerId?: string

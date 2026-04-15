@@ -11,7 +11,7 @@ export async function openaiJsonResponse(args: {
   images?: string[]
   timeoutMs?: number
 }): Promise<string> {
-  const { settings, system, userText, images = [], timeoutMs = 15000 } = args
+  const { settings, system, userText, images = [], timeoutMs = 30000 } = args
   if (!settings.apiKey.trim()) {
     throw new Error('Missing API key')
   }

@@ -103,7 +103,7 @@ export async function geminiJsonWithFallback(args: {
   images?: string[]
   timeoutMs?: number
 }): Promise<string> {
-  const { apiKey, system, userText, images = [], timeoutMs = 15000 } = args
+  const { apiKey, system, userText, images = [], timeoutMs = 30000 } = args
   if (!apiKey.trim()) throw new Error('Missing API key')
 
   const models = [GEMINI_MODEL_PRIMARY]
