@@ -180,7 +180,6 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     if (!db || !roomId) return
     if (!room) return
-    if (room.hostPlayerId !== playerId) return
     if (room.phase !== 'playing') return
     if (room.judging || room.judge) return
     const entries = Object.entries(room.players ?? {})
@@ -379,6 +378,8 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
         playerId,
         text: photoTask ? '' : text,
         imageDataUrl: photoTask ? image : null,
+        secondsLeftSeen:
+          typeof room.secondsLeft === 'number' ? room.secondsLeft : room.roundLimitSec ?? MAX_ROUND_SEC,
       })
     } catch (e) {
       setErr(e instanceof Error ? e.message : t.errorGeneric)
@@ -510,6 +511,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
       playerId,
       text: room.preferPhoto ? '' : (text.trim() || ''),
       imageDataUrl: room.preferPhoto ? image : null,
+      secondsLeftSeen: secondsLeft,
     }).catch(() => {
       setErr(t.errorGeneric)
     })
@@ -730,14 +732,13 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     const submitted = Boolean(self?.submitted)
     const allDone = Object.values(room.players).every((p) => p.submitted)
     const limitSec = room.roundLimitSec ?? MAX_ROUND_SEC
-    const startedAt = room.startedAt ?? 0
     const secondsLeft = Math.max(
       0,
       typeof room.secondsLeft === 'number' ? room.secondsLeft : limitSec,
     )
-    const submitSec =
-      self && startedAt > 0 && typeof self.submittedAt === 'number' && self.submittedAt > 0
-        ? Math.max(0, Math.floor((self.submittedAt - startedAt) / 1000))
+    const submittedRemaining =
+      self && typeof self.submittedAtRemainingSec === 'number'
+        ? Math.max(0, self.submittedAtRemainingSec)
         : null
     return (
       <div className="app">
@@ -794,8 +795,10 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
             </>
           ) : (
             <>
-              {submitSec !== null && (
-                <p className="ok small">{t.submittedAtSecond.replace('{sec}', String(submitSec))}</p>
+              {submittedRemaining !== null && (
+                <p className="ok small">
+                  {t.submittedAtSecond.replace('{time}', formatRoundTime(submittedRemaining))}
+                </p>
               )}
               <p className="muted">{allDone ? t.analyzing : t.waitingOthers}</p>
               <div className="actions">

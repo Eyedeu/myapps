@@ -24,6 +24,7 @@ export interface RoomPlayer {
   imageDataUrl: string | null
   submitted: boolean
   submittedAt?: number
+  submittedAtRemainingSec?: number
 }
 
 export interface RoomDoc {
@@ -77,6 +78,7 @@ export async function createRoom(args: {
         imageDataUrl: null,
         submitted: false,
         submittedAt: 0,
+        submittedAtRemainingSec: 0,
       },
     },
     roundLimitSec: 300,
@@ -112,6 +114,7 @@ export async function joinRoom(args: {
       imageDataUrl: null,
       submitted: false,
       submittedAt: 0,
+      submittedAtRemainingSec: 0,
     },
   })
   return 'ok'
@@ -163,6 +166,7 @@ export async function startRoomGame(args: {
     updates[`players.${id}.imageDataUrl`] = null
     updates[`players.${id}.submitted`] = false
     updates[`players.${id}.submittedAt`] = 0
+    updates[`players.${id}.submittedAtRemainingSec`] = 0
   }
   await updateDoc(ref, updates)
   return true
@@ -174,14 +178,16 @@ export async function submitOnline(args: {
   playerId: string
   text: string
   imageDataUrl: string | null
+  secondsLeftSeen: number
 }): Promise<void> {
-  const { db, roomId, playerId, text, imageDataUrl } = args
+  const { db, roomId, playerId, text, imageDataUrl, secondsLeftSeen } = args
   const ref = doc(db, ROOM_COLLECTION, roomId)
   await updateDoc(ref, {
     [`players.${playerId}.text`]: text,
     [`players.${playerId}.imageDataUrl`]: imageDataUrl,
     [`players.${playerId}.submitted`]: true,
     [`players.${playerId}.submittedAt`]: Date.now(),
+    [`players.${playerId}.submittedAtRemainingSec`]: Math.max(0, Math.floor(secondsLeftSeen)),
   })
 }
 
