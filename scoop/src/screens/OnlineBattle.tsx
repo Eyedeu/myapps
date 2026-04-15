@@ -712,7 +712,15 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
             </>
           )}
           <div className="actions column">
-            <button type="button" className="btn primary" disabled={!db} onClick={() => setUi('createForm')}>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={!db}
+              onClick={() => {
+                stripJoinParamsFromUrl()
+                setUi('createForm')
+              }}
+            >
               {t.createRoom}
             </button>
             <button type="button" className="btn ghost" disabled={!db} onClick={() => setUi('joinForm')}>
