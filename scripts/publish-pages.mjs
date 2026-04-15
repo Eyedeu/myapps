@@ -172,7 +172,6 @@ const handled = new Set([
   "lernapp",
   "ProofAdvice",
   "bubble-pop-mania",
-  "lemapp",
 ]);
 
 const viteDistApps = ["oddbridge", "floret", "scoop", "Autoteile"];
@@ -218,6 +217,5 @@ buildHub();
 
 copyStaticTree("ProofAdvice");
 copyStaticTree("bubble-pop-mania");
-copyStaticTree("lemapp");
 
 console.log(`_site ready under ${path.relative(root, siteDir)} (repo base: /${repoName}/)`);

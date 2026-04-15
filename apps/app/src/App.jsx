@@ -155,7 +155,7 @@ async function buildRuntimeCatalog() {
         .filter((item) => item.type === "blob" && item.path.split("/").length === 2)
         .map((item) => item.path.split("/")[0]),
     ),
-  ).filter((name) => !["apps", ".github", "github-pages-hub", "lemapp"].includes(name));
+  ).filter((name) => !["apps", ".github", "github-pages-hub"].includes(name));
 
   const appDirectories = rootDirectories.filter((directoryName) =>
     tree.some((item) => item.path === `${directoryName}/index.html`),

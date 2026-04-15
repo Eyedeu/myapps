@@ -15,7 +15,6 @@ const EXCLUDED_DIRS = new Set([
   ".github",
   "node_modules",
   "github-pages-hub",
-  "lemapp",
 ]);
 const ICON_CANDIDATES = [
   "icon.svg",
