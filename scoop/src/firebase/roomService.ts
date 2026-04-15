@@ -308,20 +308,79 @@ export async function sweepInactiveRooms(args: {
   db: Firestore
   staleAfterMs?: number
 }): Promise<void> {
-  const { db, staleAfterMs = 120000 } = args
+  const { db, staleAfterMs = 45000 } = args
   const now = Date.now()
   const snap = await getDocs(collection(db, ROOM_COLLECTION))
 
   for (const d of snap.docs) {
     const data = d.data() as RoomDoc
-    const players = Object.values(data.players ?? {})
-    if (players.length === 0) {
+    const players = data.players ?? {}
+    const allIds = Object.keys(players)
+    if (allIds.length === 0) {
       await deleteDoc(doc(db, ROOM_COLLECTION, d.id))
       continue
     }
-    const activeCount = players.filter((p) => now - (p.lastSeenAt ?? 0) < staleAfterMs).length
-    if (activeCount === 0) {
+    const activeIds = allIds.filter((id) => now - (players[id]?.lastSeenAt ?? 0) < staleAfterMs)
+    const staleIds = allIds.filter((id) => !activeIds.includes(id))
+
+    if (activeIds.length === 0) {
       await deleteDoc(doc(db, ROOM_COLLECTION, d.id))
+      continue
+    }
+
+    if (staleIds.length > 0) {
+      const ref = doc(db, ROOM_COLLECTION, d.id)
+      const updates: Record<string, unknown> = {}
+      for (const id of staleIds) {
+        updates[`players.${id}`] = deleteField()
+      }
+
+      if (activeIds.length === 1 && data.phase === 'playing' && !data.judge) {
+        const winnerId = activeIds[0]!
+        const winnerLocale = players[winnerId]?.locale ?? data.locale
+        const loseFeedbackByLocale = {
+          en: 'You became inactive during the round and lost by forfeit.',
+          tr: 'Tur sirasinda baglanti koptugu icin hukmen kaybettin.',
+          de: 'Du warst waehrend der Runde inaktiv und hast kampflos verloren.',
+        } as const
+        const winFeedbackByLocale = {
+          en: 'Opponent became inactive during the round. You win by forfeit.',
+          tr: 'Rakip tur sirasinda baglantisini kaybetti. Hukmen kazandin.',
+          de: 'Der Gegner war waehrend der Runde inaktiv. Du gewinnst kampflos.',
+        } as const
+        const summaryByLocale = {
+          en: 'Round ended because one side became inactive.',
+          tr: 'Taraflardan biri inaktif kaldigi icin tur sonlandirildi.',
+          de: 'Die Runde wurde beendet, weil eine Seite inaktiv war.',
+        } as const
+
+        const byPlayer: BattleJudgeResult['byPlayer'] = {}
+        const feedbackByPlayerLocale: NonNullable<BattleJudgeResult['feedbackByPlayerLocale']> = {}
+        for (const id of allIds) {
+          const isWinner = id === winnerId
+          byPlayer[id] = {
+            score: isWinner ? 9 : 1,
+            feedback: isWinner ? winFeedbackByLocale[winnerLocale] : loseFeedbackByLocale[winnerLocale],
+          }
+          feedbackByPlayerLocale[id] = isWinner ? { ...winFeedbackByLocale } : { ...loseFeedbackByLocale }
+        }
+
+        updates.judge = {
+          winnerId,
+          summary: summaryByLocale[winnerLocale],
+          summaryByLocale: { ...summaryByLocale },
+          ranking: [winnerId, ...allIds.filter((id) => id !== winnerId)],
+          byPlayer,
+          feedbackByPlayerLocale,
+        } satisfies BattleJudgeResult
+        updates.phase = 'done'
+        updates.judging = false
+        updates.judgingAt = 0
+      } else if (data.hostPlayerId && staleIds.includes(data.hostPlayerId)) {
+        updates.hostPlayerId = activeIds[0]!
+      }
+
+      await updateDoc(ref, updates)
     }
   }
 }

@@ -183,7 +183,14 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     }
     // Best-effort cleanup for rooms with no active users.
     void sweepInactiveRooms({ db })
-    return subscribeLobbyRooms(db, setLobbyRooms)
+    const sweepId = window.setInterval(() => {
+      void sweepInactiveRooms({ db })
+    }, 30000)
+    const unsub = subscribeLobbyRooms(db, setLobbyRooms)
+    return () => {
+      window.clearInterval(sweepId)
+      unsub()
+    }
   }, [db])
 
   useEffect(() => {
