@@ -33,7 +33,7 @@ import {
 } from '../lib/roomSession'
 import { getOrCreatePlayerId } from '../settings/storage'
 import { useAppI18n } from '../settings/useAppI18n'
-import type { QuestSpec } from '../types'
+import type { BattleJudgeResult, QuestSpec } from '../types'
 
 type UiMode = 'menu' | 'createForm' | 'joinForm' | 'inRoom'
 
@@ -82,6 +82,32 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
       leaveToMenu()
     }
   }, [db, room, roomId, playerId, leaveToMenu])
+
+  const buildForfeitJudge = useCallback(
+    (currentRoom: RoomDoc, forfeiterId: string): BattleJudgeResult => {
+      const ids = Object.keys(currentRoom.players ?? {})
+      const survivors = ids.filter((id) => id !== forfeiterId)
+      const winnerId: string | 'tie' = survivors.length > 0 ? survivors[0]! : 'tie'
+      const ranking = survivors.concat(forfeiterId)
+      const byPlayer: BattleJudgeResult['byPlayer'] = {}
+      for (const id of ids) {
+        byPlayer[id] =
+          id === forfeiterId
+            ? { score: 1, feedback: t.forfeitLoseFeedback }
+            : {
+                score: id === winnerId ? 9 : 7,
+                feedback: t.forfeitWinFeedback,
+              }
+      }
+      return {
+        winnerId,
+        summary: t.forfeitSummary,
+        ranking,
+        byPlayer,
+      }
+    },
+    [t],
+  )
 
   useEffect(() => {
     const saved = loadOnlineSession()
@@ -325,6 +351,31 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     }
   }, [db, roomId, room, playerId, text, image, t])
 
+  const leaveDuringBattle = useCallback(async () => {
+    if (!db || !roomId || !room) {
+      leaveToMenu()
+      return
+    }
+    if (room.phase !== 'playing') {
+      await leaveAndMaybeDeleteRoom()
+      return
+    }
+    setBusy(true)
+    setErr(null)
+    try {
+      const gotLock = await lockJudging({ db, roomId })
+      if (gotLock) {
+        const judge = buildForfeitJudge(room, playerId)
+        await writeJudge({ db, roomId, judge })
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : t.errorGeneric)
+    } finally {
+      setBusy(false)
+      leaveToMenu()
+    }
+  }, [db, roomId, room, playerId, t, leaveToMenu, leaveAndMaybeDeleteRoom, buildForfeitJudge])
+
   const copyCode = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(roomId)
@@ -370,6 +421,8 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
     if (!db || !room || !roomId) return
     if (room.phase !== 'playing') return
     if (room.hostPlayerId !== playerId) return
+    const everyoneSubmitted = Object.values(room.players ?? {}).every((p) => p.submitted)
+    if (everyoneSubmitted) return
     const limitSec = room.roundLimitSec ?? MAX_ROUND_SEC
     const startedAt = room.startedAt ?? 0
     if (startedAt <= 0) return
@@ -697,6 +750,9 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
                 >
                   {t.submit}
                 </button>
+                <button type="button" className="btn ghost" disabled={busy} onClick={() => void leaveDuringBattle()}>
+                  {t.leaveAndLose}
+                </button>
               </div>
             </>
           ) : (
@@ -705,6 +761,11 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
                 <p className="ok small">{t.submittedAtSecond.replace('{sec}', String(submitSec))}</p>
               )}
               <p className="muted">{allDone ? t.analyzing : t.waitingOthers}</p>
+              <div className="actions">
+                <button type="button" className="btn ghost" disabled={busy} onClick={() => void leaveDuringBattle()}>
+                  {t.leaveAndLose}
+                </button>
+              </div>
             </>
           )}
           {err && <p className="error">{err}</p>}

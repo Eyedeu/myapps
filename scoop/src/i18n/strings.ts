@@ -91,6 +91,11 @@ export const STRINGS: Record<
     answerNow: string
     noTimerRound: string
     submittedAtSecond: string
+    leaveRoom: string
+    leaveAndLose: string
+    forfeitSummary: string
+    forfeitLoseFeedback: string
+    forfeitWinFeedback: string
   }
 > = {
   en: {
@@ -187,6 +192,11 @@ export const STRINGS: Record<
     answerNow: 'Answer now (no timer)',
     noTimerRound: 'No time limit — submit when ready.',
     submittedAtSecond: 'Submitted at second #{sec}.',
+    leaveRoom: 'Leave room',
+    leaveAndLose: 'Leave (forfeit)',
+    forfeitSummary: 'A player left the room during the battle and forfeited.',
+    forfeitLoseFeedback: 'You left the room during the active round, so this counts as a forfeit.',
+    forfeitWinFeedback: 'Opponent left the room during the active round, so you win by forfeit.',
   },
   tr: {
     tagline:
@@ -283,6 +293,11 @@ export const STRINGS: Record<
     answerNow: 'Şimdi cevapla (süresiz)',
     noTimerRound: 'Süre sınırı yok — hazır olunca gönder.',
     submittedAtSecond: '{sec}. saniyede gonderdin.',
+    leaveRoom: 'Odadan cik',
+    leaveAndLose: 'Cik (kaybet)',
+    forfeitSummary: 'Bir oyuncu kapisma sirasinda odadan ciktigi icin hukmen kaybetti.',
+    forfeitLoseFeedback: 'Aktif tur sirasinda odadan ciktigin icin bu turu hukmen kaybettin.',
+    forfeitWinFeedback: 'Rakip aktif turda odadan ciktigi icin hukmen kazandin.',
   },
   de: {
     tagline:
@@ -379,5 +394,10 @@ export const STRINGS: Record<
     answerNow: 'Jetzt antworten (ohne Timer)',
     noTimerRound: 'Kein Zeitlimit — absenden wenn fertig.',
     submittedAtSecond: 'Bei Sekunde #{sec} eingereicht.',
+    leaveRoom: 'Raum verlassen',
+    leaveAndLose: 'Verlassen (Aufgabe verloren)',
+    forfeitSummary: 'Ein Spieler hat den Raum waehrend des Duells verlassen und damit aufgegeben.',
+    forfeitLoseFeedback: 'Du hast den Raum waehrend der laufenden Runde verlassen und dadurch verloren.',
+    forfeitWinFeedback: 'Der Gegner hat den Raum waehrend der laufenden Runde verlassen; du gewinnst kampflos.',
   },
 }
