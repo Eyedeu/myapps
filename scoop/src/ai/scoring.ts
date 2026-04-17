@@ -71,6 +71,21 @@ function pickScavengerColor(): string {
   return SCAVENGER_COLORS[i]!
 }
 
+/** Replace internal player ids in user-facing copy with display names (model sometimes echoes ids in summary). */
+function replacePlayerIdsWithDisplayNames(
+  text: string,
+  players: { id: string; name: string }[],
+): string {
+  let out = text
+  const sorted = [...players].sort((a, b) => b.id.length - a.id.length)
+  for (const p of sorted) {
+    if (!p.id || !out.includes(p.id)) continue
+    const label = p.name.trim() || p.id
+    out = out.split(p.id).join(label)
+  }
+  return out
+}
+
 export async function generateAiQuest(
   settings: AppSettings,
   locale: Locale,
@@ -203,6 +218,7 @@ export async function judgeBattle(args: {
 Priority: correctness first, speed only tie-breaker for similar quality.
 Output JSON only with:
 winnerId ("tie" or player id), summary (max 2 short sentences), ranking (all ids), byPlayer {score 1-10, feedback short}.
+In summary and in each byPlayer.feedback, refer to people by DISPLAY_NAME from metadata (name=...) only — never put raw player ids, "PLAYER_ID=", or UUID-like tokens in those strings.
 Language: ${langName[locale]}.`
 
   const lines = ordered.map(
@@ -266,7 +282,8 @@ Language: ${langName[locale]}.`
     winnerId = parsed.winnerId
   }
 
-  const summary = typeof parsed.summary === 'string' ? parsed.summary : fallback.summary
+  const rawSummary = typeof parsed.summary === 'string' ? parsed.summary : fallback.summary
+  const summary = replacePlayerIdsWithDisplayNames(rawSummary, ordered)
   const ranking = Array.isArray(parsed.ranking)
     ? parsed.ranking.filter((id) => ordered.some((p) => p.id === id))
     : fallback.ranking
@@ -275,9 +292,10 @@ Language: ${langName[locale]}.`
   for (const p of ordered) {
     const row = parsed.byPlayer?.[p.id]
     const fallbackRow = fallback.byPlayer[p.id]
+    const rawFeedback = typeof row?.feedback === 'string' ? row.feedback : fallbackRow.feedback
     byPlayer[p.id] = {
       score: Math.min(10, Math.max(1, Number(row?.score) || fallbackRow.score)),
-      feedback: typeof row?.feedback === 'string' ? row.feedback : fallbackRow.feedback,
+      feedback: replacePlayerIdsWithDisplayNames(rawFeedback, ordered),
     }
   }
 
