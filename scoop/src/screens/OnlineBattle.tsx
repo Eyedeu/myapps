@@ -34,7 +34,7 @@ import {
   stripJoinParamsFromUrl,
 } from '../lib/roomSession'
 import { randomStaticQuest } from '../quests/static'
-import { getOrCreatePlayerId } from '../settings/storage'
+import { getOrCreatePlayerId, incrementTotalWinsForMatch, loadTotalWins } from '../settings/storage'
 import { useAppI18n } from '../settings/useAppI18n'
 import type { BattleJudgeResult, QuestSpec } from '../types'
 import { STRINGS } from '../i18n/strings'
@@ -64,6 +64,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   const [linkCopied, setLinkCopied] = useState(false)
   const [roomGone, setRoomGone] = useState(false)
   const [lobbyRooms, setLobbyRooms] = useState<LobbyRoomSummary[]>([])
+  const [totalWins, setTotalWins] = useState(() => loadTotalWins())
   const [statusNow, setStatusNow] = useState(() => Date.now())
   const [analyzingStartedAt, setAnalyzingStartedAt] = useState<number | null>(null)
   const recentAiQuestsRef = useRef<string[]>([])
@@ -71,6 +72,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   const hostTimerLastSentRef = useRef<number | null>(null)
   const lastStaticQuestRef = useRef<QuestSpec | null>(null)
   const judgingInFlightRef = useRef(false)
+  const countedWinTokenRef = useRef('')
   /** Session / ?join= bootstrap must run only once per OnlineBattle mount so it cannot override createForm. */
   const onlineBootstrapRef = useRef(false)
 
@@ -483,7 +485,7 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   const toggleReady = useCallback(async () => {
     if (!db || !roomId || !room) return
     const self = room.players[playerId]
-    if (!self || room.phase !== 'lobby') return
+    if (!self || (room.phase !== 'lobby' && room.phase !== 'done')) return
     setBusy(true)
     setErr(null)
     try {
@@ -499,6 +501,16 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
       setBusy(false)
     }
   }, [db, roomId, room, playerId, t])
+
+  useEffect(() => {
+    if (!room || room.phase !== 'done' || !room.judge) return
+    const winnerId = room.judge.winnerId
+    if (winnerId !== playerId) return
+    const token = `${roomId}:${room.startedAt ?? 0}:${winnerId}`
+    if (countedWinTokenRef.current === token) return
+    countedWinTokenRef.current = token
+    setTotalWins(incrementTotalWinsForMatch(token))
+  }, [room, roomId, playerId])
 
   const submit = useCallback(async () => {
     if (!db || !roomId || !room) return
@@ -1017,12 +1029,20 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
   // done
   const j = room.judge
   const localizedSummary = j?.summaryByLocale?.[locale] ?? j?.summary
+  const isHost = room.hostPlayerId === playerId
+  const self = room.players[playerId]
+  const playerRows = Object.entries(room.players ?? {})
+  const allReady = playerRows.length >= 2 && playerRows.every(([, p]) => p.ready)
+  const roomActionBusy = busy || aiQuestLoading
   return (
     <div className="app">
       <header className="header">
         <h1 className="title">{t.battleResult}</h1>
       </header>
       <main className="card">
+        <p className="muted small">
+          {t.totalWins}: <strong>{totalWins}</strong>
+        </p>
         {j && (
           <>
             <p className="result-line">
@@ -1044,9 +1064,43 @@ export function OnlineBattle({ onBack }: { onBack: () => void }) {
             </div>
           </>
         )}
+        <p className="quest-label">{t.players}</p>
+        <ul className="list">
+          {playerRows.map(([id, p]) => (
+            <li key={id}>
+              {p.name}
+              {id === playerId ? ` (${t.you})` : ''}
+              {id === room.hostPlayerId ? ` · ${t.hostTag}` : ''}
+              {p.ready ? ` · ${t.readyTag}` : ''}
+            </li>
+          ))}
+        </ul>
         <div className="actions">
-          <button type="button" className="btn primary" onClick={() => void leaveAndMaybeDeleteRoom()}>
-            {t.back}
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => void toggleReady()}
+            disabled={roomActionBusy || !self}
+          >
+            {self?.ready ? t.unready : t.readyUp}
+          </button>
+        </div>
+        {!allReady && <p className="muted small">{t.waitingReady}</p>}
+        {isHost && (
+          <div className="actions">
+            <button
+              type="button"
+              className="btn primary"
+              onClick={() => void startMatch()}
+              disabled={roomActionBusy || !allReady}
+            >
+              {t.startMatch} (3-5 dk)
+            </button>
+          </div>
+        )}
+        <div className="actions">
+          <button type="button" className="btn ghost" onClick={() => void leaveAndMaybeDeleteRoom()}>
+            {t.leaveRoom}
           </button>
         </div>
       </main>

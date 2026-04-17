@@ -98,6 +98,7 @@ export const STRINGS: Record<
     forfeitSummary: string
     forfeitLoseFeedback: string
     forfeitWinFeedback: string
+    totalWins: string
   }
 > = {
   en: {
@@ -201,6 +202,7 @@ export const STRINGS: Record<
     forfeitSummary: 'A player left the room during the battle and forfeited.',
     forfeitLoseFeedback: 'You left the room during the active round, so this counts as a forfeit.',
     forfeitWinFeedback: 'Opponent left the room during the active round, so you win by forfeit.',
+    totalWins: 'Total wins',
   },
   tr: {
     tagline:
@@ -304,6 +306,7 @@ export const STRINGS: Record<
     forfeitSummary: 'Bir oyuncu kapisma sirasinda odadan ciktigi icin hukmen kaybetti.',
     forfeitLoseFeedback: 'Aktif tur sirasinda odadan ciktigin icin bu turu hukmen kaybettin.',
     forfeitWinFeedback: 'Rakip aktif turda odadan ciktigi icin hukmen kazandin.',
+    totalWins: 'Toplam galibiyet',
   },
   de: {
     tagline:
@@ -407,5 +410,6 @@ export const STRINGS: Record<
     forfeitSummary: 'Ein Spieler hat den Raum waehrend des Duells verlassen und damit aufgegeben.',
     forfeitLoseFeedback: 'Du hast den Raum waehrend der laufenden Runde verlassen und dadurch verloren.',
     forfeitWinFeedback: 'Der Gegner hat den Raum waehrend der laufenden Runde verlassen; du gewinnst kampflos.',
+    totalWins: 'Gesamtsiege',
   },
 }

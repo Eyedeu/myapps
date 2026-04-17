@@ -342,12 +342,6 @@ export async function sweepInactiveRooms(args: {
       continue
     }
 
-    // Auto-delete finished rooms older than 10 minutes.
-    if (data.phase === 'done' && now - data.createdAt > 600_000) {
-      await deleteDoc(doc(db, ROOM_COLLECTION, d.id))
-      continue
-    }
-
     const staleMs = data.phase === 'playing' ? playingStaleMs : lobbyStaleMs
     const activeIds = allIds.filter((id) => now - (players[id]?.lastSeenAt ?? 0) < staleMs)
     const staleIds = allIds.filter((id) => !activeIds.includes(id))
