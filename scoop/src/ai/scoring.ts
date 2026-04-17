@@ -1,5 +1,5 @@
 import type { AppSettings, BattleJudgeResult, Locale, QuestSpec, SoloAiResult } from '../types'
-import { llmJsonResponse } from './llm'
+import { llmJsonResponse, type LlmInterleavedPart } from './llm'
 
 const langName: Record<Locale, string> = {
   en: 'English',
@@ -188,24 +188,49 @@ export async function judgeBattle(args: {
 }): Promise<BattleJudgeResult> {
   const { settings, locale, quest, players } = args
   const photoMode = quest.preferPhoto
+  const ordered = [...players].sort((a, b) => a.id.localeCompare(b.id))
+  const idList = ordered.map((p) => p.id).join(', ')
   const modeRules = photoMode
     ? 'This is a PHOTO task: judge mainly from each player photo; ignore empty or irrelevant text. Missing photo = weak submission.'
     : 'This is a TEXT task: judge mainly from written answers; ignore photos if any. Empty text = weak submission.'
 
-  const system = `Judge this micro-quest quickly and fairly. ${modeRules}
+  const photoBinding =
+    photoMode && ordered.length > 0
+      ? ` MULTI-PLAYER PHOTOS: After the preamble you will see repeated blocks. Each block starts with a line "### PLAYER_ID=..." — the very next image part belongs ONLY to that exact id. Never attribute one player's image to another player or to displayName. If you cannot tell which image belongs to whom, answer winnerId "tie" and explain briefly. JSON keys byPlayer / winnerId must use these exact ids only: ${idList}.`
+      : ''
+
+  const system = `Judge this micro-quest quickly and fairly. ${modeRules}${photoBinding}
 Priority: correctness first, speed only tie-breaker for similar quality.
 Output JSON only with:
 winnerId ("tie" or player id), summary (max 2 short sentences), ranking (all ids), byPlayer {score 1-10, feedback short}.
 Language: ${langName[locale]}.`
 
-  const lines = players.map(
+  const lines = ordered.map(
     (p, i) =>
       `${i + 1}. id=${p.id} name=${p.name}\n text: ${p.text || '(none)'}\n   photo: ${p.imageDataUrl ? 'yes' : 'no'}\n   elapsedSec: ${typeof p.elapsedSec === 'number' ? p.elapsedSec : 'unknown'}`,
   )
-  const userText = `Quest: ${quest.text}\nTask type: ${photoMode ? 'photo-only' : 'text-only'}\n${modeRules}\nPlayers:\n${lines.join('\n')}`
+  const preamble = `Quest: ${quest.text}\nTask type: ${photoMode ? 'photo-only' : 'text-only'}\n${modeRules}\n`
+  const userText = photoMode
+    ? `${preamble}Player ids for JSON (verbatim): ${idList}\n\nPlayers (metadata):\n${lines.join(
+        '\n',
+      )}\n\nBelow, each section is HEADER text then that player's image only (or a [NO_IMAGE...] line). Judge each section independently; do not swap submissions.`
+    : `${preamble}Players:\n${lines.join('\n')}`
 
-  const images = photoMode ? (players.map((p) => p.imageDataUrl).filter(Boolean) as string[]) : []
-  const fallback = quickBattleFallback({ locale, quest, players })
+  const interleaved: LlmInterleavedPart[] | undefined = photoMode
+    ? ordered.flatMap((p) => {
+        const header = `\n### PLAYER_ID=${p.id}\nDISPLAY_NAME=${p.name}\nTEXT_FIELD=${p.text || '(none)'}\nElapsedSec=${typeof p.elapsedSec === 'number' ? p.elapsedSec : 'unknown'}\nThe inline image immediately after this header belongs ONLY to PLAYER_ID=${p.id}.\n`
+        if (p.imageDataUrl) {
+          return [{ type: 'text' as const, text: header }, { type: 'image' as const, dataUrl: p.imageDataUrl }]
+        }
+        return [
+          { type: 'text' as const, text: header },
+          { type: 'text' as const, text: `[NO_IMAGE_SUBMITTED_FOR_PLAYER_ID=${p.id}]\n` },
+        ]
+      })
+    : undefined
+
+  const images = photoMode ? [] : []
+  const fallback = quickBattleFallback({ locale, quest, players: ordered })
   let parsed: {
     winnerId?: string
     summary?: string
@@ -218,6 +243,7 @@ Language: ${langName[locale]}.`
       system,
       userText,
       images,
+      interleaved,
       timeoutMs: 30000,
       retryOnTransient: true,
     })
@@ -235,18 +261,18 @@ Language: ${langName[locale]}.`
   if (parsed.winnerId === 'tie') winnerId = 'tie'
   else if (
     typeof parsed.winnerId === 'string' &&
-    players.some((p) => p.id === parsed.winnerId)
+    ordered.some((p) => p.id === parsed.winnerId)
   ) {
     winnerId = parsed.winnerId
   }
 
   const summary = typeof parsed.summary === 'string' ? parsed.summary : fallback.summary
   const ranking = Array.isArray(parsed.ranking)
-    ? parsed.ranking.filter((id) => players.some((p) => p.id === id))
+    ? parsed.ranking.filter((id) => ordered.some((p) => p.id === id))
     : fallback.ranking
 
   const byPlayer: BattleJudgeResult['byPlayer'] = {}
-  for (const p of players) {
+  for (const p of ordered) {
     const row = parsed.byPlayer?.[p.id]
     const fallbackRow = fallback.byPlayer[p.id]
     byPlayer[p.id] = {

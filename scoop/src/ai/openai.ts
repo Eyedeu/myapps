@@ -4,21 +4,34 @@ type ContentPart =
   | { type: 'text'; text: string }
   | { type: 'image_url'; image_url: { url: string } }
 
+type InterleavedPart = { type: 'text'; text: string } | { type: 'image'; dataUrl: string }
+
 export async function openaiJsonResponse(args: {
   settings: AppSettings
   system: string
   userText: string
   images?: string[]
+  interleaved?: InterleavedPart[]
   timeoutMs?: number
 }): Promise<string> {
-  const { settings, system, userText, images = [], timeoutMs = 30000 } = args
+  const { settings, system, userText, images = [], interleaved, timeoutMs = 30000 } = args
   if (!settings.apiKey.trim()) {
     throw new Error('Missing API key')
   }
   const base = settings.apiBase.replace(/\/$/, '')
   const content: ContentPart[] = [{ type: 'text', text: userText }]
-  for (const url of images) {
-    if (url) content.push({ type: 'image_url', image_url: { url } })
+  if (interleaved?.length) {
+    for (const part of interleaved) {
+      if (part.type === 'text') {
+        content.push({ type: 'text', text: part.text })
+      } else if (part.dataUrl) {
+        content.push({ type: 'image_url', image_url: { url: part.dataUrl } })
+      }
+    }
+  } else {
+    for (const url of images) {
+      if (url) content.push({ type: 'image_url', image_url: { url } })
+    }
   }
 
   const ctrl = new AbortController()

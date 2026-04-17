@@ -29,16 +29,40 @@ function buildUserParts(userText: string, images: string[]) {
   return parts
 }
 
+type InterleavedPart = { type: 'text'; text: string } | { type: 'image'; dataUrl: string }
+
+function buildUserPartsInterleaved(userText: string, interleaved: InterleavedPart[]) {
+  const parts: Array<
+    { text: string } | { inlineData: { mimeType: string; data: string } }
+  > = [{ text: userText }]
+
+  for (const seg of interleaved) {
+    if (seg.type === 'text') {
+      parts.push({ text: seg.text })
+      continue
+    }
+    const parsed = splitDataUrl(seg.dataUrl)
+    if (parsed) {
+      parts.push({ inlineData: { mimeType: parsed.mimeType, data: parsed.data } })
+    }
+  }
+  return parts
+}
+
 async function geminiGenerateContent(args: {
   apiKey: string
   model: string
   system: string
   userText: string
   images: string[]
+  interleaved?: InterleavedPart[]
   timeoutMs: number
 }): Promise<string> {
-  const { apiKey, model, system, userText, images, timeoutMs } = args
+  const { apiKey, model, system, userText, images, interleaved, timeoutMs } = args
   const url = `${GEMINI_GENERATE_BASE}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`
+
+  const userParts =
+    interleaved && interleaved.length > 0 ? buildUserPartsInterleaved(userText, interleaved) : buildUserParts(userText, images)
 
   const body = {
     systemInstruction: {
@@ -47,7 +71,7 @@ async function geminiGenerateContent(args: {
     contents: [
       {
         role: 'user',
-        parts: buildUserParts(userText, images),
+        parts: userParts,
       },
     ],
     generationConfig: {
@@ -101,9 +125,10 @@ export async function geminiJsonWithFallback(args: {
   system: string
   userText: string
   images?: string[]
+  interleaved?: InterleavedPart[]
   timeoutMs?: number
 }): Promise<string> {
-  const { apiKey, system, userText, images = [], timeoutMs = 30000 } = args
+  const { apiKey, system, userText, images = [], interleaved, timeoutMs = 30000 } = args
   if (!apiKey.trim()) throw new Error('Missing API key')
 
   const models = [GEMINI_MODEL_PRIMARY]
@@ -111,7 +136,15 @@ export async function geminiJsonWithFallback(args: {
 
   for (const model of models) {
     try {
-      return await geminiGenerateContent({ apiKey, model, system, userText, images, timeoutMs })
+      return await geminiGenerateContent({
+        apiKey,
+        model,
+        system,
+        userText,
+        images,
+        interleaved,
+        timeoutMs,
+      })
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e))
     }
