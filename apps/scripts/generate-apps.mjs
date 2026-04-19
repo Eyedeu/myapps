@@ -123,7 +123,15 @@ function inferCategory({ packageJson, manifest, directoryName }) {
     return "Harita";
   }
 
-  if (pool.includes("learn") || pool.includes("education") || pool.includes("ders") || pool.includes("ausbildung")) {
+  if (
+    pool.includes("learn") ||
+    pool.includes("education") ||
+    pool.includes("ders") ||
+    pool.includes("ausbildung") ||
+    pool.includes("deutsch") ||
+    pool.includes("almanca") ||
+    pool.includes("gemini")
+  ) {
     return "Egitim";
   }
 

@@ -1,0 +1,20 @@
+{
+  "name": "DeutschKart",
+  "short_name": "DeutschKart",
+  "description": "Almanca kelime kartı — Gemini ile üretim, geçmiş ve ana ekran kısayolu (PWA).",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f1115",
+  "theme_color": "#1e3d52",
+  "lang": "tr",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -169,6 +169,7 @@ const handled = new Set([
   "scripts",
   "mapget",
   "DeutschBattles",
+  "DeutschKart",
   "lernapp",
   "ProofAdvice",
   "bubble-pop-mania",
