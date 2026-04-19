@@ -5,7 +5,7 @@ Paylaşımlı **ev alışveriş listesi**: biri ürünleri ekler, diğeri aldık
 ## Çalışma şekli
 
 1. Firebase’de bir proje açın, **Firestore**’u etkinleştirin, web uygulaması ekleyip `firebaseConfig` JSON’unu alın.
-2. Siteyi açın; ilk girişte bu JSON’u yapıştırın (tarayıcıda saklanır).
+2. Bu repoda `src/firebase/defaultConfig.ts` içinde varsayılan yapılandırma vardır; ilk açılışta ekstra yapıştırma gerekmez. Başka bir projeye geçmek için sitede **Firebase ayarı**nı kullanın (tarayıcıda saklanır).
 3. **Yeni liste oluştur** ile liste yaratın, **Bağlantıyı kopyala** ile paylaşın.
 4. Aile üyesi aynı bağlantıyı veya listedeki **UUID** kodunu “Listeye katıl” alanına yapıştırarak açar.
 
