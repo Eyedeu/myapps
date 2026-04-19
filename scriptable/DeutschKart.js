@@ -1,6 +1,6 @@
 // DeutschKart — Scriptable widget + Supabase (ana PWA ile ortak geçmiş)
-// Yenile: scriptable + dkAction=refresh (üretim). Kelime kartı: MapGet ile aynı — yalnızca dış gri kartta tek https://… PWA (iç metne .url yok).
-// Orta+büyük: 1. kelime satırı solda dar sütun (sağda yenile), altta az ama büyük punto ile tam genişlik kartlar (large 3, medium 2, small 1 kelime).
+// Yenile: üstte tam genişlik yatay şerit (scriptable + dkAction=refresh). Kelime kartları alt alta tam genişlik; stack.url = https PWA.
+// large 3 / medium 2 / small 1 kelime; okunaklı punto oranı (de / tr / örnek).
 // CONFIG'ü doldur → kaydet.
 
 const CONFIG = {
@@ -14,8 +14,8 @@ const CONFIG = {
 /** Kota/istek: yalnız 3.1 flash lite (2.0 kota hatası vermesin diye kaldırıldı) */
 const GEMINI_MODELS = ["gemini-3.1-flash-lite-preview"];
 
-/** ▶ Evet ile tek seferde üretilecek yeni kelime sayısı */
-const WORDS_PER_GENERATE_RUN = 5;
+/** ▶ Yenile / manuel üretimde tek seferde eklenen kelime sayısı (widget ile uyumlu) */
+const WORDS_PER_GENERATE_RUN = 3;
 
 const LEVEL_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"];
 const POS_ORDER = ["noun", "verb", "adj", "phrase", "prep", "conj", "adv", "other"];
@@ -74,24 +74,14 @@ function widgetWordLimit() {
 
 function widgetTypography() {
   const wf = config.widgetFamily;
+  /** de biraz küçültüldü, örnek (ex) tr’ye yaklaştı — ekranda daha dengeli. */
   if (wf === "large" || wf === "extraLarge") {
-    return { meta: 14, de: 26, tr: 20, ex: 15, title: 14 };
+    return { meta: 12, de: 22, tr: 17, ex: 15, title: 14 };
   }
   if (wf === "medium") {
-    return { meta: 13, de: 24, tr: 19, ex: 14, title: 13 };
+    return { meta: 12, de: 20, tr: 16, ex: 14, title: 13 };
   }
-  return { meta: 12, de: 22, tr: 18, ex: 13, title: 12 };
-}
-
-/** Yenile sütunu genişliği (dokunma alanı) */
-const REFRESH_COL_W = 86;
-
-/** 1. kelime metni sağda yenileye çarpmasın diye max genişlik (yaklaşık pt) */
-function firstWordColumnMaxWidth() {
-  const wf = config.widgetFamily;
-  if (wf === "large" || wf === "extraLarge") return 252;
-  if (wf === "medium") return 218;
-  return 196;
+  return { meta: 11, de: 19, tr: 15, ex: 13, title: 12 };
 }
 
 function wordCardChrome() {
@@ -128,34 +118,44 @@ function fillWordLinkedStack(stack, word, ty) {
   const exOne = stack.addText(`Ö.: ${word.example || "—"}`);
   exOne.textColor = new Color("#cbd5e1", 1);
   exOne.font = Font.systemFont(ty.ex);
-  exOne.lineLimit = 1;
-  exOne.minimumScaleFactor = 0.48;
+  exOne.lineLimit = 2;
+  exOne.minimumScaleFactor = 0.5;
 }
 
-/** Satıra eklenen geniş yenile alanı (MapGet: ayrı stack + url) */
-function addRefreshTapStackToRow(row, ru) {
-  const rb = row.addStack();
-  rb.layoutVertically();
-  rb.centerAlignContent();
-  rb.backgroundColor = new Color("#ffffff", 0.12);
-  rb.cornerRadius = 12;
-  rb.borderWidth = 1;
-  rb.borderColor = new Color("#7dd3fc", 0.25);
-  rb.setPadding(14, 16, 14, 16);
-  rb.size = new Size(REFRESH_COL_W, 0);
-  rb.url = ru;
+/** Üstte tam genişlik yatay yenile şeridi (orta+); ikon + yazı ortada, çok yüksek değil. */
+function addRefreshBarFullWidth(parent, ru, widthPt) {
+  const row = parent.addStack();
+  row.layoutHorizontally();
+  row.size = new Size(widthPt, 0);
+  row.backgroundColor = new Color("#ffffff", 0.1);
+  row.cornerRadius = 10;
+  row.borderWidth = 1;
+  row.borderColor = new Color("#7dd3fc", 0.22);
+  row.setPadding(7, 12, 7, 12);
+  row.centerAlignContent();
+  row.url = ru;
+
+  row.addSpacer(null);
+  const inner = row.addStack();
+  inner.layoutHorizontally();
+  inner.spacing = 7;
+  inner.centerAlignContent();
+  inner.url = ru;
+
   const sym = SFSymbol.named("arrow.clockwise");
   sym.applyBoldWeight();
-  const im = rb.addImage(sym.image);
-  im.imageSize = new Size(26, 26);
+  const im = inner.addImage(sym.image);
+  im.imageSize = new Size(17, 17);
   im.tintColor = new Color("#7dd3fc", 1);
-  rb.addSpacer(4);
-  const lab = rb.addText("Yenile");
-  lab.font = Font.semiboldSystemFont(12);
+  const lab = inner.addText("Yenile");
+  lab.font = Font.semiboldSystemFont(11);
   lab.textColor = new Color("#bae6fd", 1);
   lab.lineLimit = 1;
-  lab.minimumScaleFactor = 0.65;
-  return rb;
+  lab.minimumScaleFactor = 0.7;
+  lab.url = ru;
+
+  row.addSpacer(null);
+  return row;
 }
 
 /** Widget genişliğine yakın pt (Scriptable tam flex yok); gri kart sağa kadar uzar. */
@@ -577,7 +577,7 @@ async function fetchGeminiNewWordsBatch(excludeSet, count) {
 }
 
 /**
- * Önce tek istekte 5 kelime (hızlı). Çakışma / eksik yanıtta sırayla yedek (doğru ama daha yavaş).
+ * Önce tek istekte toplu kelime (hızlı). Çakışma / eksik yanıtta sırayla yedek (doğru ama daha yavaş).
  */
 async function fetchNewWordsForRun(excludeSet, count) {
   try {
@@ -656,37 +656,16 @@ function buildWidget(state) {
     return w;
   }
 
-  w.addSpacer(3);
+  w.addSpacer(2);
 
   const splitRefresh = widgetSupportsStackLinks() && Boolean(ru);
+  const cardW = approxFullBleedCardWidthPt();
 
   if (splitRefresh) {
-    const row0 = w.addStack();
-    row0.layoutHorizontally();
-    row0.spacing = 5;
-    row0.centerAlignContent();
-
-    const ch = wordCardChrome();
-    const w0wrap = row0.addStack();
-    w0wrap.layoutVertically();
-    w0wrap.backgroundColor = ch.bg;
-    w0wrap.cornerRadius = ch.radius;
-    w0wrap.borderWidth = 1;
-    w0wrap.borderColor = ch.border;
-    w0wrap.setPadding(2, 2, 2, 2);
-
-    const w0 = w0wrap.addStack();
-    w0.layoutVertically();
-    w0.setPadding(5, 8, 5, 8);
-    w0.size = new Size(firstWordColumnMaxWidth(), 0);
-    fillWordLinkedStack(w0, words[0], ty);
-    const open0 = wordOpenUrl(words[0].id);
-    if (linksOk && open0) w0wrap.url = open0;
-
-    addRefreshTapStackToRow(row0, ru);
-
-    for (let i = 1; i < words.length; i++) {
-      buildFullWidthWordBlock(w, words[i], ty, linksOk, true);
+    addRefreshBarFullWidth(w, ru, cardW);
+    w.addSpacer(4);
+    for (let i = 0; i < words.length; i++) {
+      buildFullWidthWordBlock(w, words[i], ty, linksOk, i > 0);
     }
   } else {
     for (let i = 0; i < words.length; i++) {
