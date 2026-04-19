@@ -373,6 +373,11 @@ textarea.field-input {
   margin-bottom: 1.5rem;
 }
 
+.new-list-name-field {
+  margin-top: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
 .lists-section {
   margin-bottom: 1rem;
 }

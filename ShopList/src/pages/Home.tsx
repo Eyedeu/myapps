@@ -40,6 +40,7 @@ function parseListDoc(id: string, data: Record<string, unknown>): ListRow {
 
 export function Home({ db }: Props) {
   const [lists, setLists] = useState<ListRow[]>([])
+  const [newListName, setNewListName] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [snapErr, setSnapErr] = useState<string | null>(null)
@@ -62,12 +63,14 @@ export function Home({ db }: Props) {
     setBusy(true)
     try {
       const id = crypto.randomUUID()
+      const title = newListName.trim() || defaultListTitle()
       await setDoc(doc(db, 'shopLists', id), {
         createdAt: serverTimestamp(),
-        title: defaultListTitle(),
+        title,
         pendingCount: 0,
         totalCount: 0,
       })
+      setNewListName('')
       navigateTo({ name: 'list', listId: id })
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))
@@ -100,10 +103,32 @@ export function Home({ db }: Props) {
 
       <section className="card new-list-card">
         <h2>Yeni liste</h2>
-        <p className="muted">Market veya ev ihtiyaçları için yeni bir liste açın.</p>
-        <button type="button" className="btn primary block" disabled={busy} onClick={() => void createList()}>
-          {busy ? 'Oluşturuluyor…' : 'Yeni liste oluştur'}
-        </button>
+        <p className="muted">Market veya ev ihtiyaçları için yeni bir liste açın. Adı boş bırakırsanız otomatik bir başlık atanır; sonra listede değiştirebilirsiniz.</p>
+        <form
+          className="new-list-form"
+          onSubmit={(e) => {
+            e.preventDefault()
+            void createList()
+          }}
+        >
+          <label className="field new-list-name-field">
+            <span className="field-label">Liste adı</span>
+            <input
+              className="field-input"
+              type="text"
+              value={newListName}
+              onChange={(e) => setNewListName(e.target.value)}
+              placeholder={defaultListTitle()}
+              maxLength={80}
+              disabled={busy}
+              enterKeyHint="done"
+              aria-label="Yeni liste adı"
+            />
+          </label>
+          <button type="submit" className="btn primary block" disabled={busy}>
+            {busy ? 'Oluşturuluyor…' : 'Yeni liste oluştur'}
+          </button>
+        </form>
       </section>
 
       <section className="lists-section">
