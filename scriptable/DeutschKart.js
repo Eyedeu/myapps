@@ -1,5 +1,6 @@
 // DeutschKart — Scriptable widget + Supabase (ana PWA ile ortak geçmiş)
-// CONFIG'ü doldur → kaydet → ▶ Evet ile 5 yeni kelime üretin; widget en son 5 benzersiz kelimeyi listeler.
+// Orta/büyük widget: sağ üst ↻ → Scriptable açılır, 5 kelime üretilir (Evet/Hayır yok). iOS, iş bitince ana ekrana otomatik dönüşe izin vermez.
+// CONFIG'ü doldur → kaydet. İlk kurulum veya küçük widget için ▶ menüden de çalıştırabilirsin.
 
 const CONFIG = {
   GEMINI_API_KEY: "",
@@ -10,13 +11,52 @@ const CONFIG = {
 /** Önce bu, yoğunluk hatasında sırayla denenir */
 const GEMINI_MODELS = ["gemini-3.1-flash-lite-preview", "gemini-2.0-flash"];
 
-/** Ana ekranda gösterilecek benzersiz kelime sayısı (küçük / orta widget) */
-const WIDGET_MAX_WORDS = 5;
-
 /** ▶ Evet ile tek seferde üretilecek yeni kelime sayısı */
 const WORDS_PER_GENERATE_RUN = 5;
 
 const LEVEL_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"];
+
+/** Örnek cümle sığsın diye boyuta göre kelime sayısı */
+function widgetWordLimit() {
+  const wf = config.widgetFamily;
+  if (wf === "large" || wf === "extraLarge") return 5;
+  if (wf === "medium") return 4;
+  if (wf === "small") return 2;
+  return 4;
+}
+
+function widgetTypography() {
+  const wf = config.widgetFamily;
+  if (wf === "large" || wf === "extraLarge") {
+    return { de: 12, tr: 10, ex: 9, exLines: 2, level: 9, title: 12 };
+  }
+  if (wf === "medium") {
+    return { de: 11, tr: 9, ex: 8, exLines: 2, level: 8, title: 11 };
+  }
+  return { de: 10, tr: 9, ex: 8, exLines: 2, level: 8, title: 11 };
+}
+
+/** Scriptable: stack.url yalnızca medium+ ; küçük widget tek dokunuş = ListWidget.url */
+function widgetSupportsStackLinks() {
+  const wf = config.widgetFamily;
+  return wf === "medium" || wf === "large" || wf === "extraLarge";
+}
+
+function refreshRunUrl() {
+  try {
+    const base = URLScheme.forRunningScript();
+    const sep = base.indexOf("?") >= 0 ? "&" : "?";
+    return `${base}${sep}dkAction=refresh`;
+  } catch (e) {
+    return "";
+  }
+}
+
+function reloadHomeWidgets() {
+  try {
+    if (typeof refreshAllWidgets === "function") refreshAllWidgets();
+  } catch (e) {}
+}
 
 function normalizeDe(de) {
   return String(de || "")
@@ -322,9 +362,10 @@ async function fetchWidgetState() {
         hint: "Henüz kelime yok.\nScriptable → bu script → ▶ → Evet ile kelime üretin.",
       };
     }
+    const limit = widgetWordLimit();
     const words = dedupeWordsByDe(raw)
       .sort((a, b) => new Date(b.shownAt) - new Date(a.shownAt))
-      .slice(0, WIDGET_MAX_WORDS);
+      .slice(0, limit);
     return { words, hint: null };
   } catch (e) {
     const msg = String(e.message || e).slice(0, 180);
@@ -338,59 +379,112 @@ async function fetchWidgetState() {
 function buildWidget(state) {
   const { words, hint } = state;
   const w = new ListWidget();
-  w.backgroundColor = new Color("#0f1115", 1);
+  const grad = new LinearGradient();
+  grad.colors = [new Color("#161c28", 1), new Color("#0a0d12", 1)];
+  grad.locations = [0, 1];
+  w.backgroundGradient = grad;
   w.setPadding(10, 12, 10, 12);
 
-  const title = w.addText("DeutschKart");
-  title.textColor = new Color("#94a3b8", 1);
-  title.font = Font.semiboldSystemFont(11);
+  const ty = widgetTypography();
+  const ru = refreshRunUrl();
+
+  const head = w.addStack();
+  head.layoutHorizontally();
+  head.centerAlignContent();
+
+  const titleStack = head.addStack();
+  titleStack.layoutVertically();
+  const title = titleStack.addText("DeutschKart");
+  title.textColor = new Color("#cbd5e1", 1);
+  title.font = Font.semiboldSystemFont(ty.title);
+
+  head.addSpacer(null);
+
+  if (widgetSupportsStackLinks() && ru) {
+    const rb = head.addStack();
+    rb.layoutVertically();
+    rb.backgroundColor = new Color("#ffffff", 0.1);
+    rb.cornerRadius = 10;
+    rb.setPadding(6, 8, 6, 8);
+    rb.url = ru;
+    const sym = SFSymbol.named("arrow.clockwise");
+    sym.applySemiboldWeight();
+    const im = rb.addImage(sym.image);
+    im.imageSize = new Size(17, 17);
+    im.tintColor = new Color("#7dd3fc", 1);
+  }
 
   if (!words || !words.length) {
     w.addSpacer(6);
     const t2 = w.addText(hint || "Ayarları kontrol edin.");
-    t2.textColor = Color.gray();
+    t2.textColor = new Color("#94a3b8", 1);
     t2.font = Font.systemFont(10);
     t2.minimumScaleFactor = 0.65;
+    if (config.widgetFamily === "small" && ru) w.url = ru;
     return w;
   }
 
-  w.addSpacer(4);
+  w.addSpacer(5);
   for (let i = 0; i < words.length; i++) {
     const word = words[i];
-    if (i > 0) w.addSpacer(3);
+    if (i > 0) w.addSpacer(5);
 
-    const row = w.addStack();
-    row.layoutHorizontally();
-    row.centerAlignContent();
+    const card = w.addStack();
+    card.layoutVertically();
+    card.backgroundColor = new Color("#ffffff", 0.06);
+    card.cornerRadius = 10;
+    card.borderWidth = 1;
+    card.borderColor = new Color("#7dd3fc", 0.15);
+    card.setPadding(7, 9, 7, 9);
 
-    const lv = row.addText(word.level);
+    const top = card.addStack();
+    top.layoutHorizontally();
+    top.centerAlignContent();
+
+    const lv = top.addText(word.level);
     lv.textColor = new Color("#7dd3fc", 1);
-    lv.font = Font.boldSystemFont(9);
+    lv.font = Font.boldSystemFont(ty.level);
     lv.minimumScaleFactor = 0.7;
     lv.lineLimit = 1;
 
-    row.addSpacer(5);
+    top.addSpacer(6);
 
-    const col = row.addStack();
-    col.layoutVertically();
+    const titles = top.addStack();
+    titles.layoutVertically();
 
-    const de = col.addText(word.de);
+    const de = titles.addText(word.de);
     de.textColor = Color.white();
-    de.font = Font.boldSystemFont(12);
-    de.minimumScaleFactor = 0.65;
-    de.lineLimit = 1;
+    de.font = Font.boldSystemFont(ty.de);
+    de.minimumScaleFactor = 0.6;
+    de.lineLimit = 2;
 
-    const tr = col.addText(word.tr);
-    tr.textColor = new Color("#b8c0d0", 1);
-    tr.font = Font.systemFont(10);
-    tr.minimumScaleFactor = 0.65;
-    tr.lineLimit = 1;
+    const tr = titles.addText(word.tr);
+    tr.textColor = new Color("#e2e8f0", 1);
+    tr.font = Font.systemFont(ty.tr);
+    tr.minimumScaleFactor = 0.6;
+    tr.lineLimit = 2;
+
+    card.addSpacer(4);
+    const exLabel = card.addText("Örnek");
+    exLabel.textColor = new Color("#64748b", 1);
+    exLabel.font = Font.mediumSystemFont(Math.max(7, ty.ex - 2));
+    card.addSpacer(2);
+    const ex = card.addText(word.example || "—");
+    ex.textColor = new Color("#a8b4c4", 1);
+    ex.font = Font.systemFont(ty.ex);
+    ex.lineLimit = ty.exLines;
+    ex.minimumScaleFactor = 0.55;
   }
 
-  w.addSpacer(4);
-  const hint2 = w.addText("Yenile: ▶ (5 yeni kelime)");
-  hint2.textColor = Color.darkGray();
-  hint2.font = Font.systemFont(9);
+  w.addSpacer(null);
+  if (config.widgetFamily === "small" && ru) {
+    w.url = ru;
+  } else if (widgetSupportsStackLinks()) {
+    const foot = w.addText("↻ Sağ üst: 5 yeni kelime");
+    foot.textColor = new Color("#475569", 1);
+    foot.font = Font.systemFont(8);
+    foot.minimumScaleFactor = 0.7;
+  }
 
   return w;
 }
@@ -422,6 +516,23 @@ async function main() {
     t.textColor = Color.lightGray();
     t.font = Font.systemFont(11);
     Script.setWidget(w);
+    Script.complete();
+    return;
+  }
+
+  const qp = (typeof args !== "undefined" && args.queryParameters) || {};
+  const isRefreshTap = !config.runsInWidget && String(qp.dkAction || "") === "refresh";
+  if (isRefreshTap) {
+    try {
+      await runGenerateFlow();
+      reloadHomeWidgets();
+    } catch (err) {
+      const er = new Alert();
+      er.title = "Yenileme hatası";
+      er.message = String(err.message || err).slice(0, 400);
+      er.addAction("Kapat");
+      await er.present();
+    }
     Script.complete();
     return;
   }
