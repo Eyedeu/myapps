@@ -8,6 +8,7 @@
 const CONFIG = {
   GEMINI_API_KEY: "",
   SUPABASE_URL: "", // https://xxxxx.supabase.co (sonda / olmasın)
+  // Dashboard → API Keys → Publishable (sb_publishable_…) veya legacy anon (eyJ…)
   SUPABASE_ANON_KEY: "",
 };
 

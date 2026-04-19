@@ -76,13 +76,15 @@
         <div class="card" style="margin-top: 1rem">
           <h2>Supabase (Scriptable ile ortak)</h2>
           <p class="hint">
-            Repodaki <code>dk/supabase-setup.sql</code> dosyasını Supabase SQL Editor’de çalıştırın. Project Settings → API’den URL ve
-            <strong>anon public</strong> key kopyalayın. Scriptable scriptinde aynı değerleri kullanın.
+            Repodaki <code>dk/supabase-setup.sql</code> dosyasını Supabase SQL Editor’de çalıştırın. Project Settings →
+            <strong>Data API</strong> bölümünden proje URL’sini; <strong>API Keys</strong> sayfasından
+            <strong>Publishable</strong> anahtarı (<code>sb_publishable_…</code>) kopyalayın — <strong>Secret</strong> anahtarı
+            asla tarayıcıya yapıştırmayın. Eski projelerde “Legacy” <code>eyJ…</code> anon hâlâ çalışıyorsa o da olur.
           </p>
           <label for="sb-url">Supabase URL</label>
           <input id="sb-url" type="text" autocomplete="off" placeholder="https://xxxx.supabase.co" />
-          <label for="sb-anon">Supabase anon key</label>
-          <input id="sb-anon" type="password" autocomplete="off" placeholder="eyJ…" />
+          <label for="sb-anon">Supabase API anahtarı (Publishable)</label>
+          <input id="sb-anon" type="password" autocomplete="off" placeholder="sb_publishable_… veya eski eyJ… anon" />
           <div class="row-actions">
             <button type="button" class="primary" id="btn-sb-kaydet">Supabase kaydet</button>
             <button type="button" class="ghost" id="btn-sb-sil">Supabase sil</button>
