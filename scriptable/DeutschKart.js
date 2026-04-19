@@ -1,7 +1,7 @@
 // DeutschKart — Scriptable widget + Supabase (ana PWA ile ortak geçmiş)
-// Etkileşim modeli MapGet (myapps/mapget) ile aynı: her hedef alanın kök `stack.url` değeri farklı (PWA kelime / yenile scripti).
+// Etkileşim modeli MapGet (myapps/mapget) ile aynı: PWA / harici hedeflerde kök `stack.url` = doğrudan https://… (Scriptable köprüsü yok; widget güvenilir açılır).
 // Orta+büyük: 1. kelime satırı solda dar sütun (sağda geniş yenile dokunması), diğer kelimeler tam genişlik + tam yükseklikte PWA linki.
-// When interacting: Run script — URL’li stack’lerde Scriptable önce URL’yi açar.
+// PWA kelime / başlık: https URL → Safari. Yenile: script URL (Run script) ile üretim.
 // CONFIG'ü doldur → kaydet.
 
 const CONFIG = {
@@ -215,24 +215,10 @@ function pwaHomeUrl() {
   return raw.replace(/\/?$/, "/");
 }
 
-/** https PWA adresini scriptable run + dkOpenUrl ile köprüle (widget kelimesi → Safari, Evet/Hayır yok). */
-function pwaBridgeOpenUrl(targetHttps) {
-  if (!targetHttps) return "";
-  if (!widgetSupportsStackLinks()) return String(targetHttps);
-  try {
-    const bridge = URLScheme.forRunningScript();
-    const sep = bridge.indexOf("?") >= 0 ? "&" : "?";
-    return `${bridge}${sep}dkOpenUrl=${encodeURIComponent(String(targetHttps))}`;
-  } catch (e) {
-    return String(targetHttps);
-  }
-}
-
 function wordOpenUrl(wordId) {
   const base = pwaHomeUrl();
   if (!base || !wordId) return "";
-  const target = `${base}#/w/${encodeURIComponent(String(wordId))}`;
-  return pwaBridgeOpenUrl(target);
+  return `${base}#/w/${encodeURIComponent(String(wordId))}`;
 }
 
 function normalizeDe(de) {
@@ -291,8 +277,13 @@ async function sbInsertWord(word) {
 }
 
 function sleep(ms) {
+  const delay = Math.max(1, Math.floor(Number(ms) || 0));
   return new Promise((resolve) => {
-    setTimeout(resolve, ms);
+    try {
+      Timer.schedule(delay, false, resolve);
+    } catch (e) {
+      resolve();
+    }
   });
 }
 
@@ -592,10 +583,9 @@ function buildWidget(state) {
   const title = head.addText("DeutschKart");
   title.textColor = new Color("#cbd5e1", 1);
   title.font = Font.semiboldSystemFont(ty.title);
-  const homeBridge = pwaBridgeOpenUrl(homeU);
-  if (linksOk && homeBridge) {
-    head.url = homeBridge;
-    title.url = homeBridge;
+  if (linksOk && homeU) {
+    head.url = homeU;
+    title.url = homeU;
   }
 
   if (!words || !words.length) {
@@ -604,8 +594,7 @@ function buildWidget(state) {
     t2.textColor = new Color("#94a3b8", 1);
     t2.font = Font.systemFont(10);
     t2.minimumScaleFactor = 0.65;
-    const hb = pwaBridgeOpenUrl(homeU);
-    if (linksOk && hb) t2.url = hb;
+    if (linksOk && homeU) t2.url = homeU;
     return w;
   }
 
@@ -671,7 +660,7 @@ async function runGenerateFlow() {
 async function main() {
   const qp = (typeof args !== "undefined" && args.queryParameters) || {};
   const dkOpenUrl = qp.dkOpenUrl;
-  if (!config.runsInWidget && dkOpenUrl) {
+  if (dkOpenUrl) {
     try {
       const u = decodeURIComponent(String(dkOpenUrl));
       if (u.startsWith("http")) Safari.open(u);
