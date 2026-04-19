@@ -1,0 +1,72 @@
+DeutschKart (dk) + Scriptable + Supabase — iPhone ile kurulum
+==============================================================
+
+ÖNEMLİ GÜVENLİK
+- API anahtarlarını asla GitHub’a commit etmeyin, ekran görüntüsünde paylaşmayın.
+- Bir yere ifşa olduysa: Supabase → API Keys → ilgili Publishable anahtarını silin / yenileyin.
+
+A) Supabase (bir kez, Safari’den)
+---------------------------------
+1) supabase.com → projeniz (ör. Eyedeu's Project).
+
+2) Sol: SQL → New query.
+   Repodaki dosya: dk/supabase-setup.sql
+   İçeriğin tamamını yapıştır → RUN (hatasız bittiğinden emin olun).
+
+3) Sol: Integrations → Data API (veya Project Settings → Data API).
+   "API URL" satırını kopyalayın, örnek biçim:
+   https://xxxx.supabase.co
+   (sonunda / olmasın)
+
+4) Sol: Project Settings → API Keys.
+   "Publishable key" altındaki sb_publishable_... değerini kopyalayın.
+   Secret (sb_secret_...) anahtarını TARAYICIYA ve Scriptable’a KOYMAYIN.
+
+B) GitHub Pages’in yayınlanması
+--------------------------------
+1) Bu değişiklikler repoda zaten push’landıysa: GitHub → Actions →
+   "Deploy GitHub Pages" yeşil olsun.
+
+2) Site adresi (örnek):
+   https://KULLANICI_ADIN.github.io/myapps/dk/
+   KULLANICI_ADIN ve org adını kendi hesabınıza göre düzeltin.
+
+C) PWA — Safari (Ana uygulama)
+------------------------------
+1) iPhone’da Safari ile yukarıdaki /dk/ adresini açın.
+
+2) Ayarlar sekmesi:
+   - Gemini API anahtarı (aistudio.google.com/apikey) → Kaydet
+   - Supabase URL → Data API’den kopyaladığınız URL
+   - Supabase API anahtarı (Publishable) → sb_publishable_... → Supabase kaydet
+
+3) Kart sekmesi → "Yeni kelime" ile deneyin.
+   Hata alırsanız: Gemini kısıtlarında HTTP yönlendirici olarak
+   https://*.github.io/*/dk/* ekleyin.
+
+4) Geçmiş sekmesi: kelimeler seviyeye göre listelenir.
+   Scriptable’dan gelen kelimeleri görmek için önce "Sunucudan çek"
+   veya Geçmiş’e tekrar girin.
+
+5) Ana ekrana ikon: Safari paylaş → Ana Ekrana Ekle.
+
+D) Scriptable (widget)
+----------------------
+1) GitHub’da scriptable/DeutschKart.js → Raw → tüm dosyayı kopyalayın.
+
+2) Scriptable uygulaması → + → Script → yapıştır → Kaydet (isim: DeutschKart).
+
+3) Dosyanın en üstündeki CONFIG içine yapıştırın:
+   GEMINI_API_KEY: AI Studio anahtarınız
+   SUPABASE_URL: Data API URL (https://....supabase.co)
+   SUPABASE_ANON_KEY: Publishable anahtar (sb_publishable_...)
+
+4) Scripti kaydedin. Bir kez ▶ Çalıştır → "Evet" → kelime üretilir ve Supabase’e yazılır.
+
+5) Ana ekran → uzun bas → + → Scriptable → bu script → widget boyutu → Ekle.
+
+E) Sorun giderme
+----------------
+- "Failed to fetch" / CORS: Gemini anahtarında yönlendirici; veya Safari özel mod değil.
+- Supabase 401/403: SQL’in çalıştığını kontrol edin; URL ve Publishable’ı yeniden yapıştırın.
+- Tablo boş: önce Scriptable’dan veya PWA’dan bir kelime üretin; sonra Sunucudan çek.
