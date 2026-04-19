@@ -1,5 +1,6 @@
 // DeutschKart — Scriptable widget + Supabase (ana PWA ile ortak geçmiş)
-// Orta/büyük widget: sağ üst ↻ → Scriptable açılır, 5 kelime üretilir (Evet/Hayır yok). iOS, iş bitince ana ekrana otomatik dönüşe izin vermez.
+// Orta/büyük: sağ üst ↻ = yalnız yenile (script). Kelime alanı = PWA (#/w/id). Başlığa dokununca PWA ana sayfa (script tetiklenmesin diye).
+// Hâlâ dokununca Scriptable soruyorsa: Ana ekranda widget’ı uzun bas → Düzenle → Scriptable’ın “Etkileşim” / URL seçeneklerine bakın.
 // CONFIG'ü doldur → kaydet. İlk kurulum veya küçük widget için ▶ menüden de çalıştırabilirsin.
 
 const CONFIG = {
@@ -74,12 +75,12 @@ function widgetWordLimit() {
 function widgetTypography() {
   const wf = config.widgetFamily;
   if (wf === "large" || wf === "extraLarge") {
-    return { de: 14, tr: 11, ex: 10, exLines: 3, level: 10, title: 13, pos: 8 };
+    return { meta: 9, de: 15, tr: 12, ex: 10, title: 11 };
   }
   if (wf === "medium") {
-    return { de: 12, tr: 10, ex: 9, exLines: 2, level: 9, title: 12, pos: 8 };
+    return { meta: 8, de: 13, tr: 11, ex: 9, title: 10 };
   }
-  return { de: 11, tr: 9, ex: 8, exLines: 2, level: 8, title: 11, pos: 7 };
+  return { meta: 8, de: 12, tr: 10, ex: 8, title: 10 };
 }
 
 /** Scriptable: stack.url yalnızca medium+ ; küçük widget tek dokunuş = ListWidget.url */
@@ -104,10 +105,15 @@ function reloadHomeWidgets() {
   } catch (e) {}
 }
 
-function wordOpenUrl(wordId) {
+function pwaHomeUrl() {
   const raw = String(CONFIG.PWA_OPEN_URL || "").trim();
-  if (!raw || !wordId) return "";
-  const base = raw.replace(/\/?$/, "/");
+  if (!raw) return "";
+  return raw.replace(/\/?$/, "/");
+}
+
+function wordOpenUrl(wordId) {
+  const base = pwaHomeUrl();
+  if (!base || !wordId) return "";
   return `${base}#/w/${encodeURIComponent(String(wordId))}`;
 }
 
@@ -446,12 +452,13 @@ function buildWidget(state) {
   grad.colors = [new Color("#161c28", 1), new Color("#0a0d12", 1)];
   grad.locations = [0, 1];
   w.backgroundGradient = grad;
-  w.setPadding(10, 12, 10, 12);
+  w.setPadding(6, 10, 6, 10);
 
   const ty = widgetTypography();
   const ru = refreshRunUrl();
-  const pwaBaseOk = Boolean(String(CONFIG.PWA_OPEN_URL || "").trim());
+  const pwaBaseOk = Boolean(pwaHomeUrl());
   const linksOk = widgetSupportsStackLinks() && pwaBaseOk;
+  const homeU = pwaHomeUrl();
 
   const head = w.addStack();
   head.layoutHorizontally();
@@ -462,6 +469,10 @@ function buildWidget(state) {
   const title = titleStack.addText("DeutschKart");
   title.textColor = new Color("#cbd5e1", 1);
   title.font = Font.semiboldSystemFont(ty.title);
+  if (linksOk && homeU) {
+    titleStack.url = homeU;
+    title.url = homeU;
+  }
 
   head.addSpacer(null);
 
@@ -469,8 +480,8 @@ function buildWidget(state) {
     const rb = head.addStack();
     rb.layoutVertically();
     rb.backgroundColor = new Color("#ffffff", 0.1);
-    rb.cornerRadius = 10;
-    rb.setPadding(6, 8, 6, 8);
+    rb.cornerRadius = 8;
+    rb.setPadding(4, 7, 4, 7);
     rb.url = ru;
     const sym = SFSymbol.named("arrow.clockwise");
     sym.applySemiboldWeight();
@@ -480,89 +491,69 @@ function buildWidget(state) {
   }
 
   if (!words || !words.length) {
-    w.addSpacer(6);
+    w.addSpacer(4);
     const t2 = w.addText(hint || "Ayarları kontrol edin.");
     t2.textColor = new Color("#94a3b8", 1);
     t2.font = Font.systemFont(10);
     t2.minimumScaleFactor = 0.65;
+    if (linksOk && homeU) {
+      t2.url = homeU;
+    }
     return w;
   }
 
-  w.addSpacer(5);
+  w.addSpacer(2);
   for (let i = 0; i < words.length; i++) {
     const word = words[i];
-    if (i > 0) w.addSpacer(5);
+    if (i > 0) w.addSpacer(2);
 
     const card = w.addStack();
     card.layoutVertically();
     card.backgroundColor = new Color("#ffffff", 0.05);
-    card.cornerRadius = 11;
+    card.cornerRadius = 8;
     card.borderWidth = 1;
-    card.borderColor = new Color("#7dd3fc", 0.12);
-    card.setPadding(4, 4, 4, 4);
+    card.borderColor = new Color("#7dd3fc", 0.1);
+    card.setPadding(2, 2, 2, 2);
 
     const tap = card.addStack();
     tap.layoutVertically();
-    tap.setPadding(8, 9, 8, 9);
+    tap.setPadding(5, 7, 5, 7);
     const open = wordOpenUrl(word.id);
     if (linksOk && open) tap.url = open;
 
-    const posLine = tap.addText(POS_TR[word.pos] || POS_TR.phrase);
-    posLine.textColor = new Color("#94a3b8", 1);
-    posLine.font = Font.semiboldSystemFont(ty.pos);
-    posLine.lineLimit = 1;
-    posLine.minimumScaleFactor = 0.65;
+    const meta = tap.addText(`${word.level} · ${POS_TR[word.pos] || POS_TR.phrase}`);
+    meta.textColor = new Color("#7dd3fc", 1);
+    meta.font = Font.semiboldSystemFont(ty.meta);
+    meta.lineLimit = 1;
+    meta.minimumScaleFactor = 0.55;
+    if (linksOk && open) meta.url = open;
 
-    tap.addSpacer(3);
-    const row1 = tap.addStack();
-    row1.layoutHorizontally();
-    row1.centerAlignContent();
-
-    const lv = row1.addText(word.level);
-    lv.textColor = new Color("#7dd3fc", 1);
-    lv.font = Font.boldSystemFont(ty.level);
-    lv.minimumScaleFactor = 0.65;
-    lv.lineLimit = 1;
-
-    row1.addSpacer(null);
-
-    const de = row1.addText(word.de);
+    tap.addSpacer(2);
+    const de = tap.addText(word.de);
     de.textColor = Color.white();
     de.font = Font.boldSystemFont(ty.de);
-    de.minimumScaleFactor = 0.55;
-    de.lineLimit = 2;
+    de.minimumScaleFactor = 0.5;
+    de.lineLimit = 1;
+    if (linksOk && open) de.url = open;
 
-    tap.addSpacer(4);
+    tap.addSpacer(2);
     const tr = tap.addText(word.tr);
     tr.textColor = new Color("#e2e8f0", 1);
     tr.font = Font.systemFont(ty.tr);
-    tr.minimumScaleFactor = 0.58;
-    tr.lineLimit = 2;
+    tr.minimumScaleFactor = 0.52;
+    tr.lineLimit = 1;
+    if (linksOk && open) tr.url = open;
 
-    tap.addSpacer(4);
-    const exLabel = tap.addText("Örnek");
-    exLabel.textColor = new Color("#64748b", 1);
-    exLabel.font = Font.semiboldSystemFont(Math.max(8, ty.ex - 1));
     tap.addSpacer(2);
-    const ex = tap.addText(word.example || "—");
-    ex.textColor = new Color("#cbd5e1", 1);
-    ex.font = Font.systemFont(ty.ex);
-    ex.lineLimit = ty.exLines;
-    ex.minimumScaleFactor = 0.52;
+    const exOne = tap.addText(`Ö.: ${word.example || "—"}`);
+    exOne.textColor = new Color("#cbd5e1", 1);
+    exOne.font = Font.systemFont(ty.ex);
+    exOne.lineLimit = 1;
+    exOne.minimumScaleFactor = 0.48;
+    if (linksOk && open) exOne.url = open;
   }
 
   w.addSpacer(null);
-  if (widgetSupportsStackLinks()) {
-    const foot = w.addText(pwaBaseOk ? "Kart: uygulama · ↻ yalnız sağ üst" : "CONFIG.PWA_OPEN_URL ile kart linki");
-    foot.textColor = new Color("#475569", 1);
-    foot.font = Font.systemFont(8);
-    foot.minimumScaleFactor = 0.65;
-  } else if (config.widgetFamily === "small") {
-    const foot = w.addText("Küçük widget: tür/URL yok; orta veya büyük kullanın.");
-    foot.textColor = new Color("#475569", 1);
-    foot.font = Font.systemFont(8);
-    foot.minimumScaleFactor = 0.65;
-  }
 
   return w;
 }
