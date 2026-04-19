@@ -1,18 +1,21 @@
 // DeutschKart — Scriptable widget + Supabase (ana PWA ile ortak geçmiş)
-// 1) Aşağıdaki CONFIG'ü doldur. 2) Scriptable'da bu dosyayı yeni script olarak yapıştırıp kaydet.
-// 3) Ana ekran → + → Scriptable → bu scripti küçük/orta widget olarak ekle.
-//
-// Widget (arka plan yenilemesi): Supabase'teki son kelimeyi gösterir.
-// Script'i Scriptable uygulamasından ▶ Çalıştır: "Yeni kelime?" → Evet ise Gemini + Supabase'e yazar; PWA Geçmiş'i de güncellenir.
+// CONFIG'ü doldur → kaydet → ▶ Evet ile 5 yeni kelime üretin; widget en son 5 benzersiz kelimeyi listeler.
 
 const CONFIG = {
   GEMINI_API_KEY: "",
-  SUPABASE_URL: "", // https://xxxxx.supabase.co (sonda / olmasın)
-  // Dashboard → API Keys → Publishable (sb_publishable_…) veya legacy anon (eyJ…)
+  SUPABASE_URL: "",
   SUPABASE_ANON_KEY: "",
 };
 
-const MODEL = "gemini-3.1-flash-lite-preview";
+/** Önce bu, yoğunluk hatasında sırayla denenir */
+const GEMINI_MODELS = ["gemini-3.1-flash-lite-preview", "gemini-2.0-flash"];
+
+/** Ana ekranda gösterilecek benzersiz kelime sayısı (küçük / orta widget) */
+const WIDGET_MAX_WORDS = 5;
+
+/** ▶ Evet ile tek seferde üretilecek yeni kelime sayısı */
+const WORDS_PER_GENERATE_RUN = 5;
+
 const LEVEL_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
 function normalizeDe(de) {
@@ -65,13 +68,14 @@ async function sbInsertWord(word) {
     level: word.level,
     shown_at: word.shownAt,
   });
-  try {
-    await req.load();
-  } catch {
-    /* 409 çakışma vb. */
-  }
+  await req.load();
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
 
 function stripFence(t) {
   let s = String(t || "").trim();
@@ -88,8 +92,14 @@ function sliceJsonObject(text) {
   return text.slice(i, j + 1);
 }
 
-async function fetchGeminiNewWord(excludeSet) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+function isRetryableGeminiError(msg) {
+  return /high demand|overloaded|429|503|try again|RESOURCE_EXHAUSTED|UNAVAILABLE|timeout/i.test(
+    String(msg || ""),
+  );
+}
+
+async function fetchGeminiNewWordOnce(excludeSet, modelId) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
   const excludeSample = Array.from(excludeSet)
     .sort()
     .slice(0, 120)
@@ -116,8 +126,16 @@ async function fetchGeminiNewWord(excludeSet) {
   };
   req.body = JSON.stringify(body);
 
-  const data = await req.loadJSON();
-  if (data.error) throw new Error(data.error.message || "Gemini hata");
+  let data;
+  try {
+    data = await req.loadJSON();
+  } catch (e) {
+    throw new Error(String(e.message || e));
+  }
+
+  if (data.error) {
+    throw new Error(data.error.message || "Gemini hata");
+  }
 
   const rawText =
     data?.candidates
@@ -147,57 +165,232 @@ async function fetchGeminiNewWord(excludeSet) {
   };
 }
 
-async function fetchLatestWord() {
-  const words = await sbGetAllWords();
-  if (!words.length) return null;
-  return words.sort((a, b) => new Date(b.shownAt) - new Date(a.shownAt))[0];
+async function fetchGeminiNewWord(excludeSet) {
+  let lastErr = new Error("Gemini yanıt vermedi.");
+  for (const modelId of GEMINI_MODELS) {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        if (attempt > 0) await sleep(1800 * attempt);
+        return await fetchGeminiNewWordOnce(excludeSet, modelId);
+      } catch (e) {
+        lastErr = e;
+        const msg = String(e.message || e);
+        if (/Geçersiz|Tekrar/i.test(msg)) throw e;
+        if (!isRetryableGeminiError(msg)) throw e;
+      }
+    }
+  }
+  throw lastErr;
 }
 
-function buildWidget(word) {
+/** Aynı Almanca başlığı tekrar etmeden, en yeni kaydı tutar */
+function dedupeWordsByDe(words) {
+  const m = new Map();
+  for (const x of words) {
+    const key = normalizeDe(x.de);
+    const prev = m.get(key);
+    if (!prev || new Date(x.shownAt) > new Date(prev.shownAt)) m.set(key, x);
+  }
+  return [...m.values()];
+}
+
+function parseWordPayload(payload, idSuffix) {
+  const de = String(payload.de || "").trim();
+  const tr = String(payload.tr || "").trim();
+  const example = String(payload.example || "").trim();
+  const levelRaw = String(payload.level || "").trim().toUpperCase();
+  if (!de || !tr || !example || !LEVEL_ORDER.includes(levelRaw)) {
+    throw new Error("Geçersiz model yanıtı.");
+  }
+  const suf = idSuffix != null ? String(idSuffix) : Math.random().toString(36).slice(2, 9);
+  return {
+    id: `${Date.now()}-${suf}`,
+    de,
+    tr,
+    example,
+    level: levelRaw,
+    shownAt: new Date().toISOString(),
+  };
+}
+
+async function fetchGeminiNewWordsBatchOnce(excludeSet, count, modelId) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
+  const excludeSample = Array.from(excludeSet)
+    .sort()
+    .slice(0, 200)
+    .join(", ");
+
+  const systemText = [
+    "Du bist ein deutscher Sprachtrainer. Antworte NUR mit gültigem JSON (kein Markdown):",
+    '{"words":[{"de":"...","tr":"...","example":"...","level":"B1"}, ...]}',
+    `- Im Array "words" exakt ${count} Objekte.`,
+    '- Jedes "de": ein deutsches Wort oder kurze Wendung (max. 4 Wörter).',
+    '- Jedes "tr": türkische Übersetzung.',
+    '- Jedes "example": ein deutscher Beispielsatz.',
+    '- Jedes "level": A1,A2,B1,B2,C1 oder C2.',
+    `Alle "de" müssen untereinander verschieden sein und dürfen nicht vorkommen in: ${excludeSample}`,
+  ].join("\n");
+
+  const body = {
+    systemInstruction: { parts: [{ text: systemText }] },
+    contents: [{ role: "user", parts: [{ text: `Gib genau ${count} neue Einträge in "words".` }] }],
+    generationConfig: { temperature: 0.88, responseMimeType: "application/json" },
+  };
+
+  const req = new Request(url);
+  req.method = "POST";
+  req.headers = {
+    "Content-Type": "application/json",
+    "x-goog-api-key": CONFIG.GEMINI_API_KEY.trim(),
+  };
+  req.body = JSON.stringify(body);
+
+  let data;
+  try {
+    data = await req.loadJSON();
+  } catch (e) {
+    throw new Error(String(e.message || e));
+  }
+
+  if (data.error) {
+    throw new Error(data.error.message || "Gemini hata");
+  }
+
+  const rawText =
+    data?.candidates
+      ?.flatMap((c) => c?.content?.parts || [])
+      .map((p) => p?.text)
+      .filter(Boolean)
+      .join("\n")
+      .trim() || "";
+
+  const root = JSON.parse(sliceJsonObject(stripFence(rawText)));
+  const arr = root.words;
+  if (!Array.isArray(arr) || arr.length < count) {
+    throw new Error("Batch unvollständig.");
+  }
+
+  const out = [];
+  const seen = new Set(excludeSet);
+  let idx = 0;
+  for (const item of arr) {
+    const w = parseWordPayload(item, `${idx++}-${Math.random().toString(36).slice(2, 7)}`);
+    const nd = normalizeDe(w.de);
+    if (seen.has(nd)) throw new Error("Batch enthält Duplikat oder schon vorhandenes Wort.");
+    seen.add(nd);
+    out.push(w);
+    if (out.length === count) break;
+  }
+  if (out.length < count) throw new Error("Batch unvollständig.");
+  return out;
+}
+
+async function fetchGeminiNewWordsBatch(excludeSet, count) {
+  let lastErr = new Error("Gemini yanıt vermedi.");
+  for (const modelId of GEMINI_MODELS) {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        if (attempt > 0) await sleep(2000 * attempt);
+        return await fetchGeminiNewWordsBatchOnce(excludeSet, count, modelId);
+      } catch (e) {
+        lastErr = e;
+        const msg = String(e.message || e);
+        if (/Geçersiz|Duplikat|schon vorhanden/i.test(msg)) throw e;
+        if (!isRetryableGeminiError(msg)) throw e;
+      }
+    }
+  }
+  throw lastErr;
+}
+
+/** Önce batch (hızlı), olmazsa tek kelime */
+async function fetchNewWordsForRun(excludeSet, count) {
+  try {
+    return await fetchGeminiNewWordsBatch(excludeSet, count);
+  } catch (e1) {
+    const one = await fetchGeminiNewWord(excludeSet);
+    return [one];
+  }
+}
+
+async function fetchWidgetState() {
+  try {
+    const raw = await sbGetAllWords();
+    if (!raw.length) {
+      return {
+        words: [],
+        hint: "Henüz kelime yok.\nScriptable → bu script → ▶ → Evet ile kelime üretin.",
+      };
+    }
+    const words = dedupeWordsByDe(raw)
+      .sort((a, b) => new Date(b.shownAt) - new Date(a.shownAt))
+      .slice(0, WIDGET_MAX_WORDS);
+    return { words, hint: null };
+  } catch (e) {
+    const msg = String(e.message || e).slice(0, 180);
+    return {
+      words: [],
+      hint: `Sunucu okunamadı:\n${msg}\nURL / Publishable / SQL tablosu kontrol.`,
+    };
+  }
+}
+
+function buildWidget(state) {
+  const { words, hint } = state;
   const w = new ListWidget();
   w.backgroundColor = new Color("#0f1115", 1);
-  w.setPadding(12, 12, 12, 12);
+  w.setPadding(10, 12, 10, 12);
 
-  if (!word) {
-    const t = w.addText("DeutschKart");
-    t.textColor = Color.lightGray();
-    t.font = Font.semiboldSystemFont(13);
+  const title = w.addText("DeutschKart");
+  title.textColor = new Color("#94a3b8", 1);
+  title.font = Font.semiboldSystemFont(11);
+
+  if (!words || !words.length) {
     w.addSpacer(6);
-    const t2 = w.addText("Supabase boş veya ayar eksik. Scriptable'dan ▶ Çalıştır ile kelime üretin.");
+    const t2 = w.addText(hint || "Ayarları kontrol edin.");
     t2.textColor = Color.gray();
-    t2.font = Font.systemFont(11);
-    t2.minimumScaleFactor = 0.7;
+    t2.font = Font.systemFont(10);
+    t2.minimumScaleFactor = 0.65;
     return w;
   }
 
-  const badge = w.addText(word.level);
-  badge.textColor = new Color("#7dd3fc", 1);
-  badge.font = Font.boldSystemFont(11);
+  w.addSpacer(4);
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    if (i > 0) w.addSpacer(3);
+
+    const row = w.addStack();
+    row.layoutHorizontally();
+    row.centerAlignContent();
+
+    const lv = row.addText(word.level);
+    lv.textColor = new Color("#7dd3fc", 1);
+    lv.font = Font.boldSystemFont(9);
+    lv.minimumScaleFactor = 0.7;
+    lv.lineLimit = 1;
+
+    row.addSpacer(5);
+
+    const col = row.addStack();
+    col.layoutVertically();
+
+    const de = col.addText(word.de);
+    de.textColor = Color.white();
+    de.font = Font.boldSystemFont(12);
+    de.minimumScaleFactor = 0.65;
+    de.lineLimit = 1;
+
+    const tr = col.addText(word.tr);
+    tr.textColor = new Color("#b8c0d0", 1);
+    tr.font = Font.systemFont(10);
+    tr.minimumScaleFactor = 0.65;
+    tr.lineLimit = 1;
+  }
 
   w.addSpacer(4);
-  const de = w.addText(word.de);
-  de.textColor = Color.white();
-  de.font = Font.boldSystemFont(16);
-  de.minimumScaleFactor = 0.75;
-  de.lineLimit = 2;
-
-  w.addSpacer(4);
-  const tr = w.addText(word.tr);
-  tr.textColor = new Color("#b8c0d0", 1);
-  tr.font = Font.systemFont(12);
-  tr.lineLimit = 2;
-
-  w.addSpacer(4);
-  const ex = w.addText(word.example);
-  ex.textColor = new Color("#9aa5b5", 1);
-  ex.font = Font.systemFont(11);
-  ex.lineLimit = 4;
-  ex.minimumScaleFactor = 0.75;
-
-  w.addSpacer(6);
-  const hint = w.addText("Yeni kelime: Scriptable → bu script → ▶");
-  hint.textColor = Color.darkGray();
-  hint.font = Font.systemFont(10);
+  const hint2 = w.addText("Yenile: ▶ (5 yeni kelime)");
+  hint2.textColor = Color.darkGray();
+  hint2.font = Font.systemFont(9);
 
   return w;
 }
@@ -205,10 +398,18 @@ function buildWidget(word) {
 async function runGenerateFlow() {
   assertConfig();
   const words = await sbGetAllWords();
-  const exclude = new Set(words.map((w) => normalizeDe(w.de)));
-  const newWord = await fetchGeminiNewWord(exclude);
-  await sbInsertWord(newWord);
-  return newWord;
+  const exclude = new Set(words.map((x) => normalizeDe(x.de)));
+  const fresh = await fetchNewWordsForRun(exclude, WORDS_PER_GENERATE_RUN);
+  const inserted = [];
+  for (const newWord of fresh) {
+    try {
+      await sbInsertWord(newWord);
+      inserted.push(newWord);
+    } catch (e) {
+      throw new Error(`Supabase yazılamadı: ${e.message || e}\nSQL (words tablosu) ve RLS kontrol.`);
+    }
+  }
+  return inserted;
 }
 
 async function main() {
@@ -226,25 +427,37 @@ async function main() {
   }
 
   if (config.runsInWidget) {
-    const latest = await fetchLatestWord();
-    Script.setWidget(buildWidget(latest));
+    const st = await fetchWidgetState();
+    Script.setWidget(buildWidget(st));
     Script.complete();
     return;
   }
 
   const alert = new Alert();
   alert.title = "DeutschKart";
-  alert.message = "Yeni kelime Gemini ile üretilsin ve Supabase'e (PWA Geçmiş) yazılsın mı?";
+  alert.message = `${WORDS_PER_GENERATE_RUN} yeni kelime üretilsin mi? (Geçmişteki kelimeler tekrarlanmaz; yoğunlukta otomatik yeniden dener.)`;
   alert.addAction("Evet");
   alert.addCancelAction("Hayır");
   const choice = await alert.present();
   if (choice === 0) {
-    const w = await runGenerateFlow();
-    const ok = new Alert();
-    ok.title = "Tamam";
-    ok.message = `${w.de}\n${w.tr}`;
-    ok.addAction("Kapat");
-    await ok.present();
+    try {
+      const list = await runGenerateFlow();
+      const preview = list
+        .map((nw) => `${nw.de} — ${nw.tr}`)
+        .join("\n")
+        .slice(0, 500);
+      const ok = new Alert();
+      ok.title = "Tamam";
+      ok.message = `${list.length} kelime eklendi.\n\n${preview}`;
+      ok.addAction("Kapat");
+      await ok.present();
+    } catch (err) {
+      const er = new Alert();
+      er.title = "Hata";
+      er.message = String(err.message || err).slice(0, 400);
+      er.addAction("Kapat");
+      await er.present();
+    }
   }
 
   Script.complete();

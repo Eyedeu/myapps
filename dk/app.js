@@ -1,5 +1,13 @@
 (() => {
-  const MODEL = "gemini-3.1-flash-lite-preview";
+  const GEMINI_MODELS = ["gemini-3.1-flash-lite-preview", "gemini-2.0-flash"];
+
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function isRetryableGemini(msg) {
+    return /high demand|overloaded|429|503|try again|RESOURCE_EXHAUSTED|UNAVAILABLE|timeout/i.test(String(msg || ""));
+  }
   const LS_KEY = "deutschkart_gemini_api_key";
   const LS_SB_URL = "deutschkart_sb_url";
   const LS_SB_ANON = "deutschkart_sb_anon";
@@ -176,8 +184,8 @@
     return new Set(history.map((w) => normalizeDe(w.de)));
   }
 
-  async function fetchGeminiWord(apiKey, excludeSet) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+  async function fetchGeminiWordOnce(apiKey, excludeSet, modelId) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
     const excludeSample = Array.from(excludeSet)
       .sort()
       .slice(0, 120)
@@ -241,6 +249,24 @@
       level: levelRaw,
       shownAt: new Date().toISOString(),
     };
+  }
+
+  async function fetchGeminiWord(apiKey, excludeSet) {
+    let lastErr = new Error("Gemini yanıt vermedi.");
+    for (const modelId of GEMINI_MODELS) {
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          if (attempt > 0) await sleep(1800 * attempt);
+          return await fetchGeminiWordOnce(apiKey, excludeSet, modelId);
+        } catch (e) {
+          lastErr = e;
+          const msg = String(e.message || e);
+          if (/Geçersiz|Tekrar kelime/i.test(msg)) throw e;
+          if (!isRetryableGemini(msg)) throw e;
+        }
+      }
+    }
+    throw lastErr;
   }
 
   async function commitNewWord() {
