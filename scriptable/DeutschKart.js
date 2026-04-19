@@ -14,9 +14,6 @@ const CONFIG = {
 /** Kota/istek: yalnız 3.1 flash lite (2.0 kota hatası vermesin diye kaldırıldı) */
 const GEMINI_MODELS = ["gemini-3.1-flash-lite-preview"];
 
-/** GitHub push ≠ Scriptable; widget alt satırında bunu görmüyorsan dosyayı uygulamada güncellemedin demektir. */
-const DEUTSCHKART_BUILD = "2026-04-22";
-
 /** ▶ Evet ile tek seferde üretilecek yeni kelime sayısı */
 const WORDS_PER_GENERATE_RUN = 5;
 
@@ -247,15 +244,6 @@ function normalizeDe(de) {
   return String(de || "")
     .trim()
     .toLowerCase();
-}
-
-function appendBuildFooter(parentList) {
-  parentList.addSpacer(2);
-  const foot = parentList.addText(`build ${DEUTSCHKART_BUILD}`);
-  foot.font = Font.systemFont(8);
-  foot.textColor = new Color("#475569", 1);
-  foot.lineLimit = 1;
-  foot.minimumScaleFactor = 0.5;
 }
 
 function assertConfig() {
@@ -665,7 +653,6 @@ function buildWidget(state) {
     t2.font = Font.systemFont(12);
     t2.minimumScaleFactor = 0.65;
     if (linksOk && homeTap) t2.url = homeTap;
-    appendBuildFooter(w);
     return w;
   }
 
@@ -712,7 +699,6 @@ function buildWidget(state) {
   }
 
   w.addSpacer(null);
-  appendBuildFooter(w);
   return w;
 }
 
@@ -741,9 +727,6 @@ async function main() {
     const t = w.addText(String(e.message || e));
     t.textColor = Color.lightGray();
     t.font = Font.systemFont(11);
-    const b = w.addText(`build ${DEUTSCHKART_BUILD}`);
-    b.textColor = new Color("#64748b", 1);
-    b.font = Font.systemFont(8);
     Script.setWidget(w);
     Script.complete();
     return;
