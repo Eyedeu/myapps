@@ -1,6 +1,6 @@
 // DeutschKart — Scriptable widget + Supabase (ana PWA ile ortak geçmiş)
 // Yenile: script URL + dkAction=refresh → soru yok, doğrudan üretim (widget çalışmasında da).
-// Kelime / başlık (orta+): scriptable + dkOpenUrl=https… → main girişinde Safari’de PWA (kelime sorusu yok). Küçük widget: doğrudan https.
+// Kelime (orta+): scriptable + dkW=<id> (kısa; uzun dkOpenUrl kesilmesin). Ana sayfa: dkHome=1. Küçük widget: doğrudan https.
 // Orta+büyük: 1. kelime satırı solda dar sütun (sağda yenile), diğer kelimeler tam genişlik kart.
 // CONFIG'ü doldur → kaydet.
 
@@ -14,6 +14,9 @@ const CONFIG = {
 
 /** Kota/istek: yalnız 3.1 flash lite (2.0 kota hatası vermesin diye kaldırıldı) */
 const GEMINI_MODELS = ["gemini-3.1-flash-lite-preview"];
+
+/** GitHub push ≠ Scriptable; widget alt satırında bunu görmüyorsan dosyayı uygulamada güncellemedin demektir. */
+const DEUTSCHKART_BUILD = "2026-04-21c";
 
 /** ▶ Evet ile tek seferde üretilecek yeni kelime sayısı */
 const WORDS_PER_GENERATE_RUN = 5;
@@ -215,30 +218,60 @@ function pwaHomeUrl() {
   return raw.replace(/\/?$/, "/");
 }
 
-/** Orta/büyük widget: https’i script girişinde Safari’ye yönlendir (dokununca “script çalıştır” akışına düşüp soru çıkmasın). */
-function pwaBridgeOpenUrl(targetHttps) {
-  if (!targetHttps) return "";
-  if (!widgetSupportsStackLinks()) return String(targetHttps);
+/** URL şemasından gelen parametre (Scriptable bazen anahtar büyük/küçük farkı üretebilir). */
+function queryParamCI(name) {
+  const want = String(name).toLowerCase();
+  try {
+    if (typeof args === "undefined" || !args.queryParameters) return "";
+    const qp = args.queryParameters;
+    for (const k of Object.keys(qp)) {
+      if (String(k).toLowerCase() === want) return String(qp[k] != null ? qp[k] : "");
+    }
+  } catch (e) {}
+  return "";
+}
+
+function scriptTapBridge(extraQueryNoAmp) {
   try {
     const bridge = URLScheme.forRunningScript();
     const sep = bridge.indexOf("?") >= 0 ? "&" : "?";
-    return `${bridge}${sep}dkOpenUrl=${encodeURIComponent(String(targetHttps))}`;
+    return `${bridge}${sep}${extraQueryNoAmp}`;
   } catch (e) {
-    return String(targetHttps);
+    return "";
   }
 }
 
 function wordOpenUrl(wordId) {
   const base = pwaHomeUrl();
   if (!base || !wordId) return "";
-  const target = `${base}#/w/${encodeURIComponent(String(wordId))}`;
-  return pwaBridgeOpenUrl(target);
+  const idEnc = encodeURIComponent(String(wordId));
+  const target = `${base}#/w/${idEnc}`;
+  if (!widgetSupportsStackLinks()) return target;
+  const bridged = scriptTapBridge(`dkW=${idEnc}`);
+  return bridged || target;
+}
+
+/** Başlık / boş ekran: PWA kökü (orta+ script köprüsü). */
+function homeOpenTapUrl() {
+  const base = pwaHomeUrl();
+  if (!base) return "";
+  if (!widgetSupportsStackLinks()) return base;
+  return scriptTapBridge("dkHome=1") || base;
 }
 
 function normalizeDe(de) {
   return String(de || "")
     .trim()
     .toLowerCase();
+}
+
+function appendBuildFooter(parentList) {
+  parentList.addSpacer(2);
+  const foot = parentList.addText(`build ${DEUTSCHKART_BUILD}`);
+  foot.font = Font.systemFont(7);
+  foot.textColor = new Color("#475569", 1);
+  foot.lineLimit = 1;
+  foot.minimumScaleFactor = 0.5;
 }
 
 function assertConfig() {
@@ -635,7 +668,7 @@ function buildWidget(state) {
   const title = head.addText("DeutschKart");
   title.textColor = new Color("#cbd5e1", 1);
   title.font = Font.semiboldSystemFont(ty.title);
-  const homeTap = pwaBridgeOpenUrl(homeU);
+  const homeTap = homeOpenTapUrl();
   if (linksOk && homeTap) {
     head.url = homeTap;
     title.url = homeTap;
@@ -648,6 +681,7 @@ function buildWidget(state) {
     t2.font = Font.systemFont(10);
     t2.minimumScaleFactor = 0.65;
     if (linksOk && homeTap) t2.url = homeTap;
+    appendBuildFooter(w);
     return w;
   }
 
@@ -690,6 +724,7 @@ function buildWidget(state) {
   }
 
   w.addSpacer(null);
+  appendBuildFooter(w);
   return w;
 }
 
@@ -710,12 +745,38 @@ async function runGenerateFlow() {
 }
 
 async function main() {
-  const qp = (typeof args !== "undefined" && args.queryParameters) || {};
-  const dkOpenUrl = qp.dkOpenUrl;
+  const dkOpenUrl = queryParamCI("dkOpenUrl");
   if (dkOpenUrl) {
     try {
       const u = decodeURIComponent(String(dkOpenUrl));
       if (u.startsWith("http")) Safari.open(u);
+    } catch (e) {
+      /* yoksay */
+    }
+    Script.complete();
+    return;
+  }
+
+  const dkW = queryParamCI("dkW");
+  if (dkW) {
+    try {
+      const base = pwaHomeUrl();
+      if (base) {
+        const wid = decodeURIComponent(String(dkW));
+        const u = `${base}#/w/${encodeURIComponent(wid)}`;
+        Safari.open(u);
+      }
+    } catch (e) {
+      /* yoksay */
+    }
+    Script.complete();
+    return;
+  }
+
+  if (queryParamCI("dkHome") === "1") {
+    try {
+      const u = pwaHomeUrl();
+      if (u) Safari.open(u);
     } catch (e) {
       /* yoksay */
     }
@@ -731,12 +792,15 @@ async function main() {
     const t = w.addText(String(e.message || e));
     t.textColor = Color.lightGray();
     t.font = Font.systemFont(11);
+    const b = w.addText(`build ${DEUTSCHKART_BUILD}`);
+    b.textColor = new Color("#64748b", 1);
+    b.font = Font.systemFont(8);
     Script.setWidget(w);
     Script.complete();
     return;
   }
 
-  const isRefreshTap = String(qp.dkAction || "") === "refresh";
+  const isRefreshTap = queryParamCI("dkAction") === "refresh";
   if (isRefreshTap) {
     try {
       await runGenerateFlow();
