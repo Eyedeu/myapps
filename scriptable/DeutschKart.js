@@ -1,7 +1,8 @@
 // DeutschKart — Scriptable widget + Supabase (ana PWA ile ortak geçmiş)
-// Orta/büyük: sağ üst ↻ = yalnız yenile (script). Kelime alanı = PWA (#/w/id). Başlığa dokununca PWA ana sayfa (script tetiklenmesin diye).
-// Hâlâ dokununca Scriptable soruyorsa: Ana ekranda widget’ı uzun bas → Düzenle → Scriptable’ın “Etkileşim” / URL seçeneklerine bakın.
-// CONFIG'ü doldur → kaydet. İlk kurulum veya küçük widget için ▶ menüden de çalıştırabilirsin.
+// Etkileşim modeli MapGet (myapps/mapget) ile aynı: her hedef alanın kök `stack.url` değeri farklı (PWA kelime / yenile scripti).
+// Orta+büyük: 1. kelime satırı solda dar sütun (sağda geniş yenile dokunması), diğer kelimeler tam genişlik + tam yükseklikte PWA linki.
+// When interacting: Run script — URL’li stack’lerde Scriptable önce URL’yi açar.
+// CONFIG'ü doldur → kaydet.
 
 const CONFIG = {
   GEMINI_API_KEY: "",
@@ -75,12 +76,115 @@ function widgetWordLimit() {
 function widgetTypography() {
   const wf = config.widgetFamily;
   if (wf === "large" || wf === "extraLarge") {
-    return { meta: 9, de: 15, tr: 12, ex: 10, title: 11 };
+    return { meta: 10, de: 18, tr: 15, ex: 12, title: 12 };
   }
   if (wf === "medium") {
-    return { meta: 8, de: 13, tr: 11, ex: 9, title: 10 };
+    return { meta: 9, de: 16, tr: 14, ex: 11, title: 11 };
   }
-  return { meta: 8, de: 12, tr: 10, ex: 8, title: 10 };
+  return { meta: 9, de: 15, tr: 13, ex: 10, title: 10 };
+}
+
+/** Yenile sütunu genişliği (dokunma alanı) */
+const REFRESH_COL_W = 80;
+
+/** 1. kelime metni sağda yenileye çarpmasın diye max genişlik (yaklaşık pt) */
+function firstWordColumnMaxWidth() {
+  const wf = config.widgetFamily;
+  if (wf === "large" || wf === "extraLarge") return 248;
+  if (wf === "medium") return 208;
+  return 188;
+}
+
+function wordCardChrome() {
+  return {
+    bg: new Color("#ffffff", 0.06),
+    border: new Color("#7dd3fc", 0.12),
+    radius: 9,
+  };
+}
+
+/** MapGet benzeri: kök stack + alt metinlere aynı url (dokunma güvenilirliği) */
+function fillWordLinkedStack(stack, word, ty, linksOk) {
+  const open = wordOpenUrl(word.id);
+  const has = Boolean(linksOk && open);
+  if (has) stack.url = open;
+
+  const meta = stack.addText(`${word.level} · ${POS_TR[word.pos] || POS_TR.phrase}`);
+  meta.textColor = new Color("#7dd3fc", 1);
+  meta.font = Font.semiboldSystemFont(ty.meta);
+  meta.lineLimit = 1;
+  meta.minimumScaleFactor = 0.52;
+  if (has) meta.url = open;
+
+  stack.addSpacer(2);
+  const de = stack.addText(word.de);
+  de.textColor = Color.white();
+  de.font = Font.boldSystemFont(ty.de);
+  de.minimumScaleFactor = 0.45;
+  de.lineLimit = 1;
+  if (has) de.url = open;
+
+  stack.addSpacer(2);
+  const tr = stack.addText(word.tr);
+  tr.textColor = new Color("#e2e8f0", 1);
+  tr.font = Font.systemFont(ty.tr);
+  tr.minimumScaleFactor = 0.48;
+  tr.lineLimit = 1;
+  if (has) tr.url = open;
+
+  stack.addSpacer(2);
+  const exOne = stack.addText(`Ö.: ${word.example || "—"}`);
+  exOne.textColor = new Color("#cbd5e1", 1);
+  exOne.font = Font.systemFont(ty.ex);
+  exOne.lineLimit = 1;
+  exOne.minimumScaleFactor = 0.42;
+  if (has) exOne.url = open;
+}
+
+/** Satıra eklenen geniş yenile alanı (MapGet: ayrı stack + url) */
+function addRefreshTapStackToRow(row, ru) {
+  const rb = row.addStack();
+  rb.layoutVertically();
+  rb.centerAlignContent();
+  rb.backgroundColor = new Color("#ffffff", 0.12);
+  rb.cornerRadius = 12;
+  rb.borderWidth = 1;
+  rb.borderColor = new Color("#7dd3fc", 0.25);
+  rb.setPadding(14, 16, 14, 16);
+  rb.size = new Size(REFRESH_COL_W, 0);
+  rb.url = ru;
+  const sym = SFSymbol.named("arrow.clockwise");
+  sym.applyBoldWeight();
+  const im = rb.addImage(sym.image);
+  im.imageSize = new Size(24, 24);
+  im.tintColor = new Color("#7dd3fc", 1);
+  rb.addSpacer(4);
+  const lab = rb.addText("Yenile");
+  lab.font = Font.semiboldSystemFont(10);
+  lab.textColor = new Color("#bae6fd", 1);
+  lab.lineLimit = 1;
+  lab.minimumScaleFactor = 0.65;
+  lab.url = ru;
+  return rb;
+}
+
+/** 2. kelimeden itibaren tam genişlik kart (MapGet: dış stack.url = PWA) */
+function buildFullWidthWordBlock(parent, word, ty, linksOk, addTopSpacer) {
+  if (addTopSpacer) parent.addSpacer(3);
+  const ch = wordCardChrome();
+  const wrap = parent.addStack();
+  wrap.layoutVertically();
+  wrap.backgroundColor = ch.bg;
+  wrap.cornerRadius = ch.radius;
+  wrap.borderWidth = 1;
+  wrap.borderColor = ch.border;
+  wrap.setPadding(2, 2, 2, 2);
+  const tap = wrap.addStack();
+  tap.layoutVertically();
+  tap.setPadding(6, 9, 6, 9);
+  const open = wordOpenUrl(word.id);
+  if (linksOk && open) wrap.url = open;
+  fillWordLinkedStack(tap, word, ty, linksOk);
 }
 
 /** Scriptable: stack.url yalnızca medium+ ; küçük widget tek dokunuş = ListWidget.url */
@@ -452,7 +556,7 @@ function buildWidget(state) {
   grad.colors = [new Color("#161c28", 1), new Color("#0a0d12", 1)];
   grad.locations = [0, 1];
   w.backgroundGradient = grad;
-  w.setPadding(6, 10, 6, 10);
+  w.setPadding(5, 10, 5, 10);
 
   const ty = widgetTypography();
   const ru = refreshRunUrl();
@@ -461,33 +565,13 @@ function buildWidget(state) {
   const homeU = pwaHomeUrl();
 
   const head = w.addStack();
-  head.layoutHorizontally();
-  head.centerAlignContent();
-
-  const titleStack = head.addStack();
-  titleStack.layoutVertically();
-  const title = titleStack.addText("DeutschKart");
+  head.layoutVertically();
+  const title = head.addText("DeutschKart");
   title.textColor = new Color("#cbd5e1", 1);
   title.font = Font.semiboldSystemFont(ty.title);
   if (linksOk && homeU) {
-    titleStack.url = homeU;
+    head.url = homeU;
     title.url = homeU;
-  }
-
-  head.addSpacer(null);
-
-  if (widgetSupportsStackLinks() && ru) {
-    const rb = head.addStack();
-    rb.layoutVertically();
-    rb.backgroundColor = new Color("#ffffff", 0.1);
-    rb.cornerRadius = 8;
-    rb.setPadding(4, 7, 4, 7);
-    rb.url = ru;
-    const sym = SFSymbol.named("arrow.clockwise");
-    sym.applySemiboldWeight();
-    const im = rb.addImage(sym.image);
-    im.imageSize = new Size(17, 17);
-    im.tintColor = new Color("#7dd3fc", 1);
   }
 
   if (!words || !words.length) {
@@ -496,65 +580,49 @@ function buildWidget(state) {
     t2.textColor = new Color("#94a3b8", 1);
     t2.font = Font.systemFont(10);
     t2.minimumScaleFactor = 0.65;
-    if (linksOk && homeU) {
-      t2.url = homeU;
-    }
+    if (linksOk && homeU) t2.url = homeU;
     return w;
   }
 
-  w.addSpacer(2);
-  for (let i = 0; i < words.length; i++) {
-    const word = words[i];
-    if (i > 0) w.addSpacer(2);
+  w.addSpacer(3);
 
-    const card = w.addStack();
-    card.layoutVertically();
-    card.backgroundColor = new Color("#ffffff", 0.05);
-    card.cornerRadius = 8;
-    card.borderWidth = 1;
-    card.borderColor = new Color("#7dd3fc", 0.1);
-    card.setPadding(2, 2, 2, 2);
+  const splitRefresh = widgetSupportsStackLinks() && Boolean(ru);
 
-    const tap = card.addStack();
-    tap.layoutVertically();
-    tap.setPadding(5, 7, 5, 7);
-    const open = wordOpenUrl(word.id);
-    if (linksOk && open) tap.url = open;
+  if (splitRefresh) {
+    const row0 = w.addStack();
+    row0.layoutHorizontally();
+    row0.spacing = 5;
+    row0.centerAlignContent();
 
-    const meta = tap.addText(`${word.level} · ${POS_TR[word.pos] || POS_TR.phrase}`);
-    meta.textColor = new Color("#7dd3fc", 1);
-    meta.font = Font.semiboldSystemFont(ty.meta);
-    meta.lineLimit = 1;
-    meta.minimumScaleFactor = 0.55;
-    if (linksOk && open) meta.url = open;
+    const ch = wordCardChrome();
+    const w0wrap = row0.addStack();
+    w0wrap.layoutVertically();
+    w0wrap.backgroundColor = ch.bg;
+    w0wrap.cornerRadius = ch.radius;
+    w0wrap.borderWidth = 1;
+    w0wrap.borderColor = ch.border;
+    w0wrap.setPadding(2, 2, 2, 2);
 
-    tap.addSpacer(2);
-    const de = tap.addText(word.de);
-    de.textColor = Color.white();
-    de.font = Font.boldSystemFont(ty.de);
-    de.minimumScaleFactor = 0.5;
-    de.lineLimit = 1;
-    if (linksOk && open) de.url = open;
+    const w0 = w0wrap.addStack();
+    w0.layoutVertically();
+    w0.setPadding(5, 8, 5, 8);
+    w0.size = new Size(firstWordColumnMaxWidth(), 0);
+    const open0 = wordOpenUrl(words[0].id);
+    if (linksOk && open0) w0wrap.url = open0;
+    fillWordLinkedStack(w0, words[0], ty, linksOk);
 
-    tap.addSpacer(2);
-    const tr = tap.addText(word.tr);
-    tr.textColor = new Color("#e2e8f0", 1);
-    tr.font = Font.systemFont(ty.tr);
-    tr.minimumScaleFactor = 0.52;
-    tr.lineLimit = 1;
-    if (linksOk && open) tr.url = open;
+    addRefreshTapStackToRow(row0, ru);
 
-    tap.addSpacer(2);
-    const exOne = tap.addText(`Ö.: ${word.example || "—"}`);
-    exOne.textColor = new Color("#cbd5e1", 1);
-    exOne.font = Font.systemFont(ty.ex);
-    exOne.lineLimit = 1;
-    exOne.minimumScaleFactor = 0.48;
-    if (linksOk && open) exOne.url = open;
+    for (let i = 1; i < words.length; i++) {
+      buildFullWidthWordBlock(w, words[i], ty, linksOk, true);
+    }
+  } else {
+    for (let i = 0; i < words.length; i++) {
+      buildFullWidthWordBlock(w, words[i], ty, linksOk, i > 0);
+    }
   }
 
   w.addSpacer(null);
-
   return w;
 }
 
