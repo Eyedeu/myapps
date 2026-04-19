@@ -1,6 +1,8 @@
 (() => {
   const MODEL = "gemini-3.1-flash-lite-preview";
   const LS_KEY = "deutschkart_gemini_api_key";
+  const LS_SB_URL = "deutschkart_sb_url";
+  const LS_SB_ANON = "deutschkart_sb_anon";
   const LS_HISTORY = "deutschkart_history_v1";
   const LS_CURRENT = "deutschkart_current_v1";
   const LEVEL_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"];
@@ -25,6 +27,105 @@
 
   function clearApiKey() {
     localStorage.removeItem(LS_KEY);
+  }
+
+  function loadSbUrl() {
+    try {
+      return (localStorage.getItem(LS_SB_URL) || "").trim().replace(/\/+$/, "");
+    } catch {
+      return "";
+    }
+  }
+
+  function loadSbAnon() {
+    try {
+      return (localStorage.getItem(LS_SB_ANON) || "").trim();
+    } catch {
+      return "";
+    }
+  }
+
+  function saveSbUrl(v) {
+    localStorage.setItem(LS_SB_URL, v.trim().replace(/\/+$/, ""));
+  }
+
+  function saveSbAnon(v) {
+    localStorage.setItem(LS_SB_ANON, v.trim());
+  }
+
+  function clearSb() {
+    localStorage.removeItem(LS_SB_URL);
+    localStorage.removeItem(LS_SB_ANON);
+  }
+
+  function sbConfigured() {
+    return Boolean(loadSbUrl() && loadSbAnon());
+  }
+
+  function sbHeaders() {
+    const k = loadSbAnon();
+    return {
+      apikey: k,
+      Authorization: `Bearer ${k}`,
+      "Content-Type": "application/json",
+    };
+  }
+
+  function rowToWord(row) {
+    return {
+      id: row.id,
+      de: row.de,
+      tr: row.tr,
+      example: row.example,
+      level: row.level,
+      shownAt: row.shown_at || row.shownAt,
+    };
+  }
+
+  function mergeByDedupe(words) {
+    const m = new Map();
+    for (const w of words) {
+      const key = normalizeDe(w.de);
+      const prev = m.get(key);
+      if (!prev || new Date(w.shownAt) > new Date(prev.shownAt)) m.set(key, w);
+    }
+    return [...m.values()];
+  }
+
+  async function sbPullMerge() {
+    if (!sbConfigured()) return;
+    const base = loadSbUrl();
+    const r = await fetch(`${base}/rest/v1/words?select=*`, { headers: sbHeaders() });
+    const rows = await r.json().catch(() => []);
+    if (!r.ok) throw new Error(rows?.message || rows?.hint || `Supabase ${r.status}`);
+    const remote = Array.isArray(rows) ? rows.map(rowToWord) : [];
+    const local = loadHistory();
+    const merged = mergeByDedupe([...remote, ...local]);
+    saveHistory(merged);
+    const sorted = [...merged].sort((a, b) => new Date(b.shownAt) - new Date(a.shownAt));
+    if (sorted[0]) saveCurrent(sorted[0]);
+  }
+
+  async function sbInsertWord(word) {
+    if (!sbConfigured()) return;
+    const base = loadSbUrl();
+    const row = {
+      id: word.id,
+      de: word.de,
+      tr: word.tr,
+      example: word.example,
+      level: word.level,
+      shown_at: word.shownAt,
+    };
+    const r = await fetch(`${base}/rest/v1/words`, {
+      method: "POST",
+      headers: { ...sbHeaders(), Prefer: "return=minimal" },
+      body: JSON.stringify(row),
+    });
+    if (r.status === 201 || r.status === 204) return;
+    if (r.status === 409) return;
+    const t = await r.text();
+    throw new Error(t || `Supabase ${r.status}`);
   }
 
   function loadHistory() {
@@ -146,12 +247,18 @@
     const apiKey = loadApiKey();
     if (!apiKey.trim()) throw new Error("Önce Ayarlar → API anahtarı.");
 
+    if (sbConfigured()) await sbPullMerge();
+
     const history = loadHistory();
     const exclude = headwordsFromHistory(history);
     const word = await fetchGeminiWord(apiKey, exclude);
     saveHistory([...history, word]);
     saveCurrent(word);
-    return word;
+
+    if (sbConfigured()) {
+      await sbInsertWord(word);
+      await sbPullMerge();
+    }
   }
 
   function groupedHistory(history) {
@@ -182,12 +289,17 @@
   const kartTr = document.getElementById("kart-tr");
   const kartEx = document.getElementById("kart-ex");
   const btnYeni = document.getElementById("btn-yeni");
+  const btnSunucu = document.getElementById("btn-sunucu");
 
   const gecmisRoot = document.getElementById("gecmis-root");
   const apiKeyInput = document.getElementById("api-key");
   const btnKaydet = document.getElementById("btn-kaydet");
   const btnSil = document.getElementById("btn-sil");
   const ayarMesaj = document.getElementById("ayar-mesaj");
+  const sbUrlInput = document.getElementById("sb-url");
+  const sbAnonInput = document.getElementById("sb-anon");
+  const btnSbKaydet = document.getElementById("btn-sb-kaydet");
+  const btnSbSil = document.getElementById("btn-sb-sil");
 
   function selectTab(which) {
     const items = [
@@ -201,8 +313,18 @@
       panel.classList.toggle("active", active);
       panel.toggleAttribute("hidden", !active);
     }
-    if (which === "gecmis") renderHistory();
+    if (which === "gecmis") void pullAndRenderGecmis();
     if (which === "ayarlar") loadSettingsForm();
+  }
+
+  async function pullAndRenderGecmis() {
+    try {
+      if (sbConfigured()) await sbPullMerge();
+    } catch (e) {
+      gecmisRoot.innerHTML = `<p class="error">${escapeHtml(e?.message || String(e))}</p>`;
+      return;
+    }
+    renderHistory();
   }
 
   tabKart.addEventListener("click", () => selectTab("kart"));
@@ -264,24 +386,51 @@
   function loadSettingsForm() {
     const k = loadApiKey();
     apiKeyInput.value = "";
-    ayarMesaj.textContent = k ? "Kayıtlı anahtar var (yeniden gösterilmiyor)." : "Anahtar yok.";
+    sbUrlInput.value = loadSbUrl();
+    sbAnonInput.value = "";
+    let msg = [];
+    if (k) msg.push("Gemini: kayıtlı.");
+    else msg.push("Gemini: yok.");
+    if (sbConfigured()) msg.push("Supabase: URL kayıtlı, anahtar yeniden girilmeden gösterilmez.");
+    else msg.push("Supabase: yok (isteğe bağlı).");
+    ayarMesaj.textContent = msg.join(" ");
   }
 
   btnKaydet.addEventListener("click", () => {
     const v = apiKeyInput.value.trim();
     if (!v) {
-      ayarMesaj.textContent = "Boş olamaz.";
+      ayarMesaj.textContent = "Gemini boş olamaz.";
       return;
     }
     saveApiKey(v);
     apiKeyInput.value = "";
-    ayarMesaj.textContent = "Kaydedildi.";
+    ayarMesaj.textContent = "Gemini kaydedildi.";
   });
 
   btnSil.addEventListener("click", () => {
     clearApiKey();
     apiKeyInput.value = "";
-    ayarMesaj.textContent = "Silindi.";
+    ayarMesaj.textContent = "Gemini silindi.";
+  });
+
+  btnSbKaydet.addEventListener("click", () => {
+    const u = sbUrlInput.value.trim().replace(/\/+$/, "");
+    const a = sbAnonInput.value.trim();
+    if (!u || !a) {
+      ayarMesaj.textContent = "Supabase URL ve anon key birlikte girilmeli.";
+      return;
+    }
+    saveSbUrl(u);
+    saveSbAnon(a);
+    sbAnonInput.value = "";
+    ayarMesaj.textContent = "Supabase kaydedildi. Geçmiş sekmesinden çekin.";
+  });
+
+  btnSbSil.addEventListener("click", () => {
+    clearSb();
+    sbUrlInput.value = "";
+    sbAnonInput.value = "";
+    ayarMesaj.textContent = "Supabase silindi.";
   });
 
   btnYeni.addEventListener("click", async () => {
@@ -297,11 +446,36 @@
     }
   });
 
+  btnSunucu.addEventListener("click", async () => {
+    btnSunucu.disabled = true;
+    showKartError("");
+    try {
+      if (!sbConfigured()) {
+        showKartError("Önce Ayarlar’da Supabase URL ve anon key kaydedin.");
+        return;
+      }
+      await sbPullMerge();
+      renderKart();
+      ayarMesaj.textContent = "Sunucu ile eşitlendi.";
+    } catch (e) {
+      showKartError(e?.message || String(e));
+    } finally {
+      btnSunucu.disabled = false;
+    }
+  });
+
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("./sw.js").catch(() => {});
     });
   }
 
-  renderKart();
+  (async function boot() {
+    try {
+      if (sbConfigured()) await sbPullMerge();
+    } catch {
+      /* ilk açılışta ağ yoksa sessiz */
+    }
+    renderKart();
+  })();
 })();

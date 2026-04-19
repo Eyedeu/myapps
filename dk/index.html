@@ -17,7 +17,7 @@
   <body>
     <header>
       <h1>DeutschKart</h1>
-      <p class="sub">Sadece iPhone yeterli — Safari ile ana ekrana ekleyin (Apple’ın widget galerisindeki kutu değil, uygulama simgesi).</p>
+      <p class="sub">Safari → Ana Ekrana Ekle = ana uygulama. Scriptable widget ile kelime üretirseniz Supabase üzerinden buraya düşer.</p>
     </header>
     <nav class="tabs" role="tablist" aria-label="Bölümler">
       <button type="button" role="tab" id="tab-kart" aria-selected="true" aria-controls="panel-kart">Kart</button>
@@ -41,6 +41,9 @@
             <button type="button" class="primary" id="btn-yeni">Yeni kelime</button>
           </div>
         </article>
+        <button type="button" class="ghost" id="btn-sunucu" style="margin-top: 0.5rem; width: 100%">
+          Sunucudan çek (Scriptable / diğer cihaz)
+        </button>
         <div class="install-tip">
           <strong>Ana ekrana eklemek:</strong> Safari’de bu sayfadayken paylaş → <em>Ana Ekrana Ekle</em>. İkon tam ekran açar.
           Mac veya TestFlight gerekmez.
@@ -67,6 +70,26 @@
             <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style="color: var(--accent)">API anahtarı al</a><br />
             Kısıtlı anahtarda yönlendirici:
             <code>https://*.github.io/*/dk/*</code>
+          </p>
+        </div>
+
+        <div class="card" style="margin-top: 1rem">
+          <h2>Supabase (Scriptable ile ortak)</h2>
+          <p class="hint">
+            Repodaki <code>dk/supabase-setup.sql</code> dosyasını Supabase SQL Editor’de çalıştırın. Project Settings → API’den URL ve
+            <strong>anon public</strong> key kopyalayın. Scriptable scriptinde aynı değerleri kullanın.
+          </p>
+          <label for="sb-url">Supabase URL</label>
+          <input id="sb-url" type="text" autocomplete="off" placeholder="https://xxxx.supabase.co" />
+          <label for="sb-anon">Supabase anon key</label>
+          <input id="sb-anon" type="password" autocomplete="off" placeholder="eyJ…" />
+          <div class="row-actions">
+            <button type="button" class="primary" id="btn-sb-kaydet">Supabase kaydet</button>
+            <button type="button" class="ghost" id="btn-sb-sil">Supabase sil</button>
+          </div>
+          <p class="hint" style="margin-top: 0.75rem">
+            Script: GitHub’da <code>scriptable/DeutschKart.js</code> — ham dosyayı kopyalayıp Scriptable’da yeni script olarak yapıştırın; üstteki
+            <code>CONFIG</code> alanlarını doldurun.
           </p>
         </div>
       </section>
