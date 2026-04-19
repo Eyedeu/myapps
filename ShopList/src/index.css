@@ -369,13 +369,137 @@ textarea.field-input {
   border: 0;
 }
 
-.new-list-card {
-  margin-bottom: 1.5rem;
+.home-with-fab {
+  padding-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
 }
 
-.new-list-name-field {
-  margin-top: 0.75rem;
-  margin-bottom: 0.85rem;
+.hero-compact {
+  margin-bottom: 1rem;
+}
+
+.lists-section-first {
+  margin-top: 0;
+}
+
+.fab {
+  position: fixed;
+  z-index: 45;
+  right: max(1rem, env(safe-area-inset-right, 0px));
+  bottom: max(1.15rem, env(safe-area-inset-bottom, 0px));
+  width: 3.4rem;
+  height: 3.4rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  background: linear-gradient(165deg, var(--accent), var(--accent-dim));
+  color: #fff;
+  box-shadow: 0 8px 28px rgba(91, 141, 239, 0.45);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.fab:hover {
+  transform: scale(1.04);
+  box-shadow: 0 10px 32px rgba(91, 141, 239, 0.55);
+}
+
+.fab:active {
+  transform: scale(0.97);
+}
+
+.fab-icon {
+  display: block;
+  font-size: 2.1rem;
+  font-weight: 300;
+  line-height: 1;
+  margin-top: -3px;
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+    opacity: 0.85;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(5, 8, 12, 0.55);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 0;
+}
+
+.sheet-panel {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: 20px 20px 0 0;
+  padding: 0.35rem 1.1rem 1.35rem;
+  padding-bottom: max(1.35rem, calc(0.5rem + env(safe-area-inset-bottom, 0px)));
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.4);
+  animation: sheet-in 0.24s ease-out;
+}
+
+.sheet-handle {
+  width: 2.5rem;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--line);
+  margin: 0.35rem auto 0.75rem;
+}
+
+.sheet-header {
+  display: grid;
+  grid-template-columns: minmax(4rem, 1fr) auto minmax(4rem, 1fr);
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.sheet-title {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--strong);
+  text-align: center;
+}
+
+.sheet-header-spacer {
+  display: block;
+}
+
+.sheet-cancel {
+  justify-self: start;
+  padding-left: 0;
+  font-size: 0.95rem;
+}
+
+.sheet-lede {
+  margin: 0 0 1rem;
+  font-size: 0.88rem;
+}
+
+.sheet-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sheet-error {
+  margin: 0;
+}
+
+.sheet-submit {
+  margin-top: 0.25rem;
 }
 
 .lists-section {

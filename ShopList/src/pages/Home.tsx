@@ -10,6 +10,7 @@ import {
   setDoc,
   Timestamp,
 } from 'firebase/firestore'
+import { NewListSheet } from '../components/NewListSheet.tsx'
 import { defaultListTitle } from '../listTitle'
 import { navigateTo } from '../route'
 
@@ -40,7 +41,8 @@ function parseListDoc(id: string, data: Record<string, unknown>): ListRow {
 
 export function Home({ db }: Props) {
   const [lists, setLists] = useState<ListRow[]>([])
-  const [newListName, setNewListName] = useState('')
+  const [createOpen, setCreateOpen] = useState(false)
+  const [sheetSession, setSheetSession] = useState(0)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [snapErr, setSnapErr] = useState<string | null>(null)
@@ -58,19 +60,19 @@ export function Home({ db }: Props) {
     return () => unsub()
   }, [db])
 
-  async function createList() {
+  async function handleCreateList(name: string) {
     setErr(null)
     setBusy(true)
     try {
       const id = crypto.randomUUID()
-      const title = newListName.trim() || defaultListTitle()
+      const title = name.trim() || defaultListTitle()
       await setDoc(doc(db, 'shopLists', id), {
         createdAt: serverTimestamp(),
         title,
         pendingCount: 0,
         totalCount: 0,
       })
-      setNewListName('')
+      setCreateOpen(false)
       navigateTo({ name: 'list', listId: id })
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))
@@ -92,8 +94,8 @@ export function Home({ db }: Props) {
   }
 
   return (
-    <div className="page home">
-      <header className="hero">
+    <div className="page home home-with-fab">
+      <header className="hero hero-compact">
         <h1>ShopList</h1>
         <p className="subtitle">
           Ortak alışveriş listeleriniz burada. İkiniz de aynı Firebase projesine bağlı olduğunuz için
@@ -101,41 +103,13 @@ export function Home({ db }: Props) {
         </p>
       </header>
 
-      <section className="card new-list-card">
-        <h2>Yeni liste</h2>
-        <p className="muted">Market veya ev ihtiyaçları için yeni bir liste açın. Adı boş bırakırsanız otomatik bir başlık atanır; sonra listede değiştirebilirsiniz.</p>
-        <form
-          className="new-list-form"
-          onSubmit={(e) => {
-            e.preventDefault()
-            void createList()
-          }}
-        >
-          <label className="field new-list-name-field">
-            <span className="field-label">Liste adı</span>
-            <input
-              className="field-input"
-              type="text"
-              value={newListName}
-              onChange={(e) => setNewListName(e.target.value)}
-              placeholder={defaultListTitle()}
-              maxLength={80}
-              disabled={busy}
-              enterKeyHint="done"
-              aria-label="Yeni liste adı"
-            />
-          </label>
-          <button type="submit" className="btn primary block" disabled={busy}>
-            {busy ? 'Oluşturuluyor…' : 'Yeni liste oluştur'}
-          </button>
-        </form>
-      </section>
-
-      <section className="lists-section">
+      <section className="lists-section lists-section-first">
         <h2 className="lists-heading">Listeleriniz</h2>
         {snapErr && <p className="error">{snapErr}</p>}
         {!snapErr && lists.length === 0 && (
-          <p className="muted empty-lists">Henüz liste yok. Yukarıdan bir tane oluşturun.</p>
+          <p className="muted empty-lists">
+            Henüz liste yok. Sağ alttaki <span className="mono">+</span> düğmesiyle yeni liste oluşturun.
+          </p>
         )}
         <ul className="list-cards">
           {lists.map((row) => (
@@ -154,7 +128,7 @@ export function Home({ db }: Props) {
         </ul>
       </section>
 
-      {err && <p className="error">{err}</p>}
+      {err && !createOpen && <p className="error">{err}</p>}
 
       <footer className="home-foot">
         <p className="muted small">
@@ -162,6 +136,35 @@ export function Home({ db }: Props) {
           kullanabilirsiniz.
         </p>
       </footer>
+
+      <button
+        type="button"
+        className="fab"
+        aria-label="Yeni liste oluştur"
+        onClick={() => {
+          setErr(null)
+          setSheetSession((s) => s + 1)
+          setCreateOpen(true)
+        }}
+      >
+        <span className="fab-icon" aria-hidden>
+          +
+        </span>
+      </button>
+
+      <NewListSheet
+        key={sheetSession}
+        open={createOpen}
+        busy={busy}
+        error={err}
+        onClose={() => {
+          if (!busy) {
+            setCreateOpen(false)
+            setErr(null)
+          }
+        }}
+        onCreate={handleCreateList}
+      />
     </div>
   )
 }
