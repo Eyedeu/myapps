@@ -1,19 +1,18 @@
 # ShopList
 
-Paylaşımlı **ev alışveriş listesi**: biri ürünleri ekler, diğeri aldıkça işaretler. GitHub Pages üzerinde çalışır; telefonda tarayıcıdan **Ana ekrana ekle** ile uygulama gibi kullanılabilir (PWA manifest).
+Aynı Firebase projesine bağlı iki kişinin (ör. anne–çocuk) ortak kullandığı **ev alışveriş listesi**. GitHub Pages’te çalışır; **Ana ekrana ekle** ile PWA gibi açılabilir.
 
 ## Çalışma şekli
 
-1. Firebase’de bir proje açın, **Firestore**’u etkinleştirin, web uygulaması ekleyip `firebaseConfig` JSON’unu alın.
-2. Bu repoda `src/firebase/defaultConfig.ts` içinde varsayılan yapılandırma vardır; ilk açılışta ekstra yapıştırma gerekmez. Başka bir projeye geçmek için sitede **Firebase ayarı**nı kullanın (tarayıcıda saklanır).
-3. **Yeni liste oluştur** ile liste yaratın, **Bağlantıyı kopyala** ile paylaşın.
-4. Aile üyesi aynı bağlantıyı veya listedeki **UUID** kodunu “Listeye katıl” alanına yapıştırarak açar.
+1. Firestore’u açın; güvenlik kurallarını aşağıdaki örneğe göre ayarlayın.
+2. `src/firebase/defaultConfig.ts` içindeki web yapılandırması veya uygulamadaki **Firebase ayarı** ile projeyi bağlayın.
+3. **Yeni liste oluştur** ile liste açın; ana sayfada tüm listeler canlı listelenir (paylaşım kodu gerekmez).
+4. Liste başlığını düzenlemek için detayda başlığa dokunup düzenleyin; odaktan çıkınca kaydedilir.
+5. Tüm kalemler işaretlendiğinde üstte çıkan soruda **Evet, sil** derseniz liste ve ürünler Firestore’dan kalıcı silinir. İstediğiniz zaman **Listeyi kaldır** ile de silebilirsiniz.
 
-Veriler `shopLists/{listeId}` ve alt koleksiyon `items` altında tutulur.
+Veri yapısı: `shopLists/{listeId}` alanları `title`, `createdAt`, `pendingCount`, `totalCount`; ürünler `shopLists/{listeId}/items/{ürünId}`.
 
 ## Firestore güvenlik kuralları (örnek)
-
-Aile içi kullanım için; **liste kimliğini bilen herkes** okuyup yazabilir. Üretimde daha sıkı kurallar veya kimlik doğrulama düşünün.
 
 ```text
 rules_version = '2';
@@ -29,6 +28,8 @@ service cloud.firestore {
 }
 ```
 
+`shopLists` sorgusunda `orderBy('createdAt')` kullanıldığı için, eski belgelerde `createdAt` yoksa konsolda indeks veya sorgu hatası görebilirsiniz; yeni listelerde alan her zaman set edilir.
+
 ## Yerel geliştirme
 
 ```bash
@@ -36,6 +37,6 @@ npm ci
 npm run dev
 ```
 
-## Derleme (GitHub Pages / myapps betiği)
+## Derleme (GitHub Pages / myapps)
 
-`myapps` deposundaki `publish-pages.mjs` bu klasörü otomatik keşfeder; `npm ci && vite build --base=/REPO_ADI/ShopList/` ile `dist` üretilir.
+`publish-pages.mjs` bu uygulamayı otomatik derler: `dist` → `_site/ShopList/`.

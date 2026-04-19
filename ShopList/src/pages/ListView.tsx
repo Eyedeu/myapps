@@ -10,10 +10,11 @@ import {
   query,
   serverTimestamp,
   updateDoc,
-  writeBatch,
 } from 'firebase/firestore'
+import { ConfirmDialog } from '../components/ConfirmDialog.tsx'
+import { deleteShopList } from '../firebase/deleteShopList.ts'
+import { defaultListTitle } from '../listTitle'
 import { navigateTo } from '../route'
-import { listShareUrl } from '../share'
 import type { ListItem } from '../types'
 
 type Props = {
@@ -21,14 +22,36 @@ type Props = {
   listId: string
 }
 
+type ConfirmKind = null | 'remove-list'
+
 export function ListView({ db, listId }: Props) {
   const [items, setItems] = useState<ListItem[]>([])
   const [newText, setNewText] = useState('')
   const [fireErr, setFireErr] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [listTitle, setListTitle] = useState('')
+  const [confirm, setConfirm] = useState<ConfirmKind>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [dismissCompletePrompt, setDismissCompletePrompt] = useState(false)
 
   const itemsRef = useMemo(() => collection(db, 'shopLists', listId, 'items'), [db, listId])
-  const share = useMemo(() => listShareUrl(listId), [listId])
+  const listRef = useMemo(() => doc(db, 'shopLists', listId), [db, listId])
+
+  useEffect(() => {
+    const unsub = onSnapshot(
+      listRef,
+      (snap) => {
+        if (!snap.exists()) {
+          navigateTo({ name: 'home' })
+          return
+        }
+        const data = snap.data() as { title?: unknown } | undefined
+        const t = typeof data?.title === 'string' && data.title.trim() ? data.title.trim() : ''
+        setListTitle(t || defaultListTitle())
+      },
+      (e) => setFireErr(e.message),
+    )
+    return () => unsub()
+  }, [listRef])
 
   useEffect(() => {
     const q = query(itemsRef, orderBy('order', 'asc'))
@@ -47,11 +70,25 @@ export function ListView({ db, listId }: Props) {
           })
         }
         setItems(next)
+        const everyoneDone = next.length > 0 && next.every((i) => i.done)
+        if (!everyoneDone) setDismissCompletePrompt(false)
       },
       (e) => setFireErr(e.message),
     )
     return () => unsub()
   }, [itemsRef])
+
+  useEffect(() => {
+    const total = items.length
+    const pending = items.filter((i) => !i.done).length
+    void updateDoc(listRef, { totalCount: total, pendingCount: pending }).catch(() => {})
+  }, [items, listRef])
+
+  const pending = items.filter((i) => !i.done)
+  const done = items.filter((i) => i.done)
+  const allDone = items.length > 0 && pending.length === 0
+
+  const showCompleteBanner = allDone && !dismissCompletePrompt
 
   async function addItem() {
     const text = newText.trim()
@@ -73,55 +110,73 @@ export function ListView({ db, listId }: Props) {
     await deleteDoc(doc(itemsRef, item.id))
   }
 
-  async function clearBought() {
-    const bought = items.filter((i) => i.done)
-    if (bought.length === 0) return
-    const batch = writeBatch(db)
-    for (const i of bought) {
-      batch.delete(doc(itemsRef, i.id))
-    }
-    await batch.commit()
+  async function commitTitle() {
+    const t = listTitle.trim() || defaultListTitle()
+    setListTitle(t)
+    await updateDoc(listRef, { title: t }).catch(() => {})
   }
 
-  async function copyShare() {
+  async function runDeleteList() {
+    setDeleting(true)
+    setFireErr(null)
     try {
-      await navigator.clipboard.writeText(share)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      window.prompt('Bağlantıyı kopyalayın:', share)
+      await deleteShopList(db, listId)
+      setConfirm(null)
+      navigateTo({ name: 'home' })
+    } catch (e) {
+      setFireErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setDeleting(false)
     }
   }
-
-  const pending = items.filter((i) => !i.done)
-  const done = items.filter((i) => i.done)
 
   return (
     <div className="page list">
       <header className="list-header">
-        <button type="button" className="btn ghost back" onClick={() => navigateTo({ name: 'home' })}>
-          ← Ana sayfa
-        </button>
-        <div className="list-title-row">
-          <h1>Alışveriş listesi</h1>
-          <p className="mono small code">{listId}</p>
-        </div>
-        <div className="toolbar">
-          <button type="button" className="btn secondary" onClick={() => void copyShare()}>
-            {copied ? 'Kopyalandı' : 'Bağlantıyı kopyala'}
+        <div className="list-header-top">
+          <button type="button" className="btn ghost back" onClick={() => navigateTo({ name: 'home' })}>
+            ← Listeler
           </button>
-          {done.length > 0 && (
-            <button type="button" className="btn ghost" onClick={() => void clearBought()}>
-              Alınanları temizle ({done.length})
-            </button>
-          )}
+          <button type="button" className="btn ghost danger-text" onClick={() => setConfirm('remove-list')}>
+            Listeyi kaldır
+          </button>
+        </div>
+        <div className="list-title-edit">
+          <label className="sr-only" htmlFor="list-title-input">
+            Liste adı
+          </label>
+          <input
+            id="list-title-input"
+            className="list-title-input"
+            value={listTitle}
+            onChange={(e) => setListTitle(e.target.value)}
+            onBlur={() => void commitTitle()}
+            maxLength={80}
+          />
         </div>
       </header>
 
       {fireErr && <p className="error">{fireErr}</p>}
 
+      {showCompleteBanner && (
+        <div className="complete-banner" role="status">
+          <p className="complete-banner-text">Tüm ürünler alındı. Bu listeyi kapatıp tamamen silmek ister misiniz?</p>
+          <div className="complete-banner-actions">
+            <button type="button" className="btn secondary" disabled={deleting} onClick={() => setDismissCompletePrompt(true)}>
+              Hayır, dursun
+            </button>
+            <button type="button" className="btn primary" disabled={deleting} onClick={() => void runDeleteList()}>
+              {deleting ? 'Siliniyor…' : 'Evet, sil'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <ul className="item-list" aria-label="Alınacaklar">
-        {pending.length === 0 && <li className="empty">Henüz ürün yok. Aşağıdan ekleyin.</li>}
+        {pending.length === 0 && items.length === 0 && (
+          <li className="empty">Henüz ürün yok. Aşağıdan ekleyin.</li>
+        )}
+        {pending.length === 0 && items.length > 0 && <li className="empty subtle">Alınacak kalmadı.</li>}
         {pending.map((item) => (
           <li key={item.id} className="item-row">
             <label className="check-wrap">
@@ -183,6 +238,25 @@ export function ListView({ db, listId }: Props) {
           Ekle
         </button>
       </form>
+
+      {confirm === 'remove-list' && (
+        <ConfirmDialog
+          title="Listeyi kaldır"
+          message={
+            items.length > 0
+              ? 'Bu listedeki tüm ürünler ve liste kendisi kalıcı olarak silinecek.'
+              : 'Boş liste kaldırılacak.'
+          }
+          cancelLabel="Vazgeç"
+          confirmLabel={deleting ? 'Siliniyor…' : 'Kaldır'}
+          danger
+          busy={deleting}
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => {
+            if (!deleting) void runDeleteList()
+          }}
+        />
+      )}
     </div>
   )
 }
