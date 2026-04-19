@@ -1,7 +1,7 @@
 // DeutschKart — Scriptable widget + Supabase (ana PWA ile ortak geçmiş)
-// Etkileşim modeli MapGet (myapps/mapget) ile aynı: PWA / harici hedeflerde kök `stack.url` = doğrudan https://… (Scriptable köprüsü yok; widget güvenilir açılır).
-// Orta+büyük: 1. kelime satırı solda dar sütun (sağda geniş yenile dokunması), diğer kelimeler tam genişlik + tam yükseklikte PWA linki.
-// PWA kelime / başlık: https URL → Safari. Yenile: script URL (Run script) ile üretim.
+// Yenile: script URL + dkAction=refresh → soru yok, doğrudan üretim (widget çalışmasında da).
+// Kelime / başlık (orta+): scriptable + dkOpenUrl=https… → main girişinde Safari’de PWA (kelime sorusu yok). Küçük widget: doğrudan https.
+// Orta+büyük: 1. kelime satırı solda dar sütun (sağda yenile), diğer kelimeler tam genişlik kart.
 // CONFIG'ü doldur → kaydet.
 
 const CONFIG = {
@@ -215,10 +215,24 @@ function pwaHomeUrl() {
   return raw.replace(/\/?$/, "/");
 }
 
+/** Orta/büyük widget: https’i script girişinde Safari’ye yönlendir (dokununca “script çalıştır” akışına düşüp soru çıkmasın). */
+function pwaBridgeOpenUrl(targetHttps) {
+  if (!targetHttps) return "";
+  if (!widgetSupportsStackLinks()) return String(targetHttps);
+  try {
+    const bridge = URLScheme.forRunningScript();
+    const sep = bridge.indexOf("?") >= 0 ? "&" : "?";
+    return `${bridge}${sep}dkOpenUrl=${encodeURIComponent(String(targetHttps))}`;
+  } catch (e) {
+    return String(targetHttps);
+  }
+}
+
 function wordOpenUrl(wordId) {
   const base = pwaHomeUrl();
   if (!base || !wordId) return "";
-  return `${base}#/w/${encodeURIComponent(String(wordId))}`;
+  const target = `${base}#/w/${encodeURIComponent(String(wordId))}`;
+  return pwaBridgeOpenUrl(target);
 }
 
 function normalizeDe(de) {
@@ -621,9 +635,10 @@ function buildWidget(state) {
   const title = head.addText("DeutschKart");
   title.textColor = new Color("#cbd5e1", 1);
   title.font = Font.semiboldSystemFont(ty.title);
-  if (linksOk && homeU) {
-    head.url = homeU;
-    title.url = homeU;
+  const homeTap = pwaBridgeOpenUrl(homeU);
+  if (linksOk && homeTap) {
+    head.url = homeTap;
+    title.url = homeTap;
   }
 
   if (!words || !words.length) {
@@ -632,7 +647,7 @@ function buildWidget(state) {
     t2.textColor = new Color("#94a3b8", 1);
     t2.font = Font.systemFont(10);
     t2.minimumScaleFactor = 0.65;
-    if (linksOk && homeU) t2.url = homeU;
+    if (linksOk && homeTap) t2.url = homeTap;
     return w;
   }
 
@@ -721,7 +736,7 @@ async function main() {
     return;
   }
 
-  const isRefreshTap = !config.runsInWidget && String(qp.dkAction || "") === "refresh";
+  const isRefreshTap = String(qp.dkAction || "") === "refresh";
   if (isRefreshTap) {
     try {
       await runGenerateFlow();
