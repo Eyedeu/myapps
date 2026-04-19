@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-globals */
-const CACHE = "deutschkart-pwa-v1";
+const CACHE = "dk-pwa-v1";
 const ASSETS = ["./", "./index.html", "./app.js", "./styles.css", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (event) => {
