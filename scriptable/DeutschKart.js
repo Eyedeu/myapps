@@ -12,8 +12,8 @@ const CONFIG = {
   PWA_OPEN_URL: "https://eyedeu.github.io/myapps/dk/",
 };
 
-/** Önce bu, yoğunluk hatasında sırayla denenir */
-const GEMINI_MODELS = ["gemini-3.1-flash-lite-preview", "gemini-2.0-flash"];
+/** Kota/istek: yalnız 3.1 flash lite (2.0 kota hatası vermesin diye kaldırıldı) */
+const GEMINI_MODELS = ["gemini-3.1-flash-lite-preview"];
 
 /** ▶ Evet ile tek seferde üretilecek yeni kelime sayısı */
 const WORDS_PER_GENERATE_RUN = 5;
@@ -215,10 +215,24 @@ function pwaHomeUrl() {
   return raw.replace(/\/?$/, "/");
 }
 
+/** https PWA adresini scriptable run + dkOpenUrl ile köprüle (widget kelimesi → Safari, Evet/Hayır yok). */
+function pwaBridgeOpenUrl(targetHttps) {
+  if (!targetHttps) return "";
+  if (!widgetSupportsStackLinks()) return String(targetHttps);
+  try {
+    const bridge = URLScheme.forRunningScript();
+    const sep = bridge.indexOf("?") >= 0 ? "&" : "?";
+    return `${bridge}${sep}dkOpenUrl=${encodeURIComponent(String(targetHttps))}`;
+  } catch (e) {
+    return String(targetHttps);
+  }
+}
+
 function wordOpenUrl(wordId) {
   const base = pwaHomeUrl();
   if (!base || !wordId) return "";
-  return `${base}#/w/${encodeURIComponent(String(wordId))}`;
+  const target = `${base}#/w/${encodeURIComponent(String(wordId))}`;
+  return pwaBridgeOpenUrl(target);
 }
 
 function normalizeDe(de) {
@@ -316,7 +330,9 @@ async function fetchGeminiNewWordOnce(excludeSet, modelId) {
     '- "level": A1,A2,B1,B2,C1 oder C2.',
     `- "pos": genau einer von: ${POS_ORDER.join(",")} (Wortart des Haupteintrags).`,
     '- Substantive im Feld "de" mit korrektem Großbuchstaben beginnen.',
-    `Keine Wiederholungen: ${excludeSample}`,
+    `Bereits in der Datenbank gespeicherte verschiedene deutsche Lemmata (Anzahl): ${excludeSet.size}.`,
+    "Das neue \"de\" darf keines dieser Lemmata sein (auch keine nahezu identische Schreibweise).",
+    `Beispielliste (Auszug, normalisiert): ${excludeSample}`,
   ].join("\n");
 
   const body = {
@@ -377,14 +393,15 @@ async function fetchGeminiNewWordOnce(excludeSet, modelId) {
 async function fetchGeminiNewWord(excludeSet) {
   let lastErr = new Error("Gemini yanıt vermedi.");
   for (const modelId of GEMINI_MODELS) {
-    for (let attempt = 0; attempt < 5; attempt++) {
+    for (let attempt = 0; attempt < 10; attempt++) {
       try {
-        if (attempt > 0) await sleep(1800 * attempt);
+        if (attempt > 0) await sleep(900 + 700 * attempt);
         return await fetchGeminiNewWordOnce(excludeSet, modelId);
       } catch (e) {
         lastErr = e;
         const msg = String(e.message || e);
-        if (/Geçersiz|Tekrar/i.test(msg)) throw e;
+        if (/Geçersiz/i.test(msg)) throw e;
+        if (/Tekrar/i.test(msg)) continue;
         if (!isRetryableGeminiError(msg)) throw e;
       }
     }
@@ -516,14 +533,20 @@ async function fetchGeminiNewWordsBatch(excludeSet, count) {
   throw lastErr;
 }
 
-/** Önce batch (hızlı), olmazsa tek kelime */
+/**
+ * Batch yerine sırayla üret: her kelimeden sonra exclude’a eklenir (DB + bu tur).
+ * MapGet benzeri güvenilirlik; Gemini batch içi çift / DB çakışması olmaz.
+ */
 async function fetchNewWordsForRun(excludeSet, count) {
-  try {
-    return await fetchGeminiNewWordsBatch(excludeSet, count);
-  } catch (e1) {
-    const one = await fetchGeminiNewWord(excludeSet);
-    return [one];
+  const seen = new Set(excludeSet);
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    const nw = await fetchGeminiNewWord(seen);
+    seen.add(normalizeDe(nw.de));
+    out.push(nw);
+    if (i < count - 1) await sleep(450);
   }
+  return out;
 }
 
 async function fetchWidgetState() {
@@ -569,9 +592,10 @@ function buildWidget(state) {
   const title = head.addText("DeutschKart");
   title.textColor = new Color("#cbd5e1", 1);
   title.font = Font.semiboldSystemFont(ty.title);
-  if (linksOk && homeU) {
-    head.url = homeU;
-    title.url = homeU;
+  const homeBridge = pwaBridgeOpenUrl(homeU);
+  if (linksOk && homeBridge) {
+    head.url = homeBridge;
+    title.url = homeBridge;
   }
 
   if (!words || !words.length) {
@@ -580,7 +604,8 @@ function buildWidget(state) {
     t2.textColor = new Color("#94a3b8", 1);
     t2.font = Font.systemFont(10);
     t2.minimumScaleFactor = 0.65;
-    if (linksOk && homeU) t2.url = homeU;
+    const hb = pwaBridgeOpenUrl(homeU);
+    if (linksOk && hb) t2.url = hb;
     return w;
   }
 
@@ -644,6 +669,19 @@ async function runGenerateFlow() {
 }
 
 async function main() {
+  const qp = (typeof args !== "undefined" && args.queryParameters) || {};
+  const dkOpenUrl = qp.dkOpenUrl;
+  if (!config.runsInWidget && dkOpenUrl) {
+    try {
+      const u = decodeURIComponent(String(dkOpenUrl));
+      if (u.startsWith("http")) Safari.open(u);
+    } catch (e) {
+      /* yoksay */
+    }
+    Script.complete();
+    return;
+  }
+
   try {
     assertConfig();
   } catch (e) {
@@ -657,7 +695,6 @@ async function main() {
     return;
   }
 
-  const qp = (typeof args !== "undefined" && args.queryParameters) || {};
   const isRefreshTap = !config.runsInWidget && String(qp.dkAction || "") === "refresh";
   if (isRefreshTap) {
     try {

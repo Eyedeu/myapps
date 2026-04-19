@@ -1,5 +1,5 @@
 (() => {
-  const GEMINI_MODELS = ["gemini-3.1-flash-lite-preview", "gemini-2.0-flash"];
+  const GEMINI_MODELS = ["gemini-3.1-flash-lite-preview"];
 
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -345,7 +345,9 @@
       '- "example": ein deutscher Beispielsatz.',
       '- "level": A1,A2,B1,B2,C1 oder C2.',
       `- "pos": genau einer von: ${POS_ORDER.join(",")} (Wortart des Haupteintrags).`,
-      `Keine Wiederholungen: ${excludeSample}`,
+      `Bereits vorhandene verschiedene deutsche Lemmata (Anzahl): ${excludeSet.size}.`,
+      'Das neue "de" darf keines dieser Lemmata sein.',
+      `Beispielliste (Auszug): ${excludeSample}`,
     ].join("\n");
 
     const body = {
@@ -403,17 +405,18 @@
   async function fetchGeminiWord(apiKey, excludeSet) {
     let lastErr = new Error("Gemini yanıt vermedi.");
     for (const modelId of GEMINI_MODELS) {
-      for (let attempt = 0; attempt < 5; attempt++) {
-        try {
-          if (attempt > 0) await sleep(1800 * attempt);
-          return await fetchGeminiWordOnce(apiKey, excludeSet, modelId);
-        } catch (e) {
-          lastErr = e;
-          const msg = String(e.message || e);
-          if (/Geçersiz|Tekrar kelime/i.test(msg)) throw e;
-          if (!isRetryableGemini(msg)) throw e;
-        }
+    for (let attempt = 0; attempt < 10; attempt++) {
+      try {
+        if (attempt > 0) await sleep(900 + 700 * attempt);
+        return await fetchGeminiWordOnce(apiKey, excludeSet, modelId);
+      } catch (e) {
+        lastErr = e;
+        const msg = String(e.message || e);
+        if (/Geçersiz/i.test(msg)) throw e;
+        if (/Tekrar kelime/i.test(msg)) continue;
+        if (!isRetryableGemini(msg)) throw e;
       }
+    }
     }
     throw lastErr;
   }
