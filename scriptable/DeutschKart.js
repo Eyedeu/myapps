@@ -64,7 +64,11 @@ async function sbInsertWord(word) {
     level: word.level,
     shown_at: word.shownAt,
   });
-  await req.load();
+  try {
+    await req.load();
+  } catch {
+    /* 409 çakışma vb. */
+  }
 }
 
 
