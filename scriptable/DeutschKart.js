@@ -1,6 +1,5 @@
 // DeutschKart — Scriptable widget + Supabase (ana PWA ile ortak geçmiş)
-// Yenile: script URL + dkAction=refresh → soru yok, doğrudan üretim (widget çalışmasında da).
-// Kelime (orta+): scriptable + dkW=<id> (kısa; uzun dkOpenUrl kesilmesin). Ana sayfa: dkHome=1. Küçük widget: doğrudan https.
+// Yenile: scriptable + dkAction=refresh (üretim). Kelime kartı: MapGet ile aynı — yalnızca dış gri kartta tek https://… PWA (iç metne .url yok).
 // Orta+büyük: 1. kelime satırı solda dar sütun (sağda yenile), diğer kelimeler tam genişlik kart.
 // CONFIG'ü doldur → kaydet.
 
@@ -16,7 +15,7 @@ const CONFIG = {
 const GEMINI_MODELS = ["gemini-3.1-flash-lite-preview"];
 
 /** GitHub push ≠ Scriptable; widget alt satırında bunu görmüyorsan dosyayı uygulamada güncellemedin demektir. */
-const DEUTSCHKART_BUILD = "2026-04-21c";
+const DEUTSCHKART_BUILD = "2026-04-21d";
 
 /** ▶ Evet ile tek seferde üretilecek yeni kelime sayısı */
 const WORDS_PER_GENERATE_RUN = 5;
@@ -106,18 +105,13 @@ function wordCardChrome() {
   };
 }
 
-/** MapGet benzeri: kök stack + alt metinlere aynı url (dokunma güvenilirliği) */
-function fillWordLinkedStack(stack, word, ty, linksOk) {
-  const open = wordOpenUrl(word.id);
-  const has = Boolean(linksOk && open);
-  if (has) stack.url = open;
-
+/** MapGet ile aynı: içerikte .url yok; tıklanabilirlik dış kartın stack.url ile verilir. */
+function fillWordLinkedStack(stack, word, ty) {
   const meta = stack.addText(`${word.level} · ${POS_TR[word.pos] || POS_TR.phrase}`);
   meta.textColor = new Color("#7dd3fc", 1);
   meta.font = Font.semiboldSystemFont(ty.meta);
   meta.lineLimit = 1;
   meta.minimumScaleFactor = 0.52;
-  if (has) meta.url = open;
 
   stack.addSpacer(2);
   const de = stack.addText(word.de);
@@ -125,7 +119,6 @@ function fillWordLinkedStack(stack, word, ty, linksOk) {
   de.font = Font.boldSystemFont(ty.de);
   de.minimumScaleFactor = 0.45;
   de.lineLimit = 1;
-  if (has) de.url = open;
 
   stack.addSpacer(2);
   const tr = stack.addText(word.tr);
@@ -133,7 +126,6 @@ function fillWordLinkedStack(stack, word, ty, linksOk) {
   tr.font = Font.systemFont(ty.tr);
   tr.minimumScaleFactor = 0.48;
   tr.lineLimit = 1;
-  if (has) tr.url = open;
 
   stack.addSpacer(2);
   const exOne = stack.addText(`Ö.: ${word.example || "—"}`);
@@ -141,7 +133,6 @@ function fillWordLinkedStack(stack, word, ty, linksOk) {
   exOne.font = Font.systemFont(ty.ex);
   exOne.lineLimit = 1;
   exOne.minimumScaleFactor = 0.42;
-  if (has) exOne.url = open;
 }
 
 /** Satıra eklenen geniş yenile alanı (MapGet: ayrı stack + url) */
@@ -167,11 +158,10 @@ function addRefreshTapStackToRow(row, ru) {
   lab.textColor = new Color("#bae6fd", 1);
   lab.lineLimit = 1;
   lab.minimumScaleFactor = 0.65;
-  lab.url = ru;
   return rb;
 }
 
-/** 2. kelimeden itibaren tam genişlik kart (MapGet: dış stack.url = PWA) */
+/** 2. kelimeden itibaren tam genişlik kart (MapGet: yalnızca dış kart stack.url = https PWA) */
 function buildFullWidthWordBlock(parent, word, ty, linksOk, addTopSpacer) {
   if (addTopSpacer) parent.addSpacer(3);
   const ch = wordCardChrome();
@@ -185,9 +175,9 @@ function buildFullWidthWordBlock(parent, word, ty, linksOk, addTopSpacer) {
   const tap = wrap.addStack();
   tap.layoutVertically();
   tap.setPadding(6, 9, 6, 9);
+  fillWordLinkedStack(tap, word, ty);
   const open = wordOpenUrl(word.id);
   if (linksOk && open) wrap.url = open;
-  fillWordLinkedStack(tap, word, ty, linksOk);
 }
 
 /** Scriptable: stack.url yalnızca medium+ ; küçük widget tek dokunuş = ListWidget.url */
@@ -231,32 +221,15 @@ function queryParamCI(name) {
   return "";
 }
 
-function scriptTapBridge(extraQueryNoAmp) {
-  try {
-    const bridge = URLScheme.forRunningScript();
-    const sep = bridge.indexOf("?") >= 0 ? "&" : "?";
-    return `${bridge}${sep}${extraQueryNoAmp}`;
-  } catch (e) {
-    return "";
-  }
-}
-
+/** MapGet’teki Google Maps gibi: yalnızca https: sistem tarayıcısı / PWA açar, Scriptable scriptini yeniden çalıştırmaz. */
 function wordOpenUrl(wordId) {
   const base = pwaHomeUrl();
   if (!base || !wordId) return "";
-  const idEnc = encodeURIComponent(String(wordId));
-  const target = `${base}#/w/${idEnc}`;
-  if (!widgetSupportsStackLinks()) return target;
-  const bridged = scriptTapBridge(`dkW=${idEnc}`);
-  return bridged || target;
+  return `${base}#/w/${encodeURIComponent(String(wordId))}`;
 }
 
-/** Başlık / boş ekran: PWA kökü (orta+ script köprüsü). */
 function homeOpenTapUrl() {
-  const base = pwaHomeUrl();
-  if (!base) return "";
-  if (!widgetSupportsStackLinks()) return base;
-  return scriptTapBridge("dkHome=1") || base;
+  return pwaHomeUrl();
 }
 
 function normalizeDe(de) {
@@ -708,9 +681,9 @@ function buildWidget(state) {
     w0.layoutVertically();
     w0.setPadding(5, 8, 5, 8);
     w0.size = new Size(firstWordColumnMaxWidth(), 0);
+    fillWordLinkedStack(w0, words[0], ty);
     const open0 = wordOpenUrl(words[0].id);
     if (linksOk && open0) w0wrap.url = open0;
-    fillWordLinkedStack(w0, words[0], ty, linksOk);
 
     addRefreshTapStackToRow(row0, ru);
 
@@ -720,6 +693,10 @@ function buildWidget(state) {
   } else {
     for (let i = 0; i < words.length; i++) {
       buildFullWidthWordBlock(w, words[i], ty, linksOk, i > 0);
+    }
+    if (words.length && pwaBaseOk) {
+      const u0 = wordOpenUrl(words[0].id);
+      if (u0) w.url = u0;
     }
   }
 
@@ -745,45 +722,6 @@ async function runGenerateFlow() {
 }
 
 async function main() {
-  const dkOpenUrl = queryParamCI("dkOpenUrl");
-  if (dkOpenUrl) {
-    try {
-      const u = decodeURIComponent(String(dkOpenUrl));
-      if (u.startsWith("http")) Safari.open(u);
-    } catch (e) {
-      /* yoksay */
-    }
-    Script.complete();
-    return;
-  }
-
-  const dkW = queryParamCI("dkW");
-  if (dkW) {
-    try {
-      const base = pwaHomeUrl();
-      if (base) {
-        const wid = decodeURIComponent(String(dkW));
-        const u = `${base}#/w/${encodeURIComponent(wid)}`;
-        Safari.open(u);
-      }
-    } catch (e) {
-      /* yoksay */
-    }
-    Script.complete();
-    return;
-  }
-
-  if (queryParamCI("dkHome") === "1") {
-    try {
-      const u = pwaHomeUrl();
-      if (u) Safari.open(u);
-    } catch (e) {
-      /* yoksay */
-    }
-    Script.complete();
-    return;
-  }
-
   try {
     assertConfig();
   } catch (e) {
