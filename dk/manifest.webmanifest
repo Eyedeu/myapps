@@ -1,0 +1,20 @@
+{
+  "name": "DeutschKart",
+  "short_name": "DK",
+  "description": "Almanca kelime — Gemini, geçmiş, ana ekran (PWA).",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f1115",
+  "theme_color": "#1e3d52",
+  "lang": "tr",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
