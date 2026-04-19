@@ -242,13 +242,8 @@ function sbHeaders() {
   };
 }
 
-async function sbGetAllWords() {
-  const base = CONFIG.SUPABASE_URL.replace(/\/+$/, "");
-  const req = new Request(`${base}/rest/v1/words?select=*`);
-  req.headers = sbHeaders();
-  const data = await req.loadJSON();
-  if (!Array.isArray(data)) return [];
-  return data.map((row) => ({
+function mapWordRow(row) {
+  return {
     id: row.id,
     de: row.de,
     tr: row.tr,
@@ -256,7 +251,44 @@ async function sbGetAllWords() {
     level: row.level,
     pos: normalizePos(row.pos),
     shownAt: row.shown_at,
-  }));
+  };
+}
+
+/** Widget: en yeni kayıtlar (tüm tabloyu çekme — hızlı). */
+async function sbGetLatestWordsForWidget() {
+  const base = CONFIG.SUPABASE_URL.replace(/\/+$/, "");
+  const lim = 120;
+  const req = new Request(
+    `${base}/rest/v1/words?select=*&order=shown_at.desc&limit=${lim}`,
+  );
+  req.headers = sbHeaders();
+  const data = await req.loadJSON();
+  if (!Array.isArray(data)) return [];
+  return data.map(mapWordRow);
+}
+
+/**
+ * Üretim öncesi: veritabanındaki tüm Almanca lemmalar (yalnız `de`, sayfalı).
+ * exclude listesi doğru kalsın; select=* ile tek istek yavaş / 1000 satır sınırına takılabilir.
+ */
+async function sbGetAllLemmaNormalizedSet() {
+  const base = CONFIG.SUPABASE_URL.replace(/\/+$/, "");
+  const lemmas = new Set();
+  const page = 1000;
+  let from = 0;
+  for (;;) {
+    const to = from + page - 1;
+    const req = new Request(`${base}/rest/v1/words?select=de`);
+    req.headers = { ...sbHeaders(), Range: `${from}-${to}` };
+    const data = await req.loadJSON();
+    if (!Array.isArray(data) || data.length === 0) break;
+    for (const row of data) {
+      if (row && row.de) lemmas.add(normalizeDe(row.de));
+    }
+    if (data.length < page) break;
+    from += page;
+  }
+  return lemmas;
 }
 
 async function sbInsertWord(word) {
@@ -509,14 +541,15 @@ async function fetchGeminiNewWordsBatchOnce(excludeSet, count, modelId) {
 async function fetchGeminiNewWordsBatch(excludeSet, count) {
   let lastErr = new Error("Gemini yanıt vermedi.");
   for (const modelId of GEMINI_MODELS) {
-    for (let attempt = 0; attempt < 5; attempt++) {
+    for (let attempt = 0; attempt < 8; attempt++) {
       try {
-        if (attempt > 0) await sleep(2000 * attempt);
+        if (attempt > 0) await sleep(500 + 450 * attempt);
         return await fetchGeminiNewWordsBatchOnce(excludeSet, count, modelId);
       } catch (e) {
         lastErr = e;
         const msg = String(e.message || e);
-        if (/Geçersiz|Duplikat|schon vorhanden/i.test(msg)) throw e;
+        if (/Geçersiz/i.test(msg)) throw e;
+        if (/Duplikat|schon vorhanden|Batch unvollständig|unvollständig/i.test(msg)) continue;
         if (!isRetryableGeminiError(msg)) throw e;
       }
     }
@@ -525,24 +558,29 @@ async function fetchGeminiNewWordsBatch(excludeSet, count) {
 }
 
 /**
- * Batch yerine sırayla üret: her kelimeden sonra exclude’a eklenir (DB + bu tur).
- * MapGet benzeri güvenilirlik; Gemini batch içi çift / DB çakışması olmaz.
+ * Önce tek istekte 5 kelime (hızlı). Çakışma / eksik yanıtta sırayla yedek (doğru ama daha yavaş).
  */
 async function fetchNewWordsForRun(excludeSet, count) {
-  const seen = new Set(excludeSet);
-  const out = [];
-  for (let i = 0; i < count; i++) {
-    const nw = await fetchGeminiNewWord(seen);
-    seen.add(normalizeDe(nw.de));
-    out.push(nw);
-    if (i < count - 1) await sleep(450);
+  try {
+    return await fetchGeminiNewWordsBatch(excludeSet, count);
+  } catch (batchErr) {
+    const m = String(batchErr.message || batchErr);
+    if (/Geçersiz/i.test(m)) throw batchErr;
+    const seen = new Set(excludeSet);
+    const out = [];
+    for (let i = 0; i < count; i++) {
+      const nw = await fetchGeminiNewWord(seen);
+      seen.add(normalizeDe(nw.de));
+      out.push(nw);
+      if (i < count - 1) await sleep(280);
+    }
+    return out;
   }
-  return out;
 }
 
 async function fetchWidgetState() {
   try {
-    const raw = await sbGetAllWords();
+    const raw = await sbGetLatestWordsForWidget();
     if (!raw.length) {
       return {
         words: [],
@@ -642,8 +680,7 @@ function buildWidget(state) {
 
 async function runGenerateFlow() {
   assertConfig();
-  const words = await sbGetAllWords();
-  const exclude = new Set(words.map((x) => normalizeDe(x.de)));
+  const exclude = await sbGetAllLemmaNormalizedSet();
   const fresh = await fetchNewWordsForRun(exclude, WORDS_PER_GENERATE_RUN);
   const inserted = [];
   for (const newWord of fresh) {
