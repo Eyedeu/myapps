@@ -256,6 +256,38 @@
     return loadHistory().find((w) => w.id === id) || null;
   }
 
+  function cancelSpeak() {
+    try {
+      window.speechSynthesis.cancel();
+    } catch (_) {}
+  }
+
+  /** Tarayıcı / iOS sesi (Web Speech API; Google TTS API anahtarı gerektirmez). */
+  function speakUtter(text, lang) {
+    const t = String(text || "").trim();
+    if (!t || typeof window.speechSynthesis === "undefined") return;
+    cancelSpeak();
+    const u = new SpeechSynthesisUtterance(t);
+    u.lang = lang || "de-DE";
+    u.rate = 0.9;
+    window.speechSynthesis.speak(u);
+  }
+
+  function wordMatchesGecmisQuery(w, q) {
+    const n = String(q || "").trim().toLowerCase();
+    if (!n) return true;
+    const hay = [
+      w.de,
+      w.tr,
+      w.example,
+      w.level,
+      POS_LABEL_TR[normalizePos(w.pos)] || "",
+    ]
+      .join("\n")
+      .toLowerCase();
+    return hay.includes(n);
+  }
+
   async function fetchGeminiExplainOnce(apiKey, word, modelId) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
     const systemText = [
@@ -475,9 +507,14 @@
   const kartDe = document.getElementById("kart-de");
   const kartTr = document.getElementById("kart-tr");
   const kartEx = document.getElementById("kart-ex");
+  const kartTts = document.getElementById("kart-tts");
+  const btnKartDe = document.getElementById("btn-kart-de");
+  const btnKartEx = document.getElementById("btn-kart-ex");
+  const btnKartTr = document.getElementById("btn-kart-tr");
   const btnYeni = document.getElementById("btn-yeni");
   const btnSunucu = document.getElementById("btn-sunucu");
 
+  const gecmisSearch = document.getElementById("gecmis-search");
   const gecmisRoot = document.getElementById("gecmis-root");
   const detailRoot = document.getElementById("detail-root");
   const detailBack = document.getElementById("detail-back");
@@ -524,6 +561,55 @@
   tabGecmis.addEventListener("click", () => selectTab("gecmis"));
   tabAyarlar.addEventListener("click", () => selectTab("ayarlar"));
 
+  if (gecmisSearch) {
+    gecmisSearch.addEventListener("input", () => renderHistory());
+  }
+
+  if (detailRoot) {
+    detailRoot.addEventListener("click", (ev) => {
+      const deB = ev.target.closest("[data-tts-de]");
+      if (deB) {
+        const v = deB.getAttribute("data-tts-de");
+        if (v) speakUtter(decodeURIComponent(v), "de-DE");
+        return;
+      }
+      const exB = ev.target.closest("[data-tts-ex]");
+      if (exB) {
+        const v = exB.getAttribute("data-tts-ex");
+        if (v) speakUtter(decodeURIComponent(v), "de-DE");
+        return;
+      }
+      const trB = ev.target.closest("[data-tts-tr]");
+      if (trB) {
+        const v = trB.getAttribute("data-tts-tr");
+        if (v) speakUtter(decodeURIComponent(v), "tr-TR");
+        return;
+      }
+    });
+  }
+
+  if (btnKartDe) {
+    btnKartDe.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const cur = loadCurrent();
+      if (cur) speakUtter(cur.de, "de-DE");
+    });
+  }
+  if (btnKartEx) {
+    btnKartEx.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const cur = loadCurrent();
+      if (cur) speakUtter(cur.example, "de-DE");
+    });
+  }
+  if (btnKartTr) {
+    btnKartTr.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const cur = loadCurrent();
+      if (cur) speakUtter(cur.tr, "tr-TR");
+    });
+  }
+
   gecmisRoot.addEventListener("click", (ev) => {
     const chip = ev.target.closest(".chip[data-level]");
     if (chip && chip.dataset.pos != null) {
@@ -548,10 +634,12 @@
     if (!cur) {
       kartEmpty.hidden = false;
       kartCard.hidden = true;
+      if (kartTts) kartTts.hidden = true;
       return;
     }
     kartEmpty.hidden = true;
     kartCard.hidden = false;
+    if (kartTts) kartTts.hidden = false;
     kartLevel.textContent = cur.level;
     kartDe.textContent = cur.de;
     kartTr.textContent = `Türkçe: ${cur.tr}`;
@@ -568,10 +656,15 @@
 
   function renderGuideHtml(p) {
     const ex = (p.ornekler || [])
-      .map(
-        (o) =>
-          `<li><span class="ex-de">${escapeHtml(o.de || "")}</span> — <span class="ex-tr">${escapeHtml(o.tr || "")}</span></li>`,
-      )
+      .map((o) => {
+        const deRaw = String(o.de || "");
+        const enc = encodeURIComponent(deRaw);
+        return (
+          `<li><span class="ex-de">${escapeHtml(deRaw)}</span>` +
+          ` <button type="button" class="tts-mini" data-tts-de="${enc}" aria-label="Almanca dinle">🔊</button>` +
+          ` — <span class="ex-tr">${escapeHtml(o.tr || "")}</span></li>`
+        );
+      })
       .join("");
     return (
       `<div class="guide-block"><h4>Özet</h4><p>${escapeHtml(p.ozetTr || "")}</p></div>` +
@@ -585,6 +678,7 @@
 
   function renderHistory() {
     const history = loadHistory();
+    const q = gecmisSearch ? gecmisSearch.value : "";
     const blocks = buildLevelPosGroups(history);
     if (blocks.length === 0) {
       gecmisRoot.innerHTML = '<p class="empty">Henüz kayıt yok.</p>';
@@ -604,12 +698,13 @@
             .join("") +
           `</div>`;
 
-        const wordsToShow =
+        let wordsToShow =
           sel === "all"
             ? [...POS_ORDER.flatMap((pos) => groups[pos] || [])].sort((a, b) =>
                 a.de.localeCompare(b.de, "de", { sensitivity: "base" }),
               )
             : groups[sel] || [];
+        wordsToShow = wordsToShow.filter((w) => wordMatchesGecmisQuery(w, q));
 
         const list = wordsToShow
           .map(
@@ -710,6 +805,7 @@
 
   function closeDetailView() {
     if (!detailRoot) return;
+    cancelSpeak();
     history.replaceState(null, "", `${location.pathname}${location.search}`);
     detailRoot.hidden = true;
     document.body.classList.remove("detail-open");
@@ -748,7 +844,12 @@
       `<span class="badge badge-pos">${escapeHtml(POS_LABEL_TR[normalizePos(w.pos)])}</span></div>` +
       `<h2 class="word-de large">${escapeHtml(w.de)}</h2>` +
       `<p class="word-tr">${escapeHtml(w.tr)}</p>` +
-      `<p class="word-ex"><em>${escapeHtml(w.example)}</em></p>`;
+      `<p class="word-ex"><em>${escapeHtml(w.example)}</em></p>` +
+      `<div class="tts-row">` +
+      `<button type="button" class="ghost tts-sm" data-tts-de="${encodeURIComponent(w.de)}">Almanca dinle</button>` +
+      `<button type="button" class="ghost tts-sm" data-tts-ex="${encodeURIComponent(w.example)}">Örneği dinle</button>` +
+      `<button type="button" class="ghost tts-sm" data-tts-tr="${encodeURIComponent(w.tr)}">Türkçe dinle</button>` +
+      `</div>`;
 
     const cached = getGuide(w.id);
     if (cached && cached.payload) {
@@ -811,9 +912,17 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=22").catch(() => {});
     });
   }
+
+  renderKart();
+  syncHashToDetail();
+
+  window.addEventListener("pageshow", () => {
+    renderKart();
+    syncHashToDetail();
+  });
 
   (async function boot() {
     try {

@@ -1,19 +1,8 @@
-const CACHE = "dk-pwa-v1";
-const ASSETS = ["./", "./index.html", "./app.js", "./styles.css", "./manifest.webmanifest", "./icon.svg"];
+/** Ağ öncelikli: F5 ile güncel app.js / CSS gelir; çevrimdışı için önbellek yedek. */
+const CACHE = "dk-pwa-v22";
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE).then(async (cache) => {
-      for (const u of ASSETS) {
-        try {
-          await cache.add(u);
-        } catch {
-          /* ignore */
-        }
-      }
-      await self.skipWaiting();
-    }),
-  );
+  self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
@@ -30,16 +19,21 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(request, copy));
-          return res;
-        })
-        .catch(() => caches.match("./index.html"));
-    }),
+    (async () => {
+      try {
+        const live = await fetch(request, { cache: "no-store" });
+        if (live && live.ok && live.type === "basic") {
+          const c = await caches.open(CACHE);
+          await c.put(request, live.clone());
+        }
+        return live;
+      } catch (_) {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+        return caches.match("./index.html");
+      }
+    })(),
   );
 });

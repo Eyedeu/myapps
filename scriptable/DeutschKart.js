@@ -15,7 +15,7 @@ const CONFIG = {
 const GEMINI_MODELS = ["gemini-3.1-flash-lite-preview"];
 
 /** GitHub push ≠ Scriptable; widget alt satırında bunu görmüyorsan dosyayı uygulamada güncellemedin demektir. */
-const DEUTSCHKART_BUILD = "2026-04-21d";
+const DEUTSCHKART_BUILD = "2026-04-22";
 
 /** ▶ Evet ile tek seferde üretilecek yeni kelime sayısı */
 const WORDS_PER_GENERATE_RUN = 5;
@@ -78,12 +78,12 @@ function widgetWordLimit() {
 function widgetTypography() {
   const wf = config.widgetFamily;
   if (wf === "large" || wf === "extraLarge") {
-    return { meta: 10, de: 18, tr: 15, ex: 12, title: 12 };
+    return { meta: 12, de: 21, tr: 17, ex: 14, title: 13 };
   }
   if (wf === "medium") {
-    return { meta: 9, de: 16, tr: 14, ex: 11, title: 11 };
+    return { meta: 11, de: 19, tr: 16, ex: 13, title: 12 };
   }
-  return { meta: 9, de: 15, tr: 13, ex: 10, title: 10 };
+  return { meta: 10, de: 17, tr: 15, ex: 12, title: 11 };
 }
 
 /** Yenile sütunu genişliği (dokunma alanı) */
@@ -154,11 +154,19 @@ function addRefreshTapStackToRow(row, ru) {
   im.tintColor = new Color("#7dd3fc", 1);
   rb.addSpacer(4);
   const lab = rb.addText("Yenile");
-  lab.font = Font.semiboldSystemFont(10);
+  lab.font = Font.semiboldSystemFont(11);
   lab.textColor = new Color("#bae6fd", 1);
   lab.lineLimit = 1;
   lab.minimumScaleFactor = 0.65;
   return rb;
+}
+
+/** Widget genişliğine yakın pt (Scriptable tam flex yok); gri kart sağa kadar uzar. */
+function approxFullBleedCardWidthPt() {
+  const wf = config.widgetFamily;
+  if (wf === "large" || wf === "extraLarge") return 364;
+  if (wf === "medium") return 312;
+  return 292;
 }
 
 /** 2. kelimeden itibaren tam genişlik kart (MapGet: yalnızca dış kart stack.url = https PWA) */
@@ -177,7 +185,10 @@ function buildFullWidthWordBlock(parent, word, ty, linksOk, addTopSpacer) {
   tap.setPadding(6, 9, 6, 9);
   fillWordLinkedStack(tap, word, ty);
   const open = wordOpenUrl(word.id);
-  if (linksOk && open) wrap.url = open;
+  if (linksOk && open) {
+    wrap.url = open;
+    wrap.size = new Size(approxFullBleedCardWidthPt(), 0);
+  }
 }
 
 /** Scriptable: stack.url yalnızca medium+ ; küçük widget tek dokunuş = ListWidget.url */
@@ -241,7 +252,7 @@ function normalizeDe(de) {
 function appendBuildFooter(parentList) {
   parentList.addSpacer(2);
   const foot = parentList.addText(`build ${DEUTSCHKART_BUILD}`);
-  foot.font = Font.systemFont(7);
+  foot.font = Font.systemFont(8);
   foot.textColor = new Color("#475569", 1);
   foot.lineLimit = 1;
   foot.minimumScaleFactor = 0.5;
@@ -651,7 +662,7 @@ function buildWidget(state) {
     w.addSpacer(4);
     const t2 = w.addText(hint || "Ayarları kontrol edin.");
     t2.textColor = new Color("#94a3b8", 1);
-    t2.font = Font.systemFont(10);
+    t2.font = Font.systemFont(12);
     t2.minimumScaleFactor = 0.65;
     if (linksOk && homeTap) t2.url = homeTap;
     appendBuildFooter(w);

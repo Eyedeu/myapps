@@ -12,7 +12,7 @@
     <link rel="icon" type="image/svg+xml" href="./icon.svg" />
     <link rel="apple-touch-icon" href="./icon.svg" />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=22" />
   </head>
   <body>
     <header>
@@ -41,6 +41,11 @@
           <p id="kart-de" class="word-de"></p>
           <p id="kart-tr" class="word-tr"></p>
           <p id="kart-ex" class="word-ex"></p>
+          <div class="tts-inline" id="kart-tts" hidden>
+            <button type="button" class="ghost tts-sm" id="btn-kart-de">Almanca dinle</button>
+            <button type="button" class="ghost tts-sm" id="btn-kart-ex">Örneği dinle</button>
+            <button type="button" class="ghost tts-sm" id="btn-kart-tr">Türkçe dinle</button>
+          </div>
           <div class="row-actions">
             <button type="button" class="primary" id="btn-yeni">Yeni kelime</button>
           </div>
@@ -59,6 +64,14 @@
           Seviye (A1–C2) grupları. Her seviyede <strong>isim / fiil / sıfat…</strong> filtresi; kelimeye dokununca AI açıklaması (bir kez üretilir,
           tekrarlar önbellekten).
         </p>
+        <label for="gecmis-search" class="sr-only">Kelime ara</label>
+        <input
+          id="gecmis-search"
+          type="search"
+          class="gecmis-search"
+          autocomplete="off"
+          placeholder="Kelime, Türkçe çeviri veya örnek cümlede ara…"
+        />
         <div id="gecmis-root"></div>
       </section>
 
@@ -118,6 +131,6 @@
       </div>
     </div>
 
-    <script src="./app.js" defer></script>
+    <script src="./app.js?v=22" defer></script>
   </body>
 </html>
