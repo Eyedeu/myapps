@@ -34,9 +34,10 @@
         </p>
         <p id="kart-error" class="error" hidden></p>
         <div id="kart-empty" class="empty" hidden>Henüz kelime yok — önce Ayarlar’dan API anahtarı, sonra aşağıdan yenile.</div>
-        <article id="kart-card" class="card" hidden>
+        <article id="kart-card" class="card card-tappable" hidden>
           <span id="kart-level" class="badge"></span>
           <h2>Kart</h2>
+          <p class="tap-hint">Kelimeye dokun → detay &amp; AI</p>
           <p id="kart-de" class="word-de"></p>
           <p id="kart-tr" class="word-tr"></p>
           <p id="kart-ex" class="word-ex"></p>
@@ -54,7 +55,10 @@
       </section>
 
       <section id="panel-gecmis" class="panel" role="tabpanel" aria-labelledby="tab-gecmis" hidden>
-        <p class="hint">Seviye (A1–C2) grupları; her grupta Almanca alfaya göre sıra.</p>
+        <p class="hint">
+          Seviye (A1–C2) grupları. Her seviyede <strong>isim / fiil / sıfat…</strong> filtresi; kelimeye dokununca AI açıklaması (bir kez üretilir,
+          tekrarlar önbellekten).
+        </p>
         <div id="gecmis-root"></div>
       </section>
 
@@ -99,6 +103,21 @@
         </div>
       </section>
     </main>
+
+    <div id="detail-root" class="detail-root" hidden>
+      <div class="detail-sheet">
+        <div class="detail-toolbar">
+          <button type="button" class="ghost" id="detail-back">← Geçmiş</button>
+        </div>
+        <div id="detail-head" class="detail-head"></div>
+        <p id="detail-loading" class="hint detail-loading" hidden>AI hazırlanıyor…</p>
+        <div id="detail-guide" class="detail-guide"></div>
+        <div class="detail-actions">
+          <button type="button" class="ghost" id="detail-regen" hidden>Önbelleği sil ve API ile yenile</button>
+        </div>
+      </div>
+    </div>
+
     <script src="./app.js" defer></script>
   </body>
 </html>

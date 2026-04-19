@@ -13,7 +13,42 @@
   const LS_SB_ANON = "deutschkart_sb_anon";
   const LS_HISTORY = "deutschkart_history_v1";
   const LS_CURRENT = "deutschkart_current_v1";
+  const LS_GUIDES = "deutschkart_guides_v1";
   const LEVEL_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"];
+  const POS_ORDER = ["noun", "verb", "adj", "phrase", "prep", "conj", "adv", "other"];
+  const POS_LABEL_TR = {
+    noun: "İsim",
+    verb: "Fiil",
+    adj: "Sıfat",
+    phrase: "Kalıp / ifade",
+    prep: "Edat",
+    conj: "Bağlaç",
+    adv: "Zarf",
+    other: "Diğer",
+  };
+
+  function normalizePos(raw) {
+    const s = String(raw || "")
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "");
+    if (POS_ORDER.includes(s)) return s;
+    const map = {
+      substantive: "noun",
+      nomen: "noun",
+      adjektiv: "adj",
+      adjective: "adj",
+      adverb: "adv",
+      adverbium: "adv",
+      präposition: "prep",
+      preposition: "prep",
+      konjunktion: "conj",
+      conjunction: "conj",
+      redewendung: "phrase",
+      ausdruck: "phrase",
+    };
+    return map[s] || "phrase";
+  }
 
   function normalizeDe(de) {
     return String(de || "")
@@ -86,6 +121,7 @@
       tr: row.tr,
       example: row.example,
       level: row.level,
+      pos: normalizePos(row.pos),
       shownAt: row.shown_at || row.shownAt,
     };
   }
@@ -123,6 +159,7 @@
       tr: word.tr,
       example: word.example,
       level: word.level,
+      pos: word.pos || "phrase",
       shown_at: word.shownAt,
     };
     const r = await fetch(`${base}/rest/v1/words`, {
@@ -184,6 +221,115 @@
     return new Set(history.map((w) => normalizeDe(w.de)));
   }
 
+  function loadGuidesMap() {
+    try {
+      const raw = localStorage.getItem(LS_GUIDES);
+      if (!raw) return {};
+      const o = JSON.parse(raw);
+      return o && typeof o === "object" ? o : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function saveGuidesMap(map) {
+    localStorage.setItem(LS_GUIDES, JSON.stringify(map));
+  }
+
+  function getGuide(wordId) {
+    return loadGuidesMap()[wordId] || null;
+  }
+
+  function setGuide(wordId, data) {
+    const m = loadGuidesMap();
+    m[wordId] = data;
+    saveGuidesMap(m);
+  }
+
+  function clearGuide(wordId) {
+    const m = loadGuidesMap();
+    delete m[wordId];
+    saveGuidesMap(m);
+  }
+
+  function findWordById(id) {
+    return loadHistory().find((w) => w.id === id) || null;
+  }
+
+  async function fetchGeminiExplainOnce(apiKey, word, modelId) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
+    const systemText = [
+      "Du bist ein deutscher Sprachtrainer. Der Nutzer spricht Türkisch.",
+      "Antworte NUR mit gültigem JSON (kein Markdown):",
+      '{"ozetTr":"...","gramerTr":"...","ornekler":[{"de":"...","tr":"..."}],"ipucuTr":"..."}',
+      "- ozetTr: 2-4 Sätze auf Türkisch (Bedeutung, typischer Kontext, Nuancen).",
+      "- gramerTr: 1-3 Sätze auf Türkisch (Kasus, Verbform, trennbare Verben, Präpositionen …).",
+      '- ornekler: genau 5 Objekte; "de" deutscher Satz, "tr" türkische Bedeutung.',
+      "- ipucuTr: ein merkhilfreicher Satz auf Türkisch.",
+      `Lemma (de): ${word.de}`,
+      `Übersetzung (tr): ${word.tr}`,
+      `Beispiel aus App: ${word.example}`,
+      `Niveau: ${word.level}, Wortart-Code: ${word.pos || "phrase"}`,
+    ].join("\n");
+
+    const body = {
+      systemInstruction: { parts: [{ text: systemText }] },
+      contents: [{ role: "user", parts: [{ text: "Erkläre dieses Lemma ausführlich." }] }],
+      generationConfig: { temperature: 0.65, responseMimeType: "application/json" },
+    };
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey.trim(),
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = data?.error?.message || res.statusText;
+      throw new Error(`Gemini ${res.status}: ${msg}`);
+    }
+
+    const rawText =
+      data?.candidates
+        ?.flatMap((c) => c?.content?.parts || [])
+        .map((p) => p?.text)
+        .filter(Boolean)
+        .join("\n")
+        .trim() || "";
+
+    const jsonStr = sliceJsonObject(stripFence(rawText));
+    const payload = JSON.parse(jsonStr);
+    const ozetTr = String(payload.ozetTr || "").trim();
+    const gramerTr = String(payload.gramerTr || "").trim();
+    const ipucuTr = String(payload.ipucuTr || "").trim();
+    const ornekler = Array.isArray(payload.ornekler) ? payload.ornekler : [];
+    if (!ozetTr || ornekler.length < 2) throw new Error("Geçersiz AI yanıtı.");
+
+    return { ozetTr, gramerTr, ipucuTr, ornekler };
+  }
+
+  async function fetchGeminiExplain(apiKey, word) {
+    let lastErr = new Error("AI yanıt vermedi.");
+    for (const modelId of GEMINI_MODELS) {
+      for (let attempt = 0; attempt < 4; attempt++) {
+        try {
+          if (attempt > 0) await sleep(1800 * attempt);
+          return await fetchGeminiExplainOnce(apiKey, word, modelId);
+        } catch (e) {
+          lastErr = e;
+          const msg = String(e.message || e);
+          if (/Geçersiz/i.test(msg)) throw e;
+          if (!isRetryableGemini(msg)) throw e;
+        }
+      }
+    }
+    throw lastErr;
+  }
+
   async function fetchGeminiWordOnce(apiKey, excludeSet, modelId) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
     const excludeSample = Array.from(excludeSet)
@@ -193,11 +339,12 @@
 
     const systemText = [
       'Du bist ein deutscher Sprachtrainer. Antworte NUR mit gültigem JSON (kein Markdown) exakt in dieser Form:',
-      '{"de":"...","tr":"...","example":"...","level":"B1"}',
-      '- "de": ein deutsches Wort oder kurze Wendung (max. 4 Wörter).',
+      '{"de":"...","tr":"...","example":"...","level":"B1","pos":"noun"}',
+      '- "de": ein deutsches Wort oder kurze Wendung (max. 4 Wörter). Substantive mit großem Anfangsbuchstaben.',
       '- "tr": türkische Übersetzung.',
       '- "example": ein deutscher Beispielsatz.',
       '- "level": A1,A2,B1,B2,C1 oder C2.',
+      `- "pos": genau einer von: ${POS_ORDER.join(",")} (Wortart des Haupteintrags).`,
       `Keine Wiederholungen: ${excludeSample}`,
     ].join("\n");
 
@@ -240,6 +387,7 @@
       throw new Error("Geçersiz yanıt.");
     }
     if (excludeSet.has(normalizeDe(de))) throw new Error("Tekrar kelime; tekrar deneyin.");
+    const pos = normalizePos(payload.pos);
 
     return {
       id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`,
@@ -247,6 +395,7 @@
       tr,
       example,
       level: levelRaw,
+      pos,
       shownAt: new Date().toISOString(),
     };
   }
@@ -287,17 +436,26 @@
     }
   }
 
-  function groupedHistory(history) {
-    const by = new Map();
-    for (const lv of LEVEL_ORDER) by.set(lv, []);
-    for (const w of history) {
-      const lv = LEVEL_ORDER.includes(w.level) ? w.level : "B1";
-      by.get(lv).push(w);
+  /** Seviye içinde POS grupları; filtre `gecmisPosFilter[level]` */
+  let gecmisPosFilter = {};
+
+  function buildLevelPosGroups(history) {
+    const out = [];
+    for (const level of LEVEL_ORDER) {
+      const atLevel = history.filter((w) => (LEVEL_ORDER.includes(w.level) ? w.level : "B1") === level);
+      if (!atLevel.length) continue;
+      const groups = {};
+      for (const p of POS_ORDER) groups[p] = [];
+      for (const w of atLevel) {
+        const p = normalizePos(w.pos);
+        (groups[p] || groups.phrase).push(w);
+      }
+      for (const p of POS_ORDER) {
+        groups[p].sort((a, b) => a.de.localeCompare(b.de, "de", { sensitivity: "base" }));
+      }
+      out.push({ level, groups });
     }
-    for (const lv of LEVEL_ORDER) {
-      by.get(lv).sort((a, b) => a.de.localeCompare(b.de, "de", { sensitivity: "base" }));
-    }
-    return LEVEL_ORDER.map((level) => ({ level, words: by.get(level) }));
+    return out;
   }
 
   const tabKart = document.getElementById("tab-kart");
@@ -318,6 +476,12 @@
   const btnSunucu = document.getElementById("btn-sunucu");
 
   const gecmisRoot = document.getElementById("gecmis-root");
+  const detailRoot = document.getElementById("detail-root");
+  const detailBack = document.getElementById("detail-back");
+  const detailHead = document.getElementById("detail-head");
+  const detailGuide = document.getElementById("detail-guide");
+  const detailLoading = document.getElementById("detail-loading");
+  const detailRegen = document.getElementById("detail-regen");
   const apiKeyInput = document.getElementById("api-key");
   const btnKaydet = document.getElementById("btn-kaydet");
   const btnSil = document.getElementById("btn-sil");
@@ -357,6 +521,19 @@
   tabGecmis.addEventListener("click", () => selectTab("gecmis"));
   tabAyarlar.addEventListener("click", () => selectTab("ayarlar"));
 
+  gecmisRoot.addEventListener("click", (ev) => {
+    const chip = ev.target.closest(".chip[data-level]");
+    if (chip && chip.dataset.pos != null) {
+      gecmisPosFilter[chip.dataset.level] = chip.dataset.pos;
+      renderHistory();
+      return;
+    }
+    const row = ev.target.closest(".history-item[data-word-id]");
+    if (row && row.dataset.wordId) {
+      location.hash = `#/w/${encodeURIComponent(row.dataset.wordId)}`;
+    }
+  });
+
   function showKartError(msg) {
     kartError.hidden = !msg;
     kartError.textContent = msg || "";
@@ -386,26 +563,64 @@
       .replace(/"/g, "&quot;");
   }
 
+  function renderGuideHtml(p) {
+    const ex = (p.ornekler || [])
+      .map(
+        (o) =>
+          `<li><span class="ex-de">${escapeHtml(o.de || "")}</span> — <span class="ex-tr">${escapeHtml(o.tr || "")}</span></li>`,
+      )
+      .join("");
+    return (
+      `<div class="guide-block"><h4>Özet</h4><p>${escapeHtml(p.ozetTr || "")}</p></div>` +
+      (p.gramerTr
+        ? `<div class="guide-block"><h4>Gramer</h4><p>${escapeHtml(p.gramerTr)}</p></div>`
+        : "") +
+      `<div class="guide-block"><h4>Örnek cümleler</h4><ul class="ex-list">${ex}</ul></div>` +
+      (p.ipucuTr ? `<div class="guide-tip"><strong>İpucu:</strong> ${escapeHtml(p.ipucuTr)}</div>` : "")
+    );
+  }
+
   function renderHistory() {
     const history = loadHistory();
-    const visible = groupedHistory(history).filter((g) => g.words.length > 0);
-    if (visible.length === 0) {
+    const blocks = buildLevelPosGroups(history);
+    if (blocks.length === 0) {
       gecmisRoot.innerHTML = '<p class="empty">Henüz kayıt yok.</p>';
       return;
     }
-    gecmisRoot.innerHTML = visible
-      .map(
-        ({ level, words }) =>
-          `<h3 class="section-title">${level}</h3>` +
-          words
+    gecmisRoot.innerHTML = blocks
+      .map(({ level, groups }) => {
+        const sel = gecmisPosFilter[level] || "all";
+        const chips =
+          `<div class="gecmis-chips" data-level="${escapeHtml(level)}">` +
+          `<button type="button" class="chip${sel === "all" ? " active" : ""}" data-level="${escapeHtml(level)}" data-pos="all">Tümü</button>` +
+          POS_ORDER.filter((pos) => (groups[pos] || []).length > 0)
             .map(
-              (w) =>
-                `<div class="history-item"><div class="history-de">${escapeHtml(w.de)}</div>` +
-                `<div class="history-meta">Türkçe: ${escapeHtml(w.tr)}</div>` +
-                `<div class="history-ex">${escapeHtml(w.example)}</div></div>`,
+              (pos) =>
+                `<button type="button" class="chip${sel === pos ? " active" : ""}" data-level="${escapeHtml(level)}" data-pos="${escapeHtml(pos)}">${escapeHtml(POS_LABEL_TR[pos] || pos)}</button>`,
             )
-            .join(""),
-      )
+            .join("") +
+          `</div>`;
+
+        const wordsToShow =
+          sel === "all"
+            ? [...POS_ORDER.flatMap((pos) => groups[pos] || [])].sort((a, b) =>
+                a.de.localeCompare(b.de, "de", { sensitivity: "base" }),
+              )
+            : groups[sel] || [];
+
+        const list = wordsToShow
+          .map(
+            (w) =>
+              `<button type="button" class="history-item" data-word-id="${escapeHtml(w.id)}">` +
+              `<div class="history-de">${escapeHtml(w.de)}</div>` +
+              `<div class="history-meta"><span class="mini-badge">${escapeHtml(w.level)}</span> ${escapeHtml(POS_LABEL_TR[normalizePos(w.pos)] || "")} · Türkçe: ${escapeHtml(w.tr)}</div>` +
+              `<div class="history-ex">${escapeHtml(w.example)}</div>` +
+              `</button>`,
+          )
+          .join("");
+
+        return `<h3 class="section-title">${escapeHtml(level)}</h3>${chips}${list}`;
+      })
       .join("");
   }
 
@@ -490,6 +705,107 @@
     }
   });
 
+  function closeDetailView() {
+    if (!detailRoot) return;
+    history.replaceState(null, "", `${location.pathname}${location.search}`);
+    detailRoot.hidden = true;
+    document.body.classList.remove("detail-open");
+    detailGuide.innerHTML = "";
+    detailHead.innerHTML = "";
+    detailLoading.hidden = true;
+    detailRegen.hidden = true;
+  }
+
+  async function openWordDetailById(id) {
+    if (!detailRoot) return;
+    detailRoot.hidden = false;
+    document.body.classList.add("detail-open");
+    detailGuide.innerHTML = "";
+    detailLoading.hidden = true;
+    detailRegen.hidden = true;
+
+    let w = findWordById(id);
+    if (!w && sbConfigured()) {
+      try {
+        await sbPullMerge();
+      } catch (_) {
+        /* yoksay */
+      }
+      w = findWordById(id);
+    }
+
+    if (!w) {
+      detailHead.innerHTML =
+        '<p class="error">Kelime bulunamadı. Geçmişte yoksa <strong>Sunucudan çek</strong> deneyin.</p>';
+      return;
+    }
+
+    detailHead.innerHTML =
+      `<div class="detail-badges"><span class="badge">${escapeHtml(w.level)}</span>` +
+      `<span class="badge badge-pos">${escapeHtml(POS_LABEL_TR[normalizePos(w.pos)])}</span></div>` +
+      `<h2 class="word-de large">${escapeHtml(w.de)}</h2>` +
+      `<p class="word-tr">${escapeHtml(w.tr)}</p>` +
+      `<p class="word-ex"><em>${escapeHtml(w.example)}</em></p>`;
+
+    const cached = getGuide(w.id);
+    if (cached && cached.payload) {
+      detailGuide.innerHTML = renderGuideHtml(cached.payload);
+      detailRegen.hidden = false;
+      return;
+    }
+
+    detailLoading.hidden = false;
+    try {
+      const apiKey = loadApiKey();
+      if (!apiKey.trim()) throw new Error("Önce Ayarlar → API anahtarı.");
+      const payload = await fetchGeminiExplain(apiKey, w);
+      setGuide(w.id, { payload });
+      detailGuide.innerHTML = renderGuideHtml(payload);
+      detailRegen.hidden = false;
+    } catch (e) {
+      detailGuide.innerHTML = `<p class="error">${escapeHtml(e?.message || String(e))}</p>`;
+      detailRegen.hidden = false;
+    } finally {
+      detailLoading.hidden = true;
+    }
+  }
+
+  function syncHashToDetail() {
+    if (!detailRoot) return;
+    const m = location.hash.match(/^#\/?w\/([^/?#]+)/i);
+    if (m) {
+      const id = decodeURIComponent(m[1]);
+      void openWordDetailById(id);
+    } else {
+      closeDetailView();
+    }
+  }
+
+  if (detailBack) {
+    detailBack.addEventListener("click", () => {
+      closeDetailView();
+      selectTab("gecmis");
+    });
+  }
+  if (detailRegen) {
+    detailRegen.addEventListener("click", async () => {
+      const m = location.hash.match(/^#\/?w\/([^/?#]+)/i);
+      if (!m) return;
+      const id = decodeURIComponent(m[1]);
+      clearGuide(id);
+      detailGuide.innerHTML = "";
+      await openWordDetailById(id);
+    });
+  }
+
+  window.addEventListener("hashchange", () => syncHashToDetail());
+
+  kartCard.addEventListener("click", (ev) => {
+    if (ev.target.closest("button")) return;
+    const cur = loadCurrent();
+    if (cur && !kartCard.hidden) location.hash = `#/w/${encodeURIComponent(cur.id)}`;
+  });
+
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("./sw.js").catch(() => {});
@@ -503,5 +819,6 @@
       /* ilk açılışta ağ yoksa sessiz */
     }
     renderKart();
+    syncHashToDetail();
   })();
 })();

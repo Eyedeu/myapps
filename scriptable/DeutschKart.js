@@ -6,6 +6,8 @@ const CONFIG = {
   GEMINI_API_KEY: "",
   SUPABASE_URL: "",
   SUPABASE_ANON_KEY: "",
+  /** Ana ekrana eklediğin PWA (sonunda / olsun). Kelime kartına dokununca açılır. */
+  PWA_OPEN_URL: "https://eyedeu.github.io/myapps/dk/",
 };
 
 /** Önce bu, yoğunluk hatasında sırayla denenir */
@@ -15,6 +17,50 @@ const GEMINI_MODELS = ["gemini-3.1-flash-lite-preview", "gemini-2.0-flash"];
 const WORDS_PER_GENERATE_RUN = 5;
 
 const LEVEL_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"];
+const POS_ORDER = ["noun", "verb", "adj", "phrase", "prep", "conj", "adv", "other"];
+const POS_TR = {
+  noun: "İsim",
+  verb: "Fiil",
+  adj: "Sıfat",
+  phrase: "Kalıp",
+  prep: "Edat",
+  conj: "Bağlaç",
+  adv: "Zarf",
+  other: "Diğer",
+};
+
+function normalizePos(raw) {
+  const s = String(raw || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "");
+  if (POS_ORDER.includes(s)) return s;
+  const map = {
+    substantive: "noun",
+    nomen: "noun",
+    noun: "noun",
+    verb: "verb",
+    verbum: "verb",
+    adj: "adj",
+    adjective: "adj",
+    adjektiv: "adj",
+    phrase: "phrase",
+    redewendung: "phrase",
+    ausdruck: "phrase",
+    prep: "prep",
+    präposition: "prep",
+    preposition: "prep",
+    conj: "conj",
+    konjunktion: "conj",
+    conjunction: "conj",
+    adv: "adv",
+    adverb: "adv",
+    adverbium: "adv",
+    other: "other",
+    sonstiges: "other",
+  };
+  return map[s] || "phrase";
+}
 
 /** Örnek cümle sığsın diye boyuta göre kelime sayısı */
 function widgetWordLimit() {
@@ -28,12 +74,12 @@ function widgetWordLimit() {
 function widgetTypography() {
   const wf = config.widgetFamily;
   if (wf === "large" || wf === "extraLarge") {
-    return { de: 12, tr: 10, ex: 9, exLines: 2, level: 9, title: 12 };
+    return { de: 14, tr: 11, ex: 10, exLines: 3, level: 10, title: 13, pos: 8 };
   }
   if (wf === "medium") {
-    return { de: 11, tr: 9, ex: 8, exLines: 2, level: 8, title: 11 };
+    return { de: 12, tr: 10, ex: 9, exLines: 2, level: 9, title: 12, pos: 8 };
   }
-  return { de: 10, tr: 9, ex: 8, exLines: 2, level: 8, title: 11 };
+  return { de: 11, tr: 9, ex: 8, exLines: 2, level: 8, title: 11, pos: 7 };
 }
 
 /** Scriptable: stack.url yalnızca medium+ ; küçük widget tek dokunuş = ListWidget.url */
@@ -56,6 +102,13 @@ function reloadHomeWidgets() {
   try {
     if (typeof refreshAllWidgets === "function") refreshAllWidgets();
   } catch (e) {}
+}
+
+function wordOpenUrl(wordId) {
+  const raw = String(CONFIG.PWA_OPEN_URL || "").trim();
+  if (!raw || !wordId) return "";
+  const base = raw.replace(/\/?$/, "/");
+  return `${base}#/w/${encodeURIComponent(String(wordId))}`;
 }
 
 function normalizeDe(de) {
@@ -91,6 +144,7 @@ async function sbGetAllWords() {
     tr: row.tr,
     example: row.example,
     level: row.level,
+    pos: normalizePos(row.pos),
     shownAt: row.shown_at,
   }));
 }
@@ -106,6 +160,7 @@ async function sbInsertWord(word) {
     tr: word.tr,
     example: word.example,
     level: word.level,
+    pos: word.pos || "phrase",
     shown_at: word.shownAt,
   });
   await req.load();
@@ -147,8 +202,10 @@ async function fetchGeminiNewWordOnce(excludeSet, modelId) {
 
   const systemText = [
     'Du bist ein deutscher Sprachtrainer. Antworte NUR mit gültigem JSON exakt:',
-    '{"de":"...","tr":"...","example":"...","level":"B1"}',
+    '{"de":"...","tr":"...","example":"...","level":"B1","pos":"noun"}',
     '- "level": A1,A2,B1,B2,C1 oder C2.',
+    `- "pos": genau einer von: ${POS_ORDER.join(",")} (Wortart des Haupteintrags).`,
+    '- Substantive im Feld "de" mit korrektem Großbuchstaben beginnen.',
     `Keine Wiederholungen: ${excludeSample}`,
   ].join("\n");
 
@@ -194,6 +251,7 @@ async function fetchGeminiNewWordOnce(excludeSet, modelId) {
     throw new Error("Geçersiz model yanıtı.");
   }
   if (excludeSet.has(normalizeDe(de))) throw new Error("Tekrar kelime.");
+  const pos = normalizePos(payload.pos);
 
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
@@ -201,6 +259,7 @@ async function fetchGeminiNewWordOnce(excludeSet, modelId) {
     tr,
     example,
     level: levelRaw,
+    pos,
     shownAt: new Date().toISOString(),
   };
 }
@@ -243,12 +302,14 @@ function parseWordPayload(payload, idSuffix) {
     throw new Error("Geçersiz model yanıtı.");
   }
   const suf = idSuffix != null ? String(idSuffix) : Math.random().toString(36).slice(2, 9);
+  const pos = normalizePos(payload.pos);
   return {
     id: `${Date.now()}-${suf}`,
     de,
     tr,
     example,
     level: levelRaw,
+    pos,
     shownAt: new Date().toISOString(),
   };
 }
@@ -262,12 +323,14 @@ async function fetchGeminiNewWordsBatchOnce(excludeSet, count, modelId) {
 
   const systemText = [
     "Du bist ein deutscher Sprachtrainer. Antworte NUR mit gültigem JSON (kein Markdown):",
-    '{"words":[{"de":"...","tr":"...","example":"...","level":"B1"}, ...]}',
+    '{"words":[{"de":"...","tr":"...","example":"...","level":"B1","pos":"noun"}, ...]}',
     `- Im Array "words" exakt ${count} Objekte.`,
     '- Jedes "de": ein deutsches Wort oder kurze Wendung (max. 4 Wörter).',
     '- Jedes "tr": türkische Übersetzung.',
     '- Jedes "example": ein deutscher Beispielsatz.',
     '- Jedes "level": A1,A2,B1,B2,C1 oder C2.',
+    `- Jedes "pos": einer von ${POS_ORDER.join(",")} (Wortart).`,
+    '- Substantive in "de" mit großem Anfangsbuchstaben.',
     `Alle "de" müssen untereinander verschieden sein und dürfen nicht vorkommen in: ${excludeSample}`,
   ].join("\n");
 
@@ -387,6 +450,8 @@ function buildWidget(state) {
 
   const ty = widgetTypography();
   const ru = refreshRunUrl();
+  const pwaBaseOk = Boolean(String(CONFIG.PWA_OPEN_URL || "").trim());
+  const linksOk = widgetSupportsStackLinks() && pwaBaseOk;
 
   const head = w.addStack();
   head.layoutHorizontally();
@@ -420,7 +485,6 @@ function buildWidget(state) {
     t2.textColor = new Color("#94a3b8", 1);
     t2.font = Font.systemFont(10);
     t2.minimumScaleFactor = 0.65;
-    if (config.widgetFamily === "small" && ru) w.url = ru;
     return w;
   }
 
@@ -431,59 +495,73 @@ function buildWidget(state) {
 
     const card = w.addStack();
     card.layoutVertically();
-    card.backgroundColor = new Color("#ffffff", 0.06);
-    card.cornerRadius = 10;
+    card.backgroundColor = new Color("#ffffff", 0.05);
+    card.cornerRadius = 11;
     card.borderWidth = 1;
-    card.borderColor = new Color("#7dd3fc", 0.15);
-    card.setPadding(7, 9, 7, 9);
+    card.borderColor = new Color("#7dd3fc", 0.12);
+    card.setPadding(4, 4, 4, 4);
 
-    const top = card.addStack();
-    top.layoutHorizontally();
-    top.centerAlignContent();
+    const tap = card.addStack();
+    tap.layoutVertically();
+    tap.setPadding(8, 9, 8, 9);
+    const open = wordOpenUrl(word.id);
+    if (linksOk && open) tap.url = open;
 
-    const lv = top.addText(word.level);
+    const posLine = tap.addText(POS_TR[word.pos] || POS_TR.phrase);
+    posLine.textColor = new Color("#94a3b8", 1);
+    posLine.font = Font.semiboldSystemFont(ty.pos);
+    posLine.lineLimit = 1;
+    posLine.minimumScaleFactor = 0.65;
+
+    tap.addSpacer(3);
+    const row1 = tap.addStack();
+    row1.layoutHorizontally();
+    row1.centerAlignContent();
+
+    const lv = row1.addText(word.level);
     lv.textColor = new Color("#7dd3fc", 1);
     lv.font = Font.boldSystemFont(ty.level);
-    lv.minimumScaleFactor = 0.7;
+    lv.minimumScaleFactor = 0.65;
     lv.lineLimit = 1;
 
-    top.addSpacer(6);
+    row1.addSpacer(null);
 
-    const titles = top.addStack();
-    titles.layoutVertically();
-
-    const de = titles.addText(word.de);
+    const de = row1.addText(word.de);
     de.textColor = Color.white();
     de.font = Font.boldSystemFont(ty.de);
-    de.minimumScaleFactor = 0.6;
+    de.minimumScaleFactor = 0.55;
     de.lineLimit = 2;
 
-    const tr = titles.addText(word.tr);
+    tap.addSpacer(4);
+    const tr = tap.addText(word.tr);
     tr.textColor = new Color("#e2e8f0", 1);
     tr.font = Font.systemFont(ty.tr);
-    tr.minimumScaleFactor = 0.6;
+    tr.minimumScaleFactor = 0.58;
     tr.lineLimit = 2;
 
-    card.addSpacer(4);
-    const exLabel = card.addText("Örnek");
+    tap.addSpacer(4);
+    const exLabel = tap.addText("Örnek");
     exLabel.textColor = new Color("#64748b", 1);
-    exLabel.font = Font.mediumSystemFont(Math.max(7, ty.ex - 2));
-    card.addSpacer(2);
-    const ex = card.addText(word.example || "—");
-    ex.textColor = new Color("#a8b4c4", 1);
+    exLabel.font = Font.semiboldSystemFont(Math.max(8, ty.ex - 1));
+    tap.addSpacer(2);
+    const ex = tap.addText(word.example || "—");
+    ex.textColor = new Color("#cbd5e1", 1);
     ex.font = Font.systemFont(ty.ex);
     ex.lineLimit = ty.exLines;
-    ex.minimumScaleFactor = 0.55;
+    ex.minimumScaleFactor = 0.52;
   }
 
   w.addSpacer(null);
-  if (config.widgetFamily === "small" && ru) {
-    w.url = ru;
-  } else if (widgetSupportsStackLinks()) {
-    const foot = w.addText("↻ Sağ üst: 5 yeni kelime");
+  if (widgetSupportsStackLinks()) {
+    const foot = w.addText(pwaBaseOk ? "Kart: uygulama · ↻ yalnız sağ üst" : "CONFIG.PWA_OPEN_URL ile kart linki");
     foot.textColor = new Color("#475569", 1);
     foot.font = Font.systemFont(8);
-    foot.minimumScaleFactor = 0.7;
+    foot.minimumScaleFactor = 0.65;
+  } else if (config.widgetFamily === "small") {
+    const foot = w.addText("Küçük widget: tür/URL yok; orta veya büyük kullanın.");
+    foot.textColor = new Color("#475569", 1);
+    foot.font = Font.systemFont(8);
+    foot.minimumScaleFactor = 0.65;
   }
 
   return w;

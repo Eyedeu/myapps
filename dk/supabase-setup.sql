@@ -10,6 +10,9 @@ create table if not exists public.words (
   shown_at timestamptz not null default now()
 );
 
+-- Kelime türü (PWA filtre + Scriptable): noun|verb|adj|phrase|prep|conj|adv|other
+alter table public.words add column if not exists pos text;
+
 alter table public.words enable row level security;
 
 create policy "words_select" on public.words for select using (true);
