@@ -93,23 +93,29 @@ export function Home({ db }: Props) {
     return `${done}/${row.totalCount} alındı`
   }
 
+  function openCreateSheet() {
+    setErr(null)
+    setSheetSession((s) => s + 1)
+    setCreateOpen(true)
+  }
+
   return (
-    <div className="page home home-with-fab">
-      <header className="hero hero-compact">
+    <div className="page home">
+      <header className="hero hero-minimal">
         <h1>ShopList</h1>
-        <p className="subtitle">
-          Ortak alışveriş listeleriniz burada. İkiniz de aynı Firebase projesine bağlı olduğunuz için
-          listeler anında güncellenir.
-        </p>
+        <button type="button" className="list-add-cta" onClick={openCreateSheet}>
+          <span className="list-add-cta-plus" aria-hidden>
+            +
+          </span>
+          <span className="list-add-cta-label">Liste ekle</span>
+        </button>
       </header>
 
       <section className="lists-section lists-section-first">
         <h2 className="lists-heading">Listeleriniz</h2>
         {snapErr && <p className="error">{snapErr}</p>}
         {!snapErr && lists.length === 0 && (
-          <p className="muted empty-lists">
-            Henüz liste yok. Sağ alttaki <span className="mono">+</span> düğmesiyle yeni liste oluşturun.
-          </p>
+          <p className="muted empty-lists">Henüz liste yok. Yukarıdan liste ekleyin.</p>
         )}
         <ul className="list-cards">
           {lists.map((row) => (
@@ -129,28 +135,6 @@ export function Home({ db }: Props) {
       </section>
 
       {err && !createOpen && <p className="error">{err}</p>}
-
-      <footer className="home-foot">
-        <p className="muted small">
-          Telefonda uygulama gibi kullanmak için tarayıcı menüsünden “Ana ekrana ekle” seçeneğini
-          kullanabilirsiniz.
-        </p>
-      </footer>
-
-      <button
-        type="button"
-        className="fab"
-        aria-label="Yeni liste oluştur"
-        onClick={() => {
-          setErr(null)
-          setSheetSession((s) => s + 1)
-          setCreateOpen(true)
-        }}
-      >
-        <span className="fab-icon" aria-hidden>
-          +
-        </span>
-      </button>
 
       <NewListSheet
         key={sheetSession}

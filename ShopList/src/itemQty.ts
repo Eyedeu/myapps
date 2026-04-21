@@ -8,42 +8,6 @@ export const UNITS = [
 
 export type UnitId = (typeof UNITS)[number]['id']
 
-/** Birime göre market alışverişinde sık kullanılan miktarlar. */
-export const AMOUNT_PRESETS: Record<UnitId, number[]> = {
-  kg: [0.25, 0.5, 1, 1.5, 2, 3, 5],
-  adet: [1, 2, 3, 5, 6, 10, 12],
-  g: [100, 150, 200, 250, 500, 1000],
-  L: [0.5, 1, 1.5, 2, 3, 5],
-  paket: [1, 2, 3, 4, 6],
-}
-
-export function presetsForUnit(unit: string): number[] {
-  if ((UNITS as readonly { id: string }[]).some((u) => u.id === unit)) {
-    return AMOUNT_PRESETS[unit as UnitId]
-  }
-  return [1, 2, 3, 5]
-}
-
-export function defaultAmountForUnit(unit: string): number {
-  const p = presetsForUnit(unit)
-  return p[0] ?? 1
-}
-
-export function stepAndMinForUnit(unit: string): { step: number; min: number } {
-  switch (unit) {
-    case 'kg':
-      return { step: 0.25, min: 0.25 }
-    case 'g':
-      return { step: 50, min: 50 }
-    case 'L':
-      return { step: 0.25, min: 0.25 }
-    case 'paket':
-      return { step: 1, min: 1 }
-    default:
-      return { step: 1, min: 1 }
-  }
-}
-
 export function formatAmount(n: number): string {
   if (!Number.isFinite(n)) return ''
   if (Number.isInteger(n)) return String(n)
@@ -58,9 +22,8 @@ export function resolveQtyFields(
 ): { amount: number; unit: string } | Record<string, never> {
   const raw = amountStr.trim().replace(',', '.')
   const parsed = parseFloat(raw)
-  let amount = !Number.isNaN(parsed) && parsed > 0 ? parsed : null
+  const amount = !Number.isNaN(parsed) && parsed > 0 ? parsed : null
   const u = unit.trim()
-  if (u && amount == null) amount = 1
   if (amount != null && !u) {
     return { amount, unit: 'adet' }
   }
