@@ -625,11 +625,9 @@ textarea.field-input {
 
 @keyframes sheet-in {
   from {
-    transform: translateY(100%);
-    opacity: 0.85;
+    opacity: 0.65;
   }
   to {
-    transform: translateY(0);
     opacity: 1;
   }
 }
@@ -656,7 +654,18 @@ textarea.field-input {
   padding: 0.35rem 1.1rem 1.35rem;
   padding-bottom: max(1.35rem, calc(0.5rem + env(safe-area-inset-bottom, 0px)));
   box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.4);
-  animation: sheet-in 0.24s ease-out;
+  animation: sheet-in 0.2s ease-out;
+}
+
+.sheet-drag-area {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+
+.sheet-drag-area:active {
+  cursor: grabbing;
 }
 
 .sheet-handle {

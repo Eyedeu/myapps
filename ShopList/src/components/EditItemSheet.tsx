@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import type { ListItem } from '../types'
 import { amountToInputString, resolveQtyFields } from '../itemQty'
+import { useSheetDragToClose } from '../hooks/useSheetDragToClose.ts'
 import { ItemQtyEditor } from './ItemQtyEditor.tsx'
 
 type Props = {
@@ -15,6 +16,7 @@ export function EditItemSheet({ item, onClose, onSave }: Props) {
   const [amountStr, setAmountStr] = useState(amountToInputString(item.amount))
   const [unit, setUnit] = useState(item.unit ?? '')
   const [busy, setBusy] = useState(false)
+  const { dragAreaProps, panelStyle } = useSheetDragToClose(!busy, onClose)
 
   async function submit() {
     const t = text.trim()
@@ -43,21 +45,28 @@ export function EditItemSheet({ item, onClose, onSave }: Props) {
     >
       <div
         className="sheet-panel sheet-panel-tall"
+        style={panelStyle}
         role="dialog"
         aria-modal="true"
         aria-labelledby={`${idp}-edit-title`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sheet-handle" aria-hidden />
-        <header className="sheet-header">
-          <button type="button" className="btn ghost sheet-cancel" disabled={busy} onClick={onClose}>
-            İptal
-          </button>
-          <h2 id={`${idp}-edit-title`} className="sheet-title">
-            Ürünü düzenle
-          </h2>
-          <span className="sheet-header-spacer" aria-hidden />
-        </header>
+        <div
+          className="sheet-drag-area"
+          aria-label="Aşağı kaydırarak kapat"
+          {...dragAreaProps}
+        >
+          <div className="sheet-handle" aria-hidden />
+          <header className="sheet-header">
+            <button type="button" className="btn ghost sheet-cancel" disabled={busy} onClick={onClose}>
+              İptal
+            </button>
+            <h2 id={`${idp}-edit-title`} className="sheet-title">
+              Ürünü düzenle
+            </h2>
+            <span className="sheet-header-spacer" aria-hidden />
+          </header>
+        </div>
         <div className="sheet-form edit-item-form">
           <label className="field">
             <span className="field-label">Ürün adı</span>

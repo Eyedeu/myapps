@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { useSheetDragToClose } from '../hooks/useSheetDragToClose.ts'
 import { defaultListTitle } from '../listTitle'
 
 type Props = {
@@ -12,6 +13,7 @@ type Props = {
 export function NewListSheet({ open, busy, error, onClose, onCreate }: Props) {
   const titleId = useId()
   const [name, setName] = useState('')
+  const { dragAreaProps, panelStyle } = useSheetDragToClose(open && !busy, onClose)
 
   if (!open) return null
 
@@ -25,21 +27,28 @@ export function NewListSheet({ open, busy, error, onClose, onCreate }: Props) {
     >
       <div
         className="sheet-panel"
+        style={panelStyle}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sheet-handle" aria-hidden />
-        <header className="sheet-header">
-          <button type="button" className="btn ghost sheet-cancel" disabled={busy} onClick={onClose}>
-            İptal
-          </button>
-          <h2 id={titleId} className="sheet-title">
-            Yeni liste
-          </h2>
-          <span className="sheet-header-spacer" aria-hidden />
-        </header>
+        <div
+          className="sheet-drag-area"
+          aria-label="Aşağı kaydırarak kapat"
+          {...dragAreaProps}
+        >
+          <div className="sheet-handle" aria-hidden />
+          <header className="sheet-header">
+            <button type="button" className="btn ghost sheet-cancel" disabled={busy} onClick={onClose}>
+              İptal
+            </button>
+            <h2 id={titleId} className="sheet-title">
+              Yeni liste
+            </h2>
+            <span className="sheet-header-spacer" aria-hidden />
+          </header>
+        </div>
         <p className="sheet-lede muted">Liste adını yazın; boş bırakırsanız otomatik bir başlık kullanılır.</p>
         <form
           className="sheet-form"
