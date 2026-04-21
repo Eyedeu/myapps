@@ -3,4 +3,7 @@ export type ListItem = {
   text: string
   done: boolean
   order: number
+  /** Varsa birlikte `unit` da vardır. */
+  amount: number | null
+  unit: string | null
 }

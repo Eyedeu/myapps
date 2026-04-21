@@ -12,6 +12,8 @@ Aynı Firebase projesine bağlı iki kişinin (ör. anne–çocuk) ortak kulland
 
 Veri yapısı: `shopLists/{listeId}` alanları `title`, `createdAt`, `pendingCount`, `totalCount`; ürünler `shopLists/{listeId}/items/{ürünId}`.
 
+Her ürün: `text` (ad), `done`, `order`, `createdAt`; isteğe bağlı `amount` (sayı) ve `unit` (`kg`, `adet`, `g`, `L`, `paket`). Miktar yoksa sadece ürün adı yeterlidir (eski kayıtlar uyumludur).
+
 ## Firestore güvenlik kuralları (örnek)
 
 ```text

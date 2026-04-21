@@ -4,6 +4,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   onSnapshot,
   orderBy,
@@ -12,7 +13,10 @@ import {
   updateDoc,
 } from 'firebase/firestore'
 import { ConfirmDialog } from '../components/ConfirmDialog.tsx'
+import { EditItemSheet } from '../components/EditItemSheet.tsx'
+import { QuantityPickers } from '../components/QuantityPickers.tsx'
 import { deleteShopList } from '../firebase/deleteShopList.ts'
+import { itemDisplayParts, itemSpokenLabel, parseItemQtyFromDoc, resolveQtyFields } from '../itemQty'
 import { defaultListTitle } from '../listTitle'
 import { navigateTo } from '../route'
 import type { ListItem } from '../types'
@@ -27,11 +31,14 @@ type ConfirmKind = null | 'remove-list'
 export function ListView({ db, listId }: Props) {
   const [items, setItems] = useState<ListItem[]>([])
   const [newText, setNewText] = useState('')
+  const [newAmountStr, setNewAmountStr] = useState('')
+  const [newUnit, setNewUnit] = useState('')
   const [fireErr, setFireErr] = useState<string | null>(null)
   const [listTitle, setListTitle] = useState('')
   const [confirm, setConfirm] = useState<ConfirmKind>(null)
   const [deleting, setDeleting] = useState(false)
   const [dismissCompletePrompt, setDismissCompletePrompt] = useState(false)
+  const [editItem, setEditItem] = useState<ListItem | null>(null)
 
   const itemsRef = useMemo(() => collection(db, 'shopLists', listId, 'items'), [db, listId])
   const listRef = useMemo(() => doc(db, 'shopLists', listId), [db, listId])
@@ -61,12 +68,15 @@ export function ListView({ db, listId }: Props) {
         setFireErr(null)
         const next: ListItem[] = []
         for (const d of snap.docs) {
-          const data = d.data() as { text?: unknown; done?: unknown; order?: unknown }
+          const data = d.data() as Record<string, unknown>
+          const { amount, unit } = parseItemQtyFromDoc(data)
           next.push({
             id: d.id,
             text: typeof data.text === 'string' ? data.text : '',
             done: Boolean(data.done),
             order: typeof data.order === 'number' ? data.order : 0,
+            amount,
+            unit,
           })
         }
         setItems(next)
@@ -93,13 +103,35 @@ export function ListView({ db, listId }: Props) {
   async function addItem() {
     const text = newText.trim()
     if (!text) return
-    setNewText('')
-    await addDoc(itemsRef, {
+    const q = resolveQtyFields(newAmountStr, newUnit)
+    const payload: Record<string, unknown> = {
       text,
       done: false,
       order: Date.now(),
       createdAt: serverTimestamp(),
-    })
+    }
+    if ('amount' in q) {
+      payload.amount = q.amount
+      payload.unit = q.unit
+    }
+    setNewText('')
+    setNewAmountStr('')
+    setNewUnit('')
+    await addDoc(itemsRef, payload)
+  }
+
+  async function saveItemEdit(patch: { text: string; amount?: number; unit?: string; clearQty?: boolean }) {
+    if (!editItem) return
+    const ref = doc(itemsRef, editItem.id)
+    if (patch.clearQty) {
+      await updateDoc(ref, {
+        text: patch.text,
+        amount: deleteField(),
+        unit: deleteField(),
+      })
+    } else if (patch.amount != null && patch.unit) {
+      await updateDoc(ref, { text: patch.text, amount: patch.amount, unit: patch.unit })
+    }
   }
 
   async function toggleDone(item: ListItem) {
@@ -130,8 +162,40 @@ export function ListView({ db, listId }: Props) {
     }
   }
 
+  function renderRow(item: ListItem, isDone: boolean) {
+    const { qty, name } = itemDisplayParts(item.text, item.amount, item.unit)
+    const spoken = itemSpokenLabel(item.text, item.amount, item.unit)
+    return (
+      <li key={item.id} className={`item-row${isDone ? ' done' : ''}`}>
+        <div className="item-row-inner">
+          <label className="item-check-label" htmlFor={`chk-${item.id}`}>
+            <span className="sr-only">
+              {spoken} — {item.done ? 'işareti kaldır' : 'alındı işaretle'}
+            </span>
+            <input
+              id={`chk-${item.id}`}
+              type="checkbox"
+              className="item-check"
+              checked={item.done}
+              onChange={() => void toggleDone(item)}
+            />
+          </label>
+          <div className="item-text-col">
+            {qty ? <span className="item-qty">{qty}</span> : null}
+            <button type="button" className="item-name-btn" onClick={() => setEditItem(item)}>
+              {name}
+            </button>
+          </div>
+          <button type="button" className="btn icon danger" onClick={() => void removeItem(item)} title="Sil">
+            ×
+          </button>
+        </div>
+      </li>
+    )
+  }
+
   return (
-    <div className="page list">
+    <div className="page list list-with-add-panel">
       <header className="list-header">
         <div className="list-header-top">
           <button type="button" className="btn ghost back" onClick={() => navigateTo({ name: 'home' })}>
@@ -174,69 +238,57 @@ export function ListView({ db, listId }: Props) {
 
       <ul className="item-list" aria-label="Alınacaklar">
         {pending.length === 0 && items.length === 0 && (
-          <li className="empty">Henüz ürün yok. Aşağıdan ekleyin.</li>
+          <li className="empty">Henüz ürün yok. Aşağıdan ekleyin; miktar ve birim isteğe bağlıdır.</li>
         )}
         {pending.length === 0 && items.length > 0 && <li className="empty subtle">Alınacak kalmadı.</li>}
-        {pending.map((item) => (
-          <li key={item.id} className="item-row">
-            <label className="check-wrap">
-              <input
-                type="checkbox"
-                checked={item.done}
-                onChange={() => void toggleDone(item)}
-                aria-label={`${item.text} alındı`}
-              />
-              <span className="item-text">{item.text}</span>
-            </label>
-            <button type="button" className="btn icon danger" onClick={() => void removeItem(item)} title="Sil">
-              ×
-            </button>
-          </li>
-        ))}
+        {pending.map((item) => renderRow(item, false))}
       </ul>
 
       {done.length > 0 && (
         <>
           <h2 className="section-label">Alındı</h2>
           <ul className="item-list done" aria-label="Alınanlar">
-            {done.map((item) => (
-              <li key={item.id} className="item-row done">
-                <label className="check-wrap">
-                  <input
-                    type="checkbox"
-                    checked={item.done}
-                    onChange={() => void toggleDone(item)}
-                    aria-label={`${item.text} geri al`}
-                  />
-                  <span className="item-text">{item.text}</span>
-                </label>
-                <button type="button" className="btn icon danger" onClick={() => void removeItem(item)} title="Sil">
-                  ×
-                </button>
-              </li>
-            ))}
+            {done.map((item) => renderRow(item, true))}
           </ul>
         </>
       )}
 
       <form
-        className="add-bar"
+        className="add-panel"
         onSubmit={(e) => {
           e.preventDefault()
           void addItem()
         }}
       >
-        <input
-          className="field-input grow"
-          value={newText}
-          onChange={(e) => setNewText(e.target.value)}
-          placeholder="Örn: süt, ekmek…"
-          enterKeyHint="done"
-          aria-label="Yeni ürün"
-        />
-        <button type="submit" className="btn primary" disabled={!newText.trim()}>
-          Ekle
-        </button>
+        <div className="add-panel-inner">
+          <label className="field add-name-field">
+            <span className="field-label">Ürün</span>
+            <input
+              className="field-input"
+              value={newText}
+              onChange={(e) => setNewText(e.target.value)}
+              placeholder="Örn: limon, süt…"
+              enterKeyHint="done"
+              aria-label="Ürün adı"
+              maxLength={120}
+            />
+          </label>
+          <QuantityPickers
+            idPrefix="add-new"
+            amountStr={newAmountStr}
+            unit={newUnit}
+            onAmountStrChange={setNewAmountStr}
+            onUnitChange={setNewUnit}
+            onQuickAmount={(n) => setNewAmountStr(String(n))}
+            onClearQty={() => {
+              setNewAmountStr('')
+              setNewUnit('')
+            }}
+          />
+          <button type="submit" className="btn primary add-panel-submit" disabled={!newText.trim()}>
+            Ekle
+          </button>
+        </div>
       </form>
 
       {confirm === 'remove-list' && (
@@ -255,6 +307,15 @@ export function ListView({ db, listId }: Props) {
           onConfirm={() => {
             if (!deleting) void runDeleteList()
           }}
+        />
+      )}
+
+      {editItem && (
+        <EditItemSheet
+          key={editItem.id}
+          item={editItem}
+          onClose={() => setEditItem(null)}
+          onSave={saveItemEdit}
         />
       )}
     </div>
