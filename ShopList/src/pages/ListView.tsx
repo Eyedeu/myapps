@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Firestore } from 'firebase/firestore'
 import {
-  addDoc,
   collection,
   deleteDoc,
   deleteField,
@@ -9,14 +8,13 @@ import {
   onSnapshot,
   orderBy,
   query,
-  serverTimestamp,
   updateDoc,
 } from 'firebase/firestore'
+import { AddItemSheet } from '../components/AddItemSheet.tsx'
 import { ConfirmDialog } from '../components/ConfirmDialog.tsx'
 import { EditItemSheet } from '../components/EditItemSheet.tsx'
-import { QuantityPickers } from '../components/QuantityPickers.tsx'
 import { deleteShopList } from '../firebase/deleteShopList.ts'
-import { itemDisplayParts, itemSpokenLabel, parseItemQtyFromDoc, resolveQtyFields } from '../itemQty'
+import { itemDisplayParts, itemSpokenLabel, parseItemQtyFromDoc } from '../itemQty'
 import { defaultListTitle } from '../listTitle'
 import { navigateTo } from '../route'
 import type { ListItem } from '../types'
@@ -30,9 +28,8 @@ type ConfirmKind = null | 'remove-list'
 
 export function ListView({ db, listId }: Props) {
   const [items, setItems] = useState<ListItem[]>([])
-  const [newText, setNewText] = useState('')
-  const [newAmountStr, setNewAmountStr] = useState('')
-  const [newUnit, setNewUnit] = useState('')
+  const [addOpen, setAddOpen] = useState(false)
+  const [addKey, setAddKey] = useState(0)
   const [fireErr, setFireErr] = useState<string | null>(null)
   const [listTitle, setListTitle] = useState('')
   const [confirm, setConfirm] = useState<ConfirmKind>(null)
@@ -99,26 +96,6 @@ export function ListView({ db, listId }: Props) {
   const allDone = items.length > 0 && pending.length === 0
 
   const showCompleteBanner = allDone && !dismissCompletePrompt
-
-  async function addItem() {
-    const text = newText.trim()
-    if (!text) return
-    const q = resolveQtyFields(newAmountStr, newUnit)
-    const payload: Record<string, unknown> = {
-      text,
-      done: false,
-      order: Date.now(),
-      createdAt: serverTimestamp(),
-    }
-    if ('amount' in q) {
-      payload.amount = q.amount
-      payload.unit = q.unit
-    }
-    setNewText('')
-    setNewAmountStr('')
-    setNewUnit('')
-    await addDoc(itemsRef, payload)
-  }
 
   async function saveItemEdit(patch: { text: string; amount?: number; unit?: string; clearQty?: boolean }) {
     if (!editItem) return
@@ -195,7 +172,7 @@ export function ListView({ db, listId }: Props) {
   }
 
   return (
-    <div className="page list list-with-add-panel">
+    <div className="page list list-with-fab">
       <header className="list-header">
         <div className="list-header-top">
           <button type="button" className="btn ghost back" onClick={() => navigateTo({ name: 'home' })}>
@@ -238,7 +215,9 @@ export function ListView({ db, listId }: Props) {
 
       <ul className="item-list" aria-label="Alınacaklar">
         {pending.length === 0 && items.length === 0 && (
-          <li className="empty">Henüz ürün yok. Aşağıdan ekleyin; miktar ve birim isteğe bağlıdır.</li>
+          <li className="empty">
+            Henüz ürün yok. Sağ alttaki <span className="mono">+</span> ile ekleyin; miktar ve birim isteğe bağlıdır.
+          </li>
         )}
         {pending.length === 0 && items.length > 0 && <li className="empty subtle">Alınacak kalmadı.</li>}
         {pending.map((item) => renderRow(item, false))}
@@ -253,43 +232,24 @@ export function ListView({ db, listId }: Props) {
         </>
       )}
 
-      <form
-        className="add-panel"
-        onSubmit={(e) => {
-          e.preventDefault()
-          void addItem()
+      <button
+        type="button"
+        className="fab fab-list"
+        aria-label="Ürün ekle"
+        disabled={addOpen || editItem != null}
+        onClick={() => {
+          setAddKey((k) => k + 1)
+          setAddOpen(true)
         }}
       >
-        <div className="add-panel-inner">
-          <label className="field add-name-field">
-            <span className="field-label">Ürün</span>
-            <input
-              className="field-input"
-              value={newText}
-              onChange={(e) => setNewText(e.target.value)}
-              placeholder="Örn: limon, süt…"
-              enterKeyHint="done"
-              aria-label="Ürün adı"
-              maxLength={120}
-            />
-          </label>
-          <QuantityPickers
-            idPrefix="add-new"
-            amountStr={newAmountStr}
-            unit={newUnit}
-            onAmountStrChange={setNewAmountStr}
-            onUnitChange={setNewUnit}
-            onQuickAmount={(n) => setNewAmountStr(String(n))}
-            onClearQty={() => {
-              setNewAmountStr('')
-              setNewUnit('')
-            }}
-          />
-          <button type="submit" className="btn primary add-panel-submit" disabled={!newText.trim()}>
-            Ekle
-          </button>
-        </div>
-      </form>
+        <span className="fab-icon" aria-hidden>
+          +
+        </span>
+      </button>
+
+      {addOpen && (
+        <AddItemSheet key={addKey} db={db} listId={listId} onClose={() => setAddOpen(false)} />
+      )}
 
       {confirm === 'remove-list' && (
         <ConfirmDialog

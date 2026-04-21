@@ -1,20 +1,23 @@
 import { useId, useState } from 'react'
-import type { ListItem } from '../types'
-import { amountToInputString, resolveQtyFields } from '../itemQty'
+import type { Firestore } from 'firebase/firestore'
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { ItemQtyEditor } from './ItemQtyEditor.tsx'
+import { resolveQtyFields } from '../itemQty'
 
 type Props = {
-  item: ListItem
+  db: Firestore
+  listId: string
   onClose: () => void
-  onSave: (patch: { text: string; amount?: number; unit?: string; clearQty?: boolean }) => Promise<void>
 }
 
-export function EditItemSheet({ item, onClose, onSave }: Props) {
+export function AddItemSheet({ db, listId, onClose }: Props) {
   const idp = useId()
-  const [text, setText] = useState(item.text)
-  const [amountStr, setAmountStr] = useState(amountToInputString(item.amount))
-  const [unit, setUnit] = useState(item.unit ?? '')
+  const [text, setText] = useState('')
+  const [amountStr, setAmountStr] = useState('')
+  const [unit, setUnit] = useState('')
   const [busy, setBusy] = useState(false)
+
+  const itemsRef = collection(db, 'shopLists', listId, 'items')
 
   async function submit() {
     const t = text.trim()
@@ -22,11 +25,17 @@ export function EditItemSheet({ item, onClose, onSave }: Props) {
     setBusy(true)
     try {
       const q = resolveQtyFields(amountStr, unit)
-      if (Object.keys(q).length === 0) {
-        await onSave({ text: t, clearQty: true })
-      } else {
-        await onSave({ text: t, amount: q.amount, unit: q.unit })
+      const payload: Record<string, unknown> = {
+        text: t,
+        done: false,
+        order: Date.now(),
+        createdAt: serverTimestamp(),
       }
+      if ('amount' in q) {
+        payload.amount = q.amount
+        payload.unit = q.unit
+      }
+      await addDoc(itemsRef, payload)
       onClose()
     } finally {
       setBusy(false)
@@ -45,7 +54,7 @@ export function EditItemSheet({ item, onClose, onSave }: Props) {
         className="sheet-panel sheet-panel-tall"
         role="dialog"
         aria-modal="true"
-        aria-labelledby={`${idp}-edit-title`}
+        aria-labelledby={`${idp}-add-title`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sheet-handle" aria-hidden />
@@ -53,8 +62,8 @@ export function EditItemSheet({ item, onClose, onSave }: Props) {
           <button type="button" className="btn ghost sheet-cancel" disabled={busy} onClick={onClose}>
             İptal
           </button>
-          <h2 id={`${idp}-edit-title`} className="sheet-title">
-            Ürünü düzenle
+          <h2 id={`${idp}-add-title`} className="sheet-title">
+            Ürün ekle
           </h2>
           <span className="sheet-header-spacer" aria-hidden />
         </header>
@@ -68,10 +77,12 @@ export function EditItemSheet({ item, onClose, onSave }: Props) {
               onChange={(e) => setText(e.target.value)}
               maxLength={120}
               disabled={busy}
+              placeholder="Örn: limon, süt…"
+              autoFocus
             />
           </label>
           <ItemQtyEditor
-            idPrefix={`${idp}-edit`}
+            idPrefix={`${idp}-add`}
             amountStr={amountStr}
             unit={unit}
             disabled={busy}
@@ -88,7 +99,7 @@ export function EditItemSheet({ item, onClose, onSave }: Props) {
             disabled={busy || !text.trim()}
             onClick={() => void submit()}
           >
-            {busy ? 'Kaydediliyor…' : 'Kaydet'}
+            {busy ? 'Ekleniyor…' : 'Listeye ekle'}
           </button>
         </div>
       </div>

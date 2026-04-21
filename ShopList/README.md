@@ -12,7 +12,7 @@ Aynı Firebase projesine bağlı iki kişinin (ör. anne–çocuk) ortak kulland
 
 Veri yapısı: `shopLists/{listeId}` alanları `title`, `createdAt`, `pendingCount`, `totalCount`; ürünler `shopLists/{listeId}/items/{ürünId}`.
 
-Her ürün: `text` (ad), `done`, `order`, `createdAt`; isteğe bağlı `amount` (sayı) ve `unit` (`kg`, `adet`, `g`, `L`, `paket`). Miktar yoksa sadece ürün adı yeterlidir (eski kayıtlar uyumludur).
+Her ürün: `text` (ad), `done`, `order`, `createdAt`; isteğe bağlı `amount` (sayı) ve `unit` (`kg`, `adet`, `g`, `L`, `paket`). Miktar yoksa sadece ürün adı yeterlidir (eski kayıtlar uyumludur). Liste ekranında ürün **+** ile alttan sheet açılır; birim seçildiğinde o birime uygun hızlı miktar önayarları gösterilir.
 
 ## Firestore güvenlik kuralları (örnek)
 
