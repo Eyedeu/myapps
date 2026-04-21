@@ -428,15 +428,6 @@ textarea.field-input {
   accent-color: var(--accent);
 }
 
-.item-text-col {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.12rem;
-}
-
 .item-qty {
   font-size: 0.78rem;
   font-weight: 600;
@@ -444,34 +435,49 @@ textarea.field-input {
   color: #9eb9f0;
 }
 
-.item-name-btn {
+.item-row-edit {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.12rem;
   border: none;
-  background: none;
-  padding: 0;
-  margin: 0;
+  background: transparent;
+  padding: 0.4rem 0.45rem;
+  margin: -0.2rem -0.25rem;
+  border-radius: 10px;
   text-align: left;
   font: inherit;
-  font-size: 1rem;
-  color: var(--strong);
   cursor: pointer;
-  border-radius: 4px;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.item-name-btn:hover {
-  color: var(--accent);
+.item-row-edit:hover {
+  background: rgba(91, 141, 239, 0.09);
 }
 
-.item-name-btn:focus-visible {
+.item-row-edit:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-.item-row.done .item-name-btn {
+.item-name-text {
+  font-size: 1rem;
+  color: var(--strong);
+  width: 100%;
+  text-align: left;
+  line-height: 1.35;
+}
+
+.item-row.done .item-row-edit .item-name-text {
   text-decoration: line-through;
   color: var(--muted);
 }
 
-.item-row.done .item-qty {
+.item-row.done .item-row-edit .item-qty {
   opacity: 0.75;
 }
 

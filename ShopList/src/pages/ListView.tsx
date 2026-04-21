@@ -157,12 +157,15 @@ export function ListView({ db, listId }: Props) {
               onChange={() => void toggleDone(item)}
             />
           </label>
-          <div className="item-text-col">
+          <button
+            type="button"
+            className="item-row-edit"
+            onClick={() => setEditItem(item)}
+            aria-label={`${spoken} — düzenle`}
+          >
             {qty ? <span className="item-qty">{qty}</span> : null}
-            <button type="button" className="item-name-btn" onClick={() => setEditItem(item)}>
-              {name}
-            </button>
-          </div>
+            <span className="item-name-text">{name}</span>
+          </button>
           <button type="button" className="btn icon danger" onClick={() => void removeItem(item)} title="Sil">
             ×
           </button>
