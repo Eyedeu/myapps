@@ -83,6 +83,8 @@ export default function App() {
   const [signatureOptions, setSignatureOptions] = useState([]);
   const [activeSignatureId, setActiveSignatureId] = useState(null);
   const [viewScrollUnlocked, setViewScrollUnlocked] = useState(false);
+  /** Metin: cift tik ile textarea; tek tik sadece secim + boyut tutamaclari */
+  const [textEditingItemId, setTextEditingItemId] = useState(null);
   const [historyProjects, setHistoryProjects] = useState([]);
   const autosaveTimer = useRef(null);
   const pdfInputRef = useRef(null);
@@ -116,6 +118,12 @@ export default function App() {
     () => signatureOptions.find((option) => option.id === activeSignatureId) ?? null,
     [activeSignatureId, signatureOptions],
   );
+  useEffect(() => {
+    if (textEditingItemId && textEditingItemId !== selectedItemId) {
+      setTextEditingItemId(null);
+    }
+  }, [selectedItemId, textEditingItemId]);
+
   const selectedPageIndex = useMemo(
     () => project.pages.findIndex((page) => page.id === selectedPageId),
     [project.pages, selectedPageId],
@@ -452,6 +460,10 @@ export default function App() {
   const toggleViewScroll = useCallback(() => {
     setViewScrollUnlocked((prev) => {
       const next = !prev;
+      if (!prev) {
+        setTool("select");
+        setTextEditingItemId(null);
+      }
       setStatus(
         next
           ? "Sayfa kaydirma: acik. Cift tik tekrar: ciz, imza, tasma, silgi (sayfa oynamaz). "
@@ -516,6 +528,7 @@ export default function App() {
     setSignatureListOpen(false);
     setPageZoom(1);
     setViewScrollUnlocked(false);
+    setTextEditingItemId(null);
     setStatus("Yeni proje. PDF, foto veya A4 ekleyin.");
   }
 
@@ -763,6 +776,8 @@ export default function App() {
                 viewScrollUnlocked={viewScrollUnlocked}
                 onViewScrollToggle={toggleViewScroll}
                 setPageZoom={setPageZoom}
+                textEditingItemId={textEditingItemId}
+                setTextEditingItemId={setTextEditingItemId}
               />
             </section>
 
@@ -774,6 +789,7 @@ export default function App() {
 
       {signaturePickerOpen ? (
         <SignatureModal
+          initialInkColor={accentColor}
           onClose={() => setSignaturePickerOpen(false)}
           onSave={(payload) => {
             const customSignature = {
@@ -782,6 +798,7 @@ export default function App() {
               dataUrl: payload.dataUrl,
               naturalWidth: payload.naturalWidth,
               naturalHeight: payload.naturalHeight,
+              inkColor: payload.inkColor ?? "#111827",
             };
 
             setSignatureOptions((current) => [...current, customSignature]);
@@ -923,6 +940,7 @@ function EditToolbar({
   const subpanelTool = tool === "draw" || tool === "text" || tool === "eraser" ? tool : null;
   const showToolRow = Boolean(subpanelTool);
   const showSelectionRow = hasSelection;
+  const showSignatureTray = tool === "signature" && signatureListOpen;
 
   return (
     <div className="edit-chrome">
@@ -1042,7 +1060,44 @@ function EditToolbar({
         </div>
       </div>
 
-      <div className="edit-chrome__subpanel" aria-live="polite">
+      <div
+        className={
+          showSignatureTray ? "edit-chrome__subpanel edit-chrome__subpanel--signature" : "edit-chrome__subpanel"
+        }
+        aria-live="polite"
+      >
+        {showSignatureTray ? (
+          <div className="subpanel-row subpanel-row--signature">
+            <div className="signature-tray-pro signature-tray-pro--inline">
+              <div className="signature-tray-pro__head">
+                <span>Imza sec</span>
+                <button className="signature-tray-pro__add" type="button" onClick={onCreateSignature}>
+                  <Plus size={16} />
+                  Yeni ciz
+                </button>
+              </div>
+              <div className="signature-tray-pro__scroll">
+                {signatureOptions.length ? (
+                  signatureOptions.map((option) => (
+                    <div
+                      key={option.id}
+                      className={option.id === activeSignature?.id ? "sig-card is-active" : "sig-card"}
+                    >
+                      <button className="sig-card__img" type="button" onClick={() => onSelectSignature(option.id)}>
+                        <img alt={option.label} src={option.dataUrl} />
+                      </button>
+                      <button className="sig-card__del" type="button" title="Kaldir" onClick={() => onRemoveSignature(option.id)}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="signature-tray-pro__empty">Henuz imza yok. &quot;Yeni ciz&quot; ile ekleyin.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
         {showToolRow && subpanelTool === "draw" ? (
           <div className="subpanel-row subpanel-row--draw">
             <div className="draw-pen-modes" role="group" aria-label="Kalem turu">
@@ -1177,37 +1232,6 @@ function EditToolbar({
           </div>
         ) : null}
       </div>
-
-      {tool === "signature" && signatureListOpen ? (
-        <div className="signature-tray-pro signature-tray-pro--float">
-          <div className="signature-tray-pro__head">
-            <span>Imza sec</span>
-            <button className="signature-tray-pro__add" type="button" onClick={onCreateSignature}>
-              <Plus size={16} />
-              Yeni ciz
-            </button>
-          </div>
-          <div className="signature-tray-pro__scroll">
-            {signatureOptions.length ? (
-              signatureOptions.map((option) => (
-                <div
-                  key={option.id}
-                  className={option.id === activeSignature?.id ? "sig-card is-active" : "sig-card"}
-                >
-                  <button className="sig-card__img" type="button" onClick={() => onSelectSignature(option.id)}>
-                    <img alt={option.label} src={option.dataUrl} />
-                  </button>
-                  <button className="sig-card__del" type="button" title="Kaldir" onClick={() => onRemoveSignature(option.id)}>
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))
-            ) : (
-              <p className="signature-tray-pro__empty">Henuz imza yok. Ustte &quot;Yeni ciz&quot; ile kendi imzanizi olusturun.</p>
-            )}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -1504,6 +1528,8 @@ function computeResizePatch(state, coords, pageW, pageH) {
   return { kind: "box", x, y, width: w, height: h };
 }
 
+const TEXT_DRAG_THRESHOLD_PX = 8;
+
 function PageEditor({
   accentColor,
   activeSignature,
@@ -1520,8 +1546,10 @@ function PageEditor({
   setSelectedStrokeId,
   setStatus,
   setPageZoom,
+  setTextEditingItemId,
   setTool,
   strokeWidth,
+  textEditingItemId,
   textValue,
   tool,
   updatePage,
@@ -1534,6 +1562,8 @@ function PageEditor({
   /** Masaustu: sadece sol tik basiliyken sil; touch/pen: baslangic pointerId ile ayni temas. */
   const eraserActivePointerIdRef = useRef(null);
   const dragState = useRef(null);
+  /** Metin: gercek surukleme baslamadan once parmak hareketi (imza aninda surukleme) */
+  const itemDragArmRef = useRef(null);
   const resizeState = useRef(null);
   const strokeDragState = useRef(null);
   const annotationPointerCaptureRef = useRef(null);
@@ -1559,6 +1589,19 @@ function PageEditor({
   useEffect(() => {
     drawingStrokeIdRef.current = drawingStrokeId;
   }, [drawingStrokeId]);
+
+  useEffect(() => {
+    if (!textEditingItemId) {
+      return undefined;
+    }
+    function onKeyDown(event) {
+      if (event.key === "Escape") {
+        setTextEditingItemId(null);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [textEditingItemId, setTextEditingItemId]);
 
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
@@ -1659,6 +1702,7 @@ function PageEditor({
       eraserActivePointerIdRef.current = null;
       setEraserGuide(null);
       dragState.current = null;
+      itemDragArmRef.current = null;
       resizeState.current = null;
       strokeDragState.current = null;
     }
@@ -1787,6 +1831,9 @@ function PageEditor({
     if (t?.classList?.contains("annotation-text-selected-shell")) {
       return t.closest(".annotation-item") ?? t;
     }
+    if (t?.classList?.contains("annotation-text-fill")) {
+      return t.closest(".annotation-item") ?? t;
+    }
     return t;
   }
 
@@ -1836,8 +1883,9 @@ function PageEditor({
       });
       setSelectedItemId(item.id);
       setSelectedStrokeId(null);
+      setTextEditingItemId(null);
       setTool("select");
-      setStatus("Metin eklendi. Secili metni tasiyabilir veya boyutunu ayarlayabilirsiniz.");
+      setStatus("Metin eklendi. Tek tik: boyut; cift tik: yaz; surukleyerek tasiyin.");
       return;
     }
 
@@ -1928,6 +1976,7 @@ function PageEditor({
 
     setSelectedItemId(null);
     setSelectedStrokeId(null);
+    setTextEditingItemId(null);
   }
 
   function handleStagePointerMove(event) {
@@ -1944,6 +1993,20 @@ function PageEditor({
       setEraserGuide(coords);
       if (isErasingPointerPressed(event) && event.cancelable) {
         event.preventDefault();
+      }
+    }
+
+    if (tool === "select" && itemDragArmRef.current && !dragState.current) {
+      const arm = itemDragArmRef.current;
+      const dx = event.clientX - arm.originClientX;
+      const dy = event.clientY - arm.originClientY;
+      if (dx * dx + dy * dy >= TEXT_DRAG_THRESHOLD_PX * TEXT_DRAG_THRESHOLD_PX) {
+        dragState.current = {
+          itemId: arm.itemId,
+          offsetX: arm.offsetX,
+          offsetY: arm.offsetY,
+        };
+        itemDragArmRef.current = null;
       }
     }
 
@@ -2116,6 +2179,7 @@ function PageEditor({
     }
     pendingItemDragRef.current = null;
     pendingResizeRef.current = null;
+    itemDragArmRef.current = null;
   }
 
   function handleStagePointerUp(event) {
@@ -2151,6 +2215,7 @@ function PageEditor({
       }
     }
     dragState.current = null;
+    itemDragArmRef.current = null;
     resizeState.current = null;
     strokeDragState.current = null;
   }
@@ -2160,6 +2225,7 @@ function PageEditor({
     setEraserGuide(null);
     setDrawingStrokeId(null);
     dragState.current = null;
+    itemDragArmRef.current = null;
     resizeState.current = null;
     strokeDragState.current = null;
   }
@@ -2196,11 +2262,23 @@ function PageEditor({
     }
 
     const anchor = getItemBottomLeftPdf(event) ?? { x: item.x, y: item.y };
-    dragState.current = {
-      itemId: item.id,
-      offsetX: coords.x - anchor.x,
-      offsetY: coords.y - anchor.y,
-    };
+    const offsetX = coords.x - anchor.x;
+    const offsetY = coords.y - anchor.y;
+    if (item.type === "text") {
+      itemDragArmRef.current = {
+        itemId: item.id,
+        offsetX,
+        offsetY,
+        originClientX: event.clientX,
+        originClientY: event.clientY,
+      };
+    } else {
+      dragState.current = {
+        itemId: item.id,
+        offsetX,
+        offsetY,
+      };
+    }
 
     if (hostRef.current && event.pointerId != null) {
       try {
@@ -2299,6 +2377,8 @@ function PageEditor({
     if (viewScrollUnlocked) {
       return;
     }
+
+    itemDragArmRef.current = null;
 
     event.stopPropagation();
     event.preventDefault();
@@ -2437,9 +2517,14 @@ function PageEditor({
                 item={item}
                 page={page}
                 selected={item.id === selectedItemId}
+                textEditing={item.id === textEditingItemId}
                 onPointerDown={beginItemDrag}
                 onResizePointerDown={beginItemResize}
                 onTextChange={updateTextItem}
+                onRequestTextEdit={(itemId) => {
+                  setSelectedItemId(itemId);
+                  setTextEditingItemId(itemId);
+                }}
               />
             ))}
 
@@ -2516,15 +2601,45 @@ function BaseLayer({ page, sourceDocument }) {
   );
 }
 
-function AnnotationItem({ item, onPointerDown, onResizePointerDown, onTextChange, page, selected }) {
+function AnnotationItem({
+  item,
+  onPointerDown,
+  onResizePointerDown,
+  onTextChange,
+  page,
+  selected,
+  textEditing = false,
+  onRequestTextEdit,
+}) {
   const left = `${(item.x / page.width) * 100}%`;
   const bottom = `${(item.y / page.height) * 100}%`;
   const resize = (handle) => (event) => onResizePointerDown(item, event, handle);
+  const textAreaRef = useRef(null);
+
+  useEffect(() => {
+    if (item.type !== "text" || !selected || !textEditing || !textAreaRef.current) {
+      return;
+    }
+    textAreaRef.current.focus();
+  }, [item.type, item.id, selected, textEditing]);
 
   if (item.type === "text") {
     const { width: bw, height: bh } = getTextLayoutSize(item);
     const wPct = `${(bw / page.width) * 100}%`;
     const hPct = `${(bh / page.height) * 100}%`;
+
+    function onTextBodyPointerDown(event) {
+      event.stopPropagation();
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+      if (event.detail === 2 && onRequestTextEdit) {
+        onRequestTextEdit(item.id);
+        return;
+      }
+      onPointerDown(item, event);
+    }
+
     return (
       <div
         className={selected ? "annotation-item text selected" : "annotation-item text"}
@@ -2537,19 +2652,40 @@ function AnnotationItem({ item, onPointerDown, onResizePointerDown, onTextChange
           fontSize: `${item.fontSize}px`,
         }}
         role="presentation"
-        onPointerDown={selected ? undefined : (event) => onPointerDown(item, event)}
+        onPointerDown={selected ? undefined : onTextBodyPointerDown}
       >
-        {selected ? (
+        {selected && !textEditing ? (
+          <>
+            <div className="annotation-text-fill" onPointerDown={onTextBodyPointerDown}>
+              {item.text}
+            </div>
+            <button type="button" className="annotation-knob-corner annotation-knob--tl" aria-label="Sol ust" onPointerDown={resize("tl")} />
+            <button type="button" className="annotation-knob-corner annotation-knob--tr" aria-label="Sag ust" onPointerDown={resize("tr")} />
+            <button type="button" className="annotation-knob-corner annotation-knob--bl" aria-label="Sol alt" onPointerDown={resize("bl")} />
+            <button type="button" className="annotation-knob-corner annotation-knob--br" aria-label="Sag alt" onPointerDown={resize("br")} />
+          </>
+        ) : null}
+        {selected && textEditing ? (
           <>
             <div
               className="annotation-text-selected-shell"
               onPointerDown={(event) => {
-                if (event.target === event.currentTarget) {
-                  onPointerDown(item, event);
+                if (event.target !== event.currentTarget) {
+                  return;
                 }
+                event.stopPropagation();
+                if (event.cancelable) {
+                  event.preventDefault();
+                }
+                if (event.detail === 2 && onRequestTextEdit) {
+                  onRequestTextEdit(item.id);
+                  return;
+                }
+                onPointerDown(item, event);
               }}
             >
               <textarea
+                ref={textAreaRef}
                 aria-label="Metin"
                 className="inline-textarea"
                 style={{ color: item.color, fontSize: `${item.fontSize}px` }}
@@ -2563,9 +2699,8 @@ function AnnotationItem({ item, onPointerDown, onResizePointerDown, onTextChange
             <button type="button" className="annotation-knob-corner annotation-knob--bl" aria-label="Sol alt" onPointerDown={resize("bl")} />
             <button type="button" className="annotation-knob-corner annotation-knob--br" aria-label="Sag alt" onPointerDown={resize("br")} />
           </>
-        ) : (
-          <div className="annotation-text-fill">{item.text}</div>
-        )}
+        ) : null}
+        {!selected ? <div className="annotation-text-fill">{item.text}</div> : null}
       </div>
     );
   }
@@ -2684,16 +2819,22 @@ function imageElementToTrimmedSignaturePng(img) {
   return canvasToTrimmedSignaturePng(c);
 }
 
-function SignatureModal({ onClose, onSave }) {
+function SignatureModal({ onClose, onSave, initialInkColor = "#111827" }) {
   const canvasRef = useRef(null);
   const penWidthRef = useRef(3);
+  const inkColorRef = useRef(initialInkColor);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasInk, setHasInk] = useState(false);
   const [penWidth, setPenWidth] = useState(3);
+  const [inkColor, setInkColor] = useState(initialInkColor);
 
   useEffect(() => {
     penWidthRef.current = penWidth;
   }, [penWidth]);
+
+  useEffect(() => {
+    inkColorRef.current = inkColor;
+  }, [inkColor]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -2708,7 +2849,7 @@ function SignatureModal({ onClose, onSave }) {
     context.lineWidth = penWidthRef.current;
     context.lineCap = "round";
     context.lineJoin = "round";
-    context.strokeStyle = "#111827";
+    context.strokeStyle = inkColorRef.current;
     context.clearRect(0, 0, 900, 320);
   }, []);
 
@@ -2723,6 +2864,7 @@ function SignatureModal({ onClose, onSave }) {
   function start(event) {
     const context = canvasRef.current.getContext("2d", { alpha: true });
     context.lineWidth = penWidthRef.current;
+    context.strokeStyle = inkColorRef.current;
     const { x, y } = position(event);
     context.beginPath();
     context.moveTo(x, y);
@@ -2737,6 +2879,7 @@ function SignatureModal({ onClose, onSave }) {
 
     const context = canvasRef.current.getContext("2d", { alpha: true });
     context.lineWidth = penWidthRef.current;
+    context.strokeStyle = inkColorRef.current;
     const { x, y } = position(event);
     context.lineTo(x, y);
     context.stroke();
@@ -2760,6 +2903,16 @@ function SignatureModal({ onClose, onSave }) {
           <button className="soft-btn compact-btn" onClick={onClose}>
             Kapat
           </button>
+        </div>
+        <div className="signature-color-row">
+          <span className="signature-pen-label">Renk</span>
+          <input
+            aria-label="Imza rengi"
+            className="color-swatch signature-color-swatch"
+            type="color"
+            value={inkColor}
+            onChange={(e) => setInkColor(e.target.value)}
+          />
         </div>
         <div className="signature-pen-row">
           <span className="signature-pen-label">Kalem</span>
@@ -2795,7 +2948,7 @@ function SignatureModal({ onClose, onSave }) {
               if (!trimmed) {
                 return;
               }
-              onSave(trimmed);
+              onSave({ ...trimmed, inkColor });
             }}
           >
             Kaydet

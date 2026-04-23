@@ -578,6 +578,27 @@ button {
   overflow: hidden;
 }
 
+/* Imza secici: metin/cizgi ile ayni alt seritte; sayfa uzerine binmez */
+.edit-chrome__subpanel--signature {
+  height: auto;
+  min-height: 108px;
+  max-height: min(220px, 42vh);
+  flex-direction: column;
+  align-items: stretch;
+  align-content: flex-start;
+  gap: 6px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.subpanel-row--signature {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
 .subpanel-row {
   display: flex;
   flex-wrap: wrap;
@@ -995,24 +1016,28 @@ button {
   overflow: hidden;
 }
 
-.signature-tray-pro--float {
-  position: absolute;
-  left: 4px;
-  right: 4px;
-  top: 100%;
-  z-index: 20;
-  margin-top: 4px;
-  max-height: min(280px, 46vh);
+.signature-tray-pro--inline {
+  margin-top: 0;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: min(180px, 36vh);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 12px 40px rgba(16, 24, 40, 0.18);
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
 }
 
-.signature-tray-pro--float .signature-tray-pro__scroll {
+.signature-tray-pro--inline .signature-tray-pro__scroll {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: auto;
+}
+
+.signature-tray-pro--inline .sig-card {
+  width: 108px;
+  height: 56px;
 }
 
 .signature-tray-pro__head {
@@ -1587,6 +1612,23 @@ button {
 .modal-header h2 {
   margin: 0;
   font-size: 1rem;
+}
+
+.signature-color-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.signature-color-swatch {
+  width: 44px;
+  height: 34px;
+  min-width: 44px;
+  flex-shrink: 0;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #f8fafc;
 }
 
 .signature-pen-row {
