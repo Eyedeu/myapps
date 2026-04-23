@@ -576,19 +576,19 @@ export default function App() {
             </section>
 
             <div className="zoom-strip">
-              <button className="soft-btn icon-btn" title="Kucult" onClick={() => setPageZoom((current) => clamp(current - 0.1, 0.6, 2.4))}>
+              <button className="soft-btn icon-btn" title="Kucult" onClick={() => setPageZoom((current) => clamp(current - 0.05, 0.75, 1.6))}>
                 <Minus size={18} />
               </button>
               <input
                 aria-label="Sayfa yakinlastirma"
-                max="2.4"
-                min="0.6"
-                step="0.05"
+                max="1.6"
+                min="0.75"
+                step="0.025"
                 type="range"
                 value={pageZoom}
                 onChange={(event) => setPageZoom(Number(event.target.value))}
               />
-              <button className="soft-btn icon-btn" title="Buyut" onClick={() => setPageZoom((current) => clamp(current + 0.1, 0.6, 2.4))}>
+              <button className="soft-btn icon-btn" title="Buyut" onClick={() => setPageZoom((current) => clamp(current + 0.05, 0.75, 1.6))}>
                 <Plus size={18} />
               </button>
               <span>{Math.round(pageZoom * 100)}%</span>
@@ -888,6 +888,7 @@ function PageEditor({
   const [hostSize, setHostSize] = useState({ width: 0, height: 0 });
   const [drawingStrokeId, setDrawingStrokeId] = useState(null);
   const dragState = useRef(null);
+  const resizeState = useRef(null);
 
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
@@ -1017,6 +1018,41 @@ function PageEditor({
       return;
     }
 
+    if (tool === "select" && resizeState.current) {
+      const state = resizeState.current;
+      const dx = coords.x - state.start.x;
+      const dy = coords.y - state.start.y;
+
+      updatePage({
+        ...page,
+        annotations: {
+          ...page.annotations,
+          items: page.annotations.items.map((item) => {
+            if (item.id !== state.itemId) {
+              return item;
+            }
+
+            if (state.type === "text") {
+              return {
+                ...item,
+                fontSize: Math.round(clamp(state.fontSize + Math.max(dx, -dy) * 0.12, 8, 140)),
+              };
+            }
+
+            const ratio = state.height / state.width || 0.4;
+            const width = clamp(state.width + Math.max(dx, -dy * 1.8), 40, page.width);
+
+            return {
+              ...item,
+              width: Math.round(width),
+              height: Math.round(width * ratio),
+            };
+          }),
+        },
+      });
+      return;
+    }
+
     if (tool === "draw" && drawingStrokeId) {
       updatePage({
         ...page,
@@ -1057,6 +1093,7 @@ function PageEditor({
   function handleStagePointerUp() {
     setDrawingStrokeId(null);
     dragState.current = null;
+    resizeState.current = null;
   }
 
   function beginItemDrag(item, event) {
@@ -1076,6 +1113,31 @@ function PageEditor({
       itemId: item.id,
       offsetX: coords.x - item.x,
       offsetY: coords.y - item.y,
+    };
+  }
+
+  function beginItemResize(item, event) {
+    event.stopPropagation();
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    setSelectedItemId(item.id);
+
+    if (tool !== "select") {
+      return;
+    }
+
+    const coords = toPdfCoordinates(event.clientX, event.clientY);
+    if (!coords) {
+      return;
+    }
+
+    resizeState.current = {
+      itemId: item.id,
+      type: item.type,
+      start: coords,
+      width: item.width,
+      height: item.height,
+      fontSize: item.fontSize,
     };
   }
 
@@ -1120,6 +1182,7 @@ function PageEditor({
               page={page}
               selected={item.id === selectedItemId}
               onPointerDown={beginItemDrag}
+              onResizePointerDown={beginItemResize}
             />
           ))}
         </div>
@@ -1168,7 +1231,7 @@ function BaseLayer({ page, sourceDocument }) {
   return <img alt="" className="base-preview" src={preview} />;
 }
 
-function AnnotationItem({ item, onPointerDown, page, selected }) {
+function AnnotationItem({ item, onPointerDown, onResizePointerDown, page, selected }) {
   const left = `${(item.x / page.width) * 100}%`;
   const bottom = `${(item.y / page.height) * 100}%`;
 
@@ -1181,6 +1244,13 @@ function AnnotationItem({ item, onPointerDown, page, selected }) {
         onPointerDown={(event) => onPointerDown(item, event)}
       >
         {item.text}
+        {selected ? (
+          <span
+            aria-hidden="true"
+            className="resize-handle"
+            onPointerDown={(event) => onResizePointerDown(item, event)}
+          />
+        ) : null}
       </button>
     );
   }
@@ -1198,6 +1268,13 @@ function AnnotationItem({ item, onPointerDown, page, selected }) {
       onPointerDown={(event) => onPointerDown(item, event)}
     >
       <img alt="" src={item.dataUrl} />
+      {selected ? (
+        <span
+          aria-hidden="true"
+          className="resize-handle"
+          onPointerDown={(event) => onResizePointerDown(item, event)}
+        />
+      ) : null}
     </button>
   );
 }

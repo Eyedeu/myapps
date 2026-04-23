@@ -349,6 +349,20 @@ button {
   background: rgba(37, 99, 235, 0.04);
 }
 
+.resize-handle {
+  position: absolute;
+  right: -10px;
+  bottom: -10px;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  background: #2563eb;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.28);
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
 .annotation-item.text {
   max-width: 76%;
   text-align: left;
