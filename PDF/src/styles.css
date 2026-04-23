@@ -32,7 +32,7 @@ button {
 
 .app-shell {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr;
   gap: 8px;
   min-height: 100vh;
   padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom));
@@ -79,6 +79,98 @@ button {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.overview-screen {
+  display: grid;
+  gap: 12px;
+  min-height: calc(100vh - 76px);
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.overview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.overview-header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.overview-header span {
+  color: #667085;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  align-content: start;
+  gap: 12px;
+}
+
+.overview-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px;
+  text-align: left;
+}
+
+.overview-card.selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.14);
+}
+
+.overview-frame {
+  overflow: hidden;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.overview-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.overview-meta,
+.overview-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.overview-meta {
+  color: #667085;
+  font-size: 0.9rem;
+}
+
+.overview-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.overview-actions button.danger {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #b91c1c;
 }
 
 .soft-btn,
@@ -333,7 +425,11 @@ button {
 .annotation-svg {
   width: 100%;
   height: 100%;
-  pointer-events: none;
+  pointer-events: auto;
+}
+
+.stroke-hitbox {
+  pointer-events: stroke;
 }
 
 .annotation-item {
@@ -367,6 +463,18 @@ button {
   max-width: 76%;
   text-align: left;
   white-space: pre-wrap;
+}
+
+.inline-textarea {
+  display: block;
+  min-width: 120px;
+  min-height: 44px;
+  border: none;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.7);
+  color: inherit;
 }
 
 .annotation-item.signature img {
