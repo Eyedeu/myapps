@@ -228,14 +228,25 @@ async function renderAnnotations(page, width, height) {
   context.lineCap = "round";
   context.lineJoin = "round";
 
+  for (const item of page.annotations.items) {
+    if (item.type === "signature") {
+      const image = await loadImage(item.dataUrl);
+      context.drawImage(image, item.x, height - item.y - item.height, item.width, item.height);
+    }
+  }
+
   for (const stroke of page.annotations.strokes) {
     if (stroke.points.length < 2) {
       continue;
     }
 
+    const isHi = stroke.penMode === "highlighter";
+    const lineW = isHi ? Math.max(5, stroke.width * 2.35) : stroke.width;
+
     context.beginPath();
     context.strokeStyle = stroke.color;
-    context.lineWidth = stroke.width;
+    context.lineWidth = lineW;
+    context.globalAlpha = isHi ? 0.42 : 1;
     context.moveTo(stroke.points[0].x, height - stroke.points[0].y);
 
     for (const point of stroke.points.slice(1)) {
@@ -243,6 +254,7 @@ async function renderAnnotations(page, width, height) {
     }
 
     context.stroke();
+    context.globalAlpha = 1;
   }
 
   for (const item of page.annotations.items) {
@@ -255,11 +267,6 @@ async function renderAnnotations(page, width, height) {
       lines.forEach((line, index) => {
         context.fillText(line, item.x, height - item.y - (lines.length - 1 - index) * item.fontSize * 1.2);
       });
-    }
-
-    if (item.type === "signature") {
-      const image = await loadImage(item.dataUrl);
-      context.drawImage(image, item.x, height - item.y - item.height, item.width, item.height);
     }
   }
 

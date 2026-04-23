@@ -14,13 +14,17 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  ChevronDown,
+  ChevronUp,
   Download,
   Eraser,
   FilePlus2,
   GripVertical,
+  Highlighter,
   ImagePlus,
   Minus,
   MousePointer2,
+  Pen,
   PencilLine,
   Plus,
   Replace,
@@ -32,10 +36,10 @@ import {
 import {
   deleteHistoryProject,
   loadHistoryProjects,
-  loadSnapshot,
   saveHistoryProject,
   saveSnapshot,
 } from "./db";
+import { triggerFileDownload } from "./triggerFileDownload";
 import {
   createBlankPage,
   exportProject,
@@ -49,6 +53,9 @@ import {
 } from "./pdf";
 
 const DEFAULT_TEXT = "Metin";
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 2.5;
+const ZOOM_STEP = 0.02;
 const SIGNATURE_STORAGE_KEY = "pdf-pocket-studio-signatures";
 const SIGNATURE_PRESETS = [
   makeSignaturePreset("preset-1", "E. Kaya"),
@@ -69,6 +76,7 @@ export default function App() {
   const [textValue, setTextValue] = useState(DEFAULT_TEXT);
   const [fontSize, setFontSize] = useState(24);
   const [strokeWidth, setStrokeWidth] = useState(3);
+  const [penMode, setPenMode] = useState("pen");
   const [eraserSize, setEraserSize] = useState(28);
   const [pageZoom, setPageZoom] = useState(1);
   const [status, setStatus] = useState("PDF yukleyin, foto ekleyin veya bos A4 sayfa olusturun.");
@@ -79,7 +87,6 @@ export default function App() {
   const [signatureOptions, setSignatureOptions] = useState(SIGNATURE_PRESETS);
   const [activeSignatureId, setActiveSignatureId] = useState(SIGNATURE_PRESETS[0].id);
   const [historyProjects, setHistoryProjects] = useState([]);
-
   const autosaveTimer = useRef(null);
   const pdfInputRef = useRef(null);
   const imageInputRef = useRef(null);
@@ -117,16 +124,7 @@ export default function App() {
   );
 
   useEffect(() => {
-    loadSnapshot()
-      .then((snapshot) => {
-        if (snapshot?.pages?.length) {
-          setProject(ensureProjectMeta(snapshot));
-          setSelectedPageId(snapshot.pages[0].id);
-          setStatus("Son calisma geri yuklendi.");
-        }
-      })
-      .catch(() => undefined)
-      .finally(() => setIsHydrated(true));
+    setIsHydrated(true);
   }, []);
 
   useEffect(() => {
@@ -160,6 +158,9 @@ export default function App() {
 
     window.clearTimeout(autosaveTimer.current);
     autosaveTimer.current = window.setTimeout(() => {
+      if (!shouldPersistProject(project)) {
+        return;
+      }
       saveSnapshot(project)
         .then(() => saveHistoryProject(project))
         .then(() => loadHistoryProjects())
@@ -361,21 +362,6 @@ export default function App() {
     setStatus("Sayfa silindi.");
   }
 
-  function clearCurrentAnnotations() {
-    if (!selectedPage) {
-      return;
-    }
-
-    updateSinglePage({
-      ...selectedPage,
-      annotations: { strokes: [], items: [] },
-    });
-    setSelectedItemId(null);
-    setSelectedStrokeId(null);
-    setTool("select");
-    setStatus("Cizimler ve eklenen ogeler temizlendi.");
-  }
-
   function updateSelectedItem(patch) {
     if (!selectedPage || !selectedItem) {
       return;
@@ -453,6 +439,11 @@ export default function App() {
     });
   }
 
+  function downloadPdfFileName() {
+    const base = (project.title || "pdf-pocket-studio").replace(/[<>:"/\\|?*]/g, "-").trim() || "cikti";
+    return `${base}-${Date.now()}.pdf`;
+  }
+
   async function downloadProject() {
     if (!project.pages.length) {
       return;
@@ -463,16 +454,13 @@ export default function App() {
 
     try {
       const bytes = await exportProject(project);
-      const blob = new Blob([bytes], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `pdf-pocket-studio-${Date.now()}.pdf`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+      const name = downloadPdfFileName();
+      triggerFileDownload(u8, name, "application/pdf");
       setStatus("PDF indirildi.");
-    } catch {
-      setStatus("PDF disa aktarilamadi.");
+    } catch (err) {
+      console.error("PDF export", err);
+      setStatus("PDF disa aktarilamadi. Konsoldaki hatayi kontrol edin veya sayfalari yenileyin.");
     } finally {
       setIsExporting(false);
     }
@@ -519,27 +507,12 @@ export default function App() {
         onChange={handleReplaceUpload}
       />
 
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">PDF Pocket Studio</p>
-          <h1>{editMode ? "Duzenle" : "PDF duzenleme"}</h1>
-        </div>
-        {editMode ? (
-          <div className="toolbar-actions">
-            <button
-              className="primary-btn"
-              title="Ana menuye don"
-              onClick={() => {
-                setEditMode(false);
-                setTool("select");
-                setSignatureListOpen(false);
-              }}
-            >
-              <ArrowLeft size={18} />
-              Geri
-            </button>
+      {!editMode ? (
+        <header className="topbar">
+          <div>
+            <p className="eyebrow">PDF Pocket Studio</p>
+            <h1>PDF duzenleme</h1>
           </div>
-        ) : (
           <div className="toolbar-actions">
             <button className="soft-btn" title="PDF yukle" onClick={() => pdfInputRef.current?.click()}>
               <FilePlus2 size={18} />
@@ -555,7 +528,7 @@ export default function App() {
             </button>
             <button className="primary-btn" disabled={isExporting || !project.pages.length} title="PDF indir" onClick={downloadProject}>
               <Download size={18} />
-              {isExporting ? "Hazir" : "Indir"}
+              {isExporting ? "Hazirlaniyor" : "Indir"}
             </button>
             {project.pages.length ? (
               <button
@@ -572,13 +545,20 @@ export default function App() {
               </button>
             ) : null}
           </div>
-        )}
-      </header>
+        </header>
+      ) : null}
 
-      <main className="workspace-shell">
-        {project.pages.length && !editMode ? (
+      <main
+        className={
+          editMode && selectedPage
+            ? "workspace-shell workspace-shell--editing"
+            : "workspace-shell"
+        }
+      >
+        {!editMode ? (
           <OverviewScreen
             documentsById={documentsById}
+            onAddA4={insertBlankA4Page}
             onDeletePage={(pageId) => {
               setProject((current) => {
                 const pages = current.pages.filter((page) => page.id !== pageId);
@@ -599,6 +579,8 @@ export default function App() {
               window.setTimeout(() => replaceInputRef.current?.click(), 0);
             }}
             onSort={handleDragEnd}
+            onUploadImage={() => imageInputRef.current?.click()}
+            onUploadPdf={() => pdfInputRef.current?.click()}
             pages={project.pages}
             selectedPageId={selectedPageId}
             setSelectedPageId={setSelectedPageId}
@@ -618,20 +600,33 @@ export default function App() {
           />
         ) : selectedPage ? (
           <>
-            <section className="stage-shell">
-              <div className="stage-topbar">
-                <div className="page-badge">
-                  {selectedPageIndex + 1} / {project.pages.length}
-                </div>
-              </div>
-
+            <section className="stage-shell stage-shell--edit">
               <EditToolbar
                 accentColor={accentColor}
                 activeSignature={activeSignature}
+                exportDisabled={!project.pages.length}
                 fontSize={fontSize}
+                isExporting={isExporting}
                 onActivateTool={activateEditTool}
-                onClearCurrentAnnotations={clearCurrentAnnotations}
+                onBack={() => {
+                  setEditMode(false);
+                  setTool("select");
+                  setSignatureListOpen(false);
+                }}
                 onCreateSignature={() => setSignaturePickerOpen(true)}
+                onDownloadPdf={downloadProject}
+                onChangePageByIndex={(index) => {
+                  const next = project.pages[index];
+                  if (next) {
+                    setSelectedPageId(next.id);
+                    setSelectedItemId(null);
+                    setSelectedStrokeId(null);
+                  }
+                }}
+                pageCount={project.pages.length}
+                selectedPageIndex={selectedPageIndex}
+                pageZoom={pageZoom}
+                setPageZoom={setPageZoom}
                 onRemoveSelectedItem={removeSelectedItem}
                 onRemoveSignature={removeSignature}
                 onSelectSignature={(signatureId) => {
@@ -643,6 +638,8 @@ export default function App() {
                 selectedStroke={selectedStroke}
                 setAccentColor={setAccentColor}
                 setFontSize={setFontSize}
+                penMode={penMode}
+                setPenMode={setPenMode}
                 setStrokeWidth={setStrokeWidth}
                 setEraserSize={setEraserSize}
                 setTextValue={setTextValue}
@@ -663,6 +660,7 @@ export default function App() {
                 fontSize={fontSize}
                 page={selectedPage}
                 pageZoom={pageZoom}
+                penMode={penMode}
                 selectedItemId={selectedItemId}
                 selectedStrokeId={selectedStrokeId}
                 setSelectedItemId={setSelectedItemId}
@@ -676,25 +674,6 @@ export default function App() {
                 updatePage={updateSinglePage}
               />
             </section>
-
-            <div className="zoom-strip">
-              <button className="soft-btn icon-btn" title="Kucult" onClick={() => setPageZoom((current) => clamp(current - 0.02, 0.75, 1.5))}>
-                <Minus size={18} />
-              </button>
-              <input
-                aria-label="Sayfa yakinlastirma"
-                max="1.5"
-                min="0.75"
-                step="0.01"
-                type="range"
-                value={pageZoom}
-                onChange={(event) => setPageZoom(Number(event.target.value))}
-              />
-              <button className="soft-btn icon-btn" title="Buyut" onClick={() => setPageZoom((current) => clamp(current + 0.02, 0.75, 1.5))}>
-                <Plus size={18} />
-              </button>
-              <span>{Math.round(pageZoom * 100)}%</span>
-            </div>
 
           </>
         ) : (
@@ -726,25 +705,114 @@ export default function App() {
   );
 }
 
+function PageIndexControl({ pageCount, pageIndex, onChangeIndex }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  useEffect(() => {
+    if (isEditing) {
+      setDraft(String(pageIndex + 1));
+    }
+  }, [isEditing, pageIndex]);
+
+  function commit() {
+    const n = Math.floor(Number(draft));
+    if (Number.isFinite(n) && n >= 1 && n <= pageCount) {
+      onChangeIndex(n - 1);
+    }
+    setIsEditing(false);
+  }
+
+  if (pageCount < 1) {
+    return null;
+  }
+
+  return (
+    <div className="page-index-control" role="group" aria-label="Sayfa">
+      <button
+        className="page-index-nav"
+        type="button"
+        disabled={pageIndex <= 0}
+        title="Onceki sayfa"
+        aria-label="Onceki sayfa"
+        onClick={() => onChangeIndex(pageIndex - 1)}
+      >
+        <ChevronUp size={16} />
+      </button>
+      {isEditing ? (
+        <input
+          autoFocus
+          aria-label="Sayfa numarasi"
+          className="page-index-input"
+          max={pageCount}
+          min={1}
+          type="number"
+          value={draft}
+          onBlur={commit}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              commit();
+            }
+            if (event.key === "Escape") {
+              setIsEditing(false);
+            }
+          }}
+        />
+      ) : (
+        <button
+          className="page-index-display"
+          type="button"
+          title="Sayfa numarasina git (tikla, duzelt)"
+          onClick={() => setIsEditing(true)}
+        >
+          <span className="page-index-current">{pageIndex + 1}</span>
+          <span className="page-index-muted"> / {pageCount}</span>
+        </button>
+      )}
+      <button
+        className="page-index-nav"
+        type="button"
+        disabled={pageIndex >= pageCount - 1}
+        title="Sonraki sayfa"
+        aria-label="Sonraki sayfa"
+        onClick={() => onChangeIndex(pageIndex + 1)}
+      >
+        <ChevronDown size={16} />
+      </button>
+    </div>
+  );
+}
+
 function EditToolbar({
   accentColor,
   activeSignature,
+  exportDisabled,
   fontSize,
+  isExporting,
   onActivateTool,
-  onClearCurrentAnnotations,
+  onBack,
+  onChangePageByIndex,
   onCreateSignature,
+  onDownloadPdf,
   onRemoveSelectedItem,
   onRemoveSignature,
   onSelectSignature,
+  pageCount,
+  pageZoom,
+  selectedPageIndex,
+  setPageZoom,
   selectedItem,
   selectedStroke,
   setAccentColor,
   setFontSize,
   setEraserSize,
+  setPenMode,
   setStrokeWidth,
   setTextValue,
   signatureListOpen,
   signatureOptions,
+  penMode,
   strokeWidth,
   eraserSize,
   textValue,
@@ -754,131 +822,267 @@ function EditToolbar({
 }) {
   const selectedScale = selectedItem?.type === "signature" ? selectedItem.width : selectedItem?.fontSize;
   const hasSelection = Boolean(selectedItem || selectedStroke);
+  const subpanelTool = tool === "draw" || tool === "text" || tool === "eraser" ? tool : null;
+  const showToolRow = Boolean(subpanelTool);
+  const showSelectionRow = hasSelection;
 
   return (
-    <div className="edit-zone">
-      <div className="edit-toolbar">
-        <button className={tool === "select" ? "tool-btn active" : "tool-btn"} title="Sec" onClick={() => onActivateTool("select")}>
-          <MousePointer2 size={18} />
-          Sec
-        </button>
-        <button className={tool === "draw" ? "tool-btn active" : "tool-btn"} title="Ciz" onClick={() => onActivateTool("draw")}>
-          <PencilLine size={18} />
-          Ciz
-        </button>
-        <button className={tool === "text" ? "tool-btn active" : "tool-btn"} title="Metin" onClick={() => onActivateTool("text")}>
-          <Type size={18} />
-          Metin
-        </button>
-        <button className={tool === "signature" ? "tool-btn active" : "tool-btn"} title="Imza" onClick={() => onActivateTool("signature")}>
-          <Signature size={18} />
-          Imza
-        </button>
-        <button className={tool === "eraser" ? "tool-btn active" : "tool-btn"} title="Silgi" onClick={() => onActivateTool("eraser")}>
-          <Eraser size={18} />
-          Silgi
-        </button>
-        <button className="tool-btn danger" title="Katmani temizle" onClick={onClearCurrentAnnotations}>
-          <Trash2 size={18} />
-        </button>
+    <div className="edit-chrome">
+      <div className="edit-toolbar-row">
+        <div className="tool-rail tool-rail--main" role="toolbar" aria-label="Duzenleme araclari">
+          <button
+            type="button"
+            className="tool-rail__btn tool-rail__btn--back"
+            title="Ana menuye don"
+            aria-label="Ana menuye don"
+            onClick={onBack}
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <button
+            type="button"
+            className={tool === "select" ? "tool-rail__btn is-active" : "tool-rail__btn"}
+            title="Sec"
+            onClick={() => onActivateTool("select")}
+          >
+            <MousePointer2 size={20} />
+            <span>Sec</span>
+          </button>
+          <button
+            type="button"
+            className={tool === "draw" ? "tool-rail__btn is-active" : "tool-rail__btn"}
+            title="Ciz"
+            onClick={() => onActivateTool("draw")}
+          >
+            <PencilLine size={20} />
+            <span>Ciz</span>
+          </button>
+          <button
+            type="button"
+            className={tool === "text" ? "tool-rail__btn is-active" : "tool-rail__btn"}
+            title="Metin"
+            onClick={() => onActivateTool("text")}
+          >
+            <Type size={20} />
+            <span>Metin</span>
+          </button>
+          <button
+            type="button"
+            className={tool === "signature" ? "tool-rail__btn is-active" : "tool-rail__btn"}
+            title="Imza"
+            onClick={() => onActivateTool("signature")}
+          >
+            <Signature size={20} />
+            <span>Imza</span>
+          </button>
+          <button
+            type="button"
+            className={tool === "eraser" ? "tool-rail__btn is-active" : "tool-rail__btn"}
+            title="Silgi"
+            onClick={() => onActivateTool("eraser")}
+          >
+            <Eraser size={20} />
+            <span>Silgi</span>
+          </button>
+          <button
+            type="button"
+            className="tool-rail__btn tool-rail__btn--download"
+            title="PDF indir"
+            disabled={exportDisabled || isExporting}
+            onClick={() => onDownloadPdf()}
+          >
+            <Download size={20} />
+            <span>{isExporting ? "Hazirlaniyor" : "Indir"}</span>
+          </button>
+          <div className="tool-rail__trailing">
+            <PageIndexControl onChangeIndex={onChangePageByIndex} pageCount={pageCount} pageIndex={selectedPageIndex} />
+            <div className="tool-rail__zoom" title="Sayfa yakinlastirma">
+              <button
+                className="zoom-inline-btn"
+                type="button"
+                aria-label="Kucult"
+                onClick={() => setPageZoom((current) => clamp(current - ZOOM_STEP, ZOOM_MIN, ZOOM_MAX))}
+              >
+                <Minus size={16} />
+              </button>
+              <input
+                aria-label="Sayfa yakinlastirma"
+                className="zoom-inline-slider"
+                max={ZOOM_MAX}
+                min={ZOOM_MIN}
+                step="0.01"
+                type="range"
+                value={pageZoom}
+                onChange={(event) => setPageZoom(clamp(Number(event.target.value), ZOOM_MIN, ZOOM_MAX))}
+              />
+              <button
+                className="zoom-inline-btn"
+                type="button"
+                aria-label="Buyut"
+                onClick={() => setPageZoom((current) => clamp(current + ZOOM_STEP, ZOOM_MIN, ZOOM_MAX))}
+              >
+                <Plus size={16} />
+              </button>
+              <span className="zoom-inline-pct">{Math.round(pageZoom * 100)}%</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {tool === "draw" || tool === "text" || tool === "eraser" ? (
-        <div className="tool-settings">
-          {tool !== "eraser" ? (
-            <label className="swatch-control">
-              <span>Renk</span>
-              <input type="color" value={accentColor} onChange={(event) => setAccentColor(event.target.value)} />
-            </label>
-          ) : null}
-          {tool === "draw" ? (
-            <label>
-              <span>Kalem</span>
+      <div className="edit-chrome__subpanel" aria-live="polite">
+        {showToolRow && subpanelTool === "draw" ? (
+          <div className="subpanel-row subpanel-row--draw">
+            <div className="draw-pen-modes" role="group" aria-label="Kalem turu">
+              <button
+                type="button"
+                className={penMode === "pen" ? "pen-mode is-active" : "pen-mode"}
+                title="Kalem"
+                onClick={() => setPenMode("pen")}
+              >
+                <Pen size={15} />
+                <span>Kalem</span>
+              </button>
+              <button
+                type="button"
+                className={penMode === "highlighter" ? "pen-mode is-active" : "pen-mode"}
+                title="Vurgulayici"
+                onClick={() => setPenMode("highlighter")}
+              >
+                <Highlighter size={15} />
+                <span>Vurgu</span>
+              </button>
+            </div>
+            <div className="subpanel-swatch" title="Renk">
+              <input aria-label="Cizim rengi" className="color-swatch" type="color" value={accentColor} onChange={(event) => setAccentColor(event.target.value)} />
+            </div>
+            <div className="subpanel-group subpanel-group--grow">
+              <span className="subpanel-w">{penMode === "highlighter" ? "Kalin" : "Cizgi"}</span>
               <input
+                className="subpanel-slider"
                 max="12"
                 min="1"
                 type="range"
                 value={strokeWidth}
                 onChange={(event) => setStrokeWidth(Number(event.target.value))}
               />
-            </label>
-          ) : null}
-          {tool === "eraser" ? (
-            <label>
-              <span>Silgi</span>
+              <span className="subpanel-val">{strokeWidth} pt</span>
+            </div>
+          </div>
+        ) : null}
+        {showToolRow && subpanelTool === "text" ? (
+          <div className="subpanel-row subpanel-row--tool subpanel-row--text">
+            <span className="subpanel-w">Metin</span>
+            <div className="subpanel-swatch" title="Renk">
+              <input aria-label="Renk" className="color-swatch" type="color" value={accentColor} onChange={(event) => setAccentColor(event.target.value)} />
+            </div>
+            <input
+              className="subpanel-text"
+              type="text"
+              value={textValue}
+              placeholder={DEFAULT_TEXT}
+              onChange={(event) => setTextValue(event.target.value)}
+            />
+            <div className="subpanel-group">
+              <span className="subpanel-w">Punto</span>
               <input
-                max="90"
-                min="10"
-                type="range"
-                value={eraserSize}
-                onChange={(event) => setEraserSize(Number(event.target.value))}
-              />
-            </label>
-          ) : null}
-          {tool === "text" ? (
-            <label>
-              <span>Boyut</span>
-              <input
+                className="subpanel-slider"
                 max="96"
                 min="10"
                 type="range"
                 value={fontSize}
                 onChange={(event) => setFontSize(Number(event.target.value))}
               />
-            </label>
-          ) : null}
-        </div>
-      ) : null}
+              <span className="subpanel-val">{fontSize} px</span>
+            </div>
+          </div>
+        ) : null}
+        {showToolRow && subpanelTool === "eraser" ? (
+          <div className="subpanel-row subpanel-row--tool">
+            <span className="subpanel-w">Silgi</span>
+            <div className="subpanel-group subpanel-group--grow">
+              <input
+                className="subpanel-slider"
+                max="90"
+                min="10"
+                type="range"
+                value={eraserSize}
+                onChange={(event) => setEraserSize(Number(event.target.value))}
+              />
+              <span className="subpanel-val">{eraserSize} px</span>
+            </div>
+          </div>
+        ) : null}
+        {showSelectionRow && selectedItem ? (
+          <div className="subpanel-row subpanel-row--selection">
+            <span className="subpanel-kind">
+              {selectedStroke ? "Cizim" : selectedItem.type === "signature" ? "Imza" : "Metin"}
+            </span>
+            <div className="subpanel-group">
+              <span className="subpanel-w">Boyut</span>
+              <input
+                className="subpanel-slider"
+                max={selectedItem.type === "signature" ? "520" : "120"}
+                min={selectedItem.type === "signature" ? "60" : "10"}
+                type="range"
+                value={selectedScale}
+                onChange={(event) => updateSelectedItemScale(Number(event.target.value))}
+              />
+            </div>
+            {selectedItem.type === "text" ? (
+              <div className="subpanel-swatch" title="Metin rengi">
+                <input
+                  aria-label="Metin rengi"
+                  className="color-swatch"
+                  type="color"
+                  value={selectedItem.color}
+                  onChange={(event) => updateSelectedItem({ color: event.target.value })}
+                />
+              </div>
+            ) : null}
+            <button
+              className="subpanel-del"
+              type="button"
+              title="Secili ogeyi sil (Delete)"
+              onClick={onRemoveSelectedItem}
+            >
+              <Trash2 size={18} />
+            </button>
+          </div>
+        ) : null}
+        {showSelectionRow && selectedStroke && !selectedItem ? (
+          <div className="subpanel-row subpanel-row--selection">
+            <span className="subpanel-kind">Cizim</span>
+            <button className="subpanel-del" type="button" title="Secileni sil" onClick={onRemoveSelectedItem}>
+              <Trash2 size={18} />
+            </button>
+          </div>
+        ) : null}
+      </div>
 
       {tool === "signature" && signatureListOpen ? (
-        <div className="signature-tray">
-          {signatureOptions.map((option) => (
-            <div key={option.id} className={option.id === activeSignature?.id ? "signature-option active" : "signature-option"}>
-              <button onClick={() => onSelectSignature(option.id)}>
-                <img alt={option.label} src={option.dataUrl} />
-              </button>
-              <button className="mini-danger" title="Imzayi sil" onClick={() => onRemoveSignature(option.id)}>
-                <Trash2 size={15} />
-              </button>
-            </div>
-          ))}
-          <button className="add-signature" onClick={onCreateSignature}>
-            <Plus size={18} />
-            Yeni
-          </button>
-        </div>
-      ) : null}
-
-      {hasSelection ? (
-        <div className="selection-bar">
-          <span>{selectedStroke ? "Cizim" : selectedItem.type === "signature" ? "Imza" : "Metin"}</span>
-          {selectedItem ? (
-            <>
-              <label>
-                <span>Boyut</span>
-                <input
-                  max={selectedItem.type === "signature" ? "520" : "120"}
-                  min={selectedItem.type === "signature" ? "60" : "10"}
-                  type="range"
-                  value={selectedScale}
-                  onChange={(event) => updateSelectedItemScale(Number(event.target.value))}
-                />
-              </label>
-              {selectedItem.type === "text" ? (
-                <label className="swatch-control">
-                  <span>Renk</span>
-                  <input
-                    type="color"
-                    value={selectedItem.color}
-                    onChange={(event) => updateSelectedItem({ color: event.target.value })}
-                  />
-                </label>
-              ) : null}
-            </>
-          ) : null}
-          <button className="tool-btn danger" title="Secili ogeyi sil" onClick={onRemoveSelectedItem}>
-            <Trash2 size={18} />
-          </button>
+        <div className="signature-tray-pro signature-tray-pro--float">
+          <div className="signature-tray-pro__head">
+            <span>Imza sec</span>
+            <button className="signature-tray-pro__add" type="button" onClick={onCreateSignature}>
+              <Plus size={16} />
+              Yeni ciz
+            </button>
+          </div>
+          <div className="signature-tray-pro__scroll">
+            {signatureOptions.map((option) => (
+              <div
+                key={option.id}
+                className={option.id === activeSignature?.id ? "sig-card is-active" : "sig-card"}
+              >
+                <button className="sig-card__img" type="button" onClick={() => onSelectSignature(option.id)}>
+                  <img alt={option.label} src={option.dataUrl} />
+                </button>
+                <button className="sig-card__del" type="button" title="Kaldir" onClick={() => onRemoveSignature(option.id)}>
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
     </div>
@@ -888,12 +1092,15 @@ function EditToolbar({
 function OverviewScreen({
   documentsById,
   historyProjects,
+  onAddA4,
   onDeleteHistory,
   onDeletePage,
   onEditPage,
   onLoadHistory,
   onReplacePage,
   onSort,
+  onUploadImage,
+  onUploadPdf,
   pages,
   selectedPageId,
   setSelectedPageId,
@@ -906,26 +1113,30 @@ function OverviewScreen({
         <h2>Sayfalar</h2>
         <span>{pages.length} sayfa</span>
       </div>
-      <DndContext collisionDetection={closestCenter} onDragEnd={onSort} sensors={sensors}>
-        <SortableContext items={pages.map((page) => page.id)} strategy={horizontalListSortingStrategy}>
-          <div className="overview-grid">
-            {pages.map((page, index) => (
-              <SortablePageCard
-                key={page.id}
-                index={index}
-                isOverview
-                isSelected={page.id === selectedPageId}
-                onDeletePage={onDeletePage}
-                onEditPage={onEditPage}
-                onReplacePage={onReplacePage}
-                page={page}
-                setSelectedPageId={setSelectedPageId}
-                sourceDocument={page.kind === "pdf" ? documentsById[page.sourceId] : null}
-              />
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
+      {pages.length === 0 ? (
+        <EmptyState onAddA4={onAddA4} onUploadImage={onUploadImage} onUploadPdf={onUploadPdf} />
+      ) : (
+        <DndContext collisionDetection={closestCenter} onDragEnd={onSort} sensors={sensors}>
+          <SortableContext items={pages.map((page) => page.id)} strategy={horizontalListSortingStrategy}>
+            <div className="overview-grid">
+              {pages.map((page, index) => (
+                <SortablePageCard
+                  key={page.id}
+                  index={index}
+                  isOverview
+                  isSelected={page.id === selectedPageId}
+                  onDeletePage={onDeletePage}
+                  onEditPage={onEditPage}
+                  onReplacePage={onReplacePage}
+                  page={page}
+                  setSelectedPageId={setSelectedPageId}
+                  sourceDocument={page.kind === "pdf" ? documentsById[page.sourceId] : null}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      )}
       {historyProjects.length ? (
         <section className="history-panel">
           <div className="overview-header">
@@ -1071,6 +1282,7 @@ function PageEditor({
   fontSize,
   page,
   pageZoom,
+  penMode,
   eraserSize,
   selectedItemId,
   selectedStrokeId,
@@ -1086,6 +1298,9 @@ function PageEditor({
   const hostRef = useRef(null);
   const [hostSize, setHostSize] = useState({ width: 0, height: 0 });
   const [drawingStrokeId, setDrawingStrokeId] = useState(null);
+  const [eraserGuide, setEraserGuide] = useState(null);
+  /** Masaustu: sadece sol tik basiliyken sil; touch/pen: baslangic pointerId ile ayni temas. */
+  const eraserActivePointerIdRef = useRef(null);
   const dragState = useRef(null);
   const resizeState = useRef(null);
   const strokeDragState = useRef(null);
@@ -1106,14 +1321,83 @@ function PageEditor({
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (tool !== "eraser") {
+      setEraserGuide(null);
+      eraserActivePointerIdRef.current = null;
+    }
+  }, [tool]);
+
+  useEffect(() => {
+    if (tool !== "eraser" || !hostRef.current) {
+      return undefined;
+    }
+    const el = hostRef.current;
+    const blockScrollWhenErasing = (event) => {
+      if (eraserActivePointerIdRef.current != null) {
+        event.preventDefault();
+      }
+    };
+    const opts = { capture: true, passive: false };
+    el.addEventListener("pointermove", blockScrollWhenErasing, opts);
+    el.addEventListener("pointercancel", blockScrollWhenErasing, opts);
+    return () => {
+      el.removeEventListener("pointermove", blockScrollWhenErasing, opts);
+      el.removeEventListener("pointercancel", blockScrollWhenErasing, opts);
+    };
+  }, [tool]);
+
+  function setErasingPointer(event) {
+    if (event.pointerId != null) {
+      eraserActivePointerIdRef.current = event.pointerId;
+    }
+    if (hostRef.current && event.pointerId != null) {
+      try {
+        hostRef.current.setPointerCapture(event.pointerId);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  function clearErasingPointer(event) {
+    if (!event) {
+      return;
+    }
+    if (eraserActivePointerIdRef.current == null) {
+      return;
+    }
+    if (event.pointerId === eraserActivePointerIdRef.current) {
+      eraserActivePointerIdRef.current = null;
+      if (hostRef.current) {
+        try {
+          hostRef.current.releasePointerCapture(event.pointerId);
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }
+
+  function isErasingPointerPressed(event) {
+    if (event.buttons & 1) {
+      return true;
+    }
+    if (eraserActivePointerIdRef.current == null || event.pointerId !== eraserActivePointerIdRef.current) {
+      return false;
+    }
+    return event.pointerType === "touch" || event.pointerType === "pen";
+  }
+
+  const stagePadding = 24;
   const fitted = fitIntoBox(
     page.width,
     page.height,
-    Math.max(hostSize.width - 24, 1),
-    Math.max(hostSize.height - 24, 1),
+    Math.max(hostSize.width - stagePadding, 1),
+    Math.max(hostSize.height - stagePadding, 1),
   );
-  const stageWidth = fitted.width * pageZoom;
-  const stageHeight = fitted.height * pageZoom;
+  const stageWidth = Math.max(1, Math.round(fitted.width * pageZoom));
+  const stageHeight = Math.max(1, Math.round(fitted.height * pageZoom));
 
   function toPdfCoordinates(clientX, clientY) {
     const stage = hostRef.current?.querySelector(".page-stage-inner");
@@ -1197,6 +1481,7 @@ function PageEditor({
         id: uid("stroke"),
         color: accentColor,
         width: strokeWidth,
+        penMode: penMode === "highlighter" ? "highlighter" : "pen",
         points: [coords],
       };
 
@@ -1214,7 +1499,12 @@ function PageEditor({
     }
 
     if (tool === "eraser") {
+      setErasingPointer(event);
+      setEraserGuide(coords);
       eraseAt(coords);
+      if (event.cancelable) {
+        event.preventDefault();
+      }
       return;
     }
 
@@ -1226,6 +1516,13 @@ function PageEditor({
     const coords = toPdfCoordinates(event.clientX, event.clientY);
     if (!coords) {
       return;
+    }
+
+    if (tool === "eraser") {
+      setEraserGuide(coords);
+      if (isErasingPointerPressed(event) && event.cancelable) {
+        event.preventDefault();
+      }
     }
 
     if (tool === "select" && resizeState.current) {
@@ -1325,12 +1622,28 @@ function PageEditor({
       strokeDragState.current = { strokeId, previous: coords };
     }
 
-    if (tool === "eraser") {
+    if (tool === "eraser" && isErasingPointerPressed(event)) {
       eraseAt(coords);
     }
   }
 
-  function handleStagePointerUp() {
+  function handleStagePointerUp(event) {
+    clearErasingPointer(event);
+    if (hostRef.current && event.pointerId != null) {
+      try {
+        hostRef.current.releasePointerCapture(event.pointerId);
+      } catch {
+        // ignore
+      }
+    }
+    setDrawingStrokeId(null);
+    dragState.current = null;
+    resizeState.current = null;
+    strokeDragState.current = null;
+  }
+
+  function handleStagePointerLeave() {
+    setEraserGuide(null);
     setDrawingStrokeId(null);
     dragState.current = null;
     resizeState.current = null;
@@ -1339,8 +1652,12 @@ function PageEditor({
 
   function beginItemDrag(item, event) {
     event.stopPropagation();
+    if (event.cancelable) {
+      event.preventDefault();
+    }
 
     if (tool === "eraser") {
+      setErasingPointer(event);
       const coords = toPdfCoordinates(event.clientX, event.clientY);
       if (coords) {
         eraseAt(coords);
@@ -1353,6 +1670,14 @@ function PageEditor({
 
     if (tool !== "select") {
       return;
+    }
+
+    if (hostRef.current && event.pointerId != null) {
+      try {
+        hostRef.current.setPointerCapture(event.pointerId);
+      } catch {
+        // ignore
+      }
     }
 
     const coords = toPdfCoordinates(event.clientX, event.clientY);
@@ -1371,6 +1696,7 @@ function PageEditor({
     event.stopPropagation();
 
     if (tool === "eraser") {
+      setErasingPointer(event);
       const coords = toPdfCoordinates(event.clientX, event.clientY);
       if (coords) {
         eraseAt(coords);
@@ -1451,68 +1777,136 @@ function PageEditor({
     <div className="page-editor-shell">
       <div
         ref={hostRef}
-        className="page-stage"
+        className={tool === "eraser" ? "page-stage page-stage--eraser" : "page-stage"}
         onPointerDown={handleStagePointerDown}
         onPointerMove={handleStagePointerMove}
-        onPointerUp={handleStagePointerUp}
-        onPointerLeave={handleStagePointerUp}
+        onPointerUp={(event) => handleStagePointerUp(event)}
+        onPointerCancel={(event) => handleStagePointerUp(event)}
+        onPointerLeave={handleStagePointerLeave}
       >
+        <div className="page-stage-pan">
         <div
           className="page-stage-inner"
           style={{
             width: `${stageWidth}px`,
             height: `${stageHeight}px`,
-            aspectRatio: `${page.width} / ${page.height}`,
           }}
         >
           <BaseLayer page={page} sourceDocument={page.kind === "pdf" ? documentsById[page.sourceId] : null} />
 
-          <svg className="annotation-svg" viewBox={`0 0 ${page.width} ${page.height}`} preserveAspectRatio="none">
-            {page.annotations.strokes.map((stroke) => (
-              <g key={stroke.id}>
-                {stroke.id === selectedStrokeId ? (
-                  <polyline
-                    fill="none"
-                    points={stroke.points.map((point) => `${point.x},${page.height - point.y}`).join(" ")}
-                    stroke="#2563eb"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={stroke.width + 7}
-                  />
-                ) : null}
+          <svg
+            className="annotation-svg annotation-svg--hit"
+            viewBox={`0 0 ${page.width} ${page.height}`}
+            preserveAspectRatio="none"
+          >
+            {page.annotations.strokes.map((stroke) => {
+              const isHi = stroke.penMode === "highlighter";
+              const lineW = isHi ? Math.max(5, stroke.width * 2.35) : stroke.width;
+              const pts = stroke.points.map((point) => `${point.x},${page.height - point.y}`).join(" ");
+              return (
                 <polyline
-                  fill="none"
-                  points={stroke.points.map((point) => `${point.x},${page.height - point.y}`).join(" ")}
-                  stroke={stroke.color}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={stroke.width}
-                />
-                <polyline
+                  key={stroke.id}
                   className="stroke-hitbox"
                   fill="none"
-                  points={stroke.points.map((point) => `${point.x},${page.height - point.y}`).join(" ")}
+                  points={pts}
                   stroke="transparent"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={Math.max(stroke.width + 18, 24)}
+                  strokeWidth={Math.max(lineW + 8, 16)}
+                  pointerEvents="stroke"
                   onPointerDown={(event) => beginStrokeDrag(stroke, event)}
                 />
-              </g>
-            ))}
+              );
+            })}
           </svg>
 
-          {page.annotations.items.map((item) => (
-            <AnnotationItem
-              key={item.id}
-              item={item}
-              page={page}
-              selected={item.id === selectedItemId}
-              onPointerDown={beginItemDrag}
-              onResizePointerDown={beginItemResize}
-              onTextChange={updateTextItem}
-            />
-          ))}
+          {page.annotations.items
+            .filter((item) => item.type === "signature")
+            .map((item) => (
+              <AnnotationItem
+                key={item.id}
+                item={item}
+                page={page}
+                selected={item.id === selectedItemId}
+                onPointerDown={beginItemDrag}
+                onResizePointerDown={beginItemResize}
+                onTextChange={updateTextItem}
+              />
+            ))}
+
+          <svg
+            className="annotation-svg annotation-svg--display"
+            pointerEvents="none"
+            viewBox={`0 0 ${page.width} ${page.height}`}
+            preserveAspectRatio="none"
+          >
+            {page.annotations.strokes.map((stroke) => {
+              const isHi = stroke.penMode === "highlighter";
+              const lineW = isHi ? Math.max(5, stroke.width * 2.35) : stroke.width;
+              const showSel =
+                stroke.id === selectedStrokeId && (!drawingStrokeId || drawingStrokeId !== stroke.id);
+              const pts = stroke.points.map((point) => `${point.x},${page.height - point.y}`).join(" ");
+              return (
+                <g key={stroke.id}>
+                  {showSel ? (
+                    <polyline
+                      fill="none"
+                      points={pts}
+                      stroke="rgba(37, 99, 235, 0.55)"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      vectorEffect="non-scaling-stroke"
+                      strokeWidth={2.1}
+                    />
+                  ) : null}
+                  <polyline
+                    fill="none"
+                    points={pts}
+                    stroke={stroke.color}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeOpacity={isHi ? 0.42 : 1}
+                    strokeWidth={lineW}
+                    style={isHi ? { mixBlendMode: "multiply" } : undefined}
+                  />
+                </g>
+              );
+            })}
+          </svg>
+
+          {page.annotations.items
+            .filter((item) => item.type === "text")
+            .map((item) => (
+              <AnnotationItem
+                key={item.id}
+                item={item}
+                page={page}
+                selected={item.id === selectedItemId}
+                onPointerDown={beginItemDrag}
+                onResizePointerDown={beginItemResize}
+                onTextChange={updateTextItem}
+              />
+            ))}
+
+          {tool === "eraser" && eraserGuide ? (
+            <svg
+              aria-hidden="true"
+              className="eraser-guide"
+              viewBox={`0 0 ${page.width} ${page.height}`}
+              preserveAspectRatio="none"
+            >
+              <circle
+                cx={eraserGuide.x}
+                cy={page.height - eraserGuide.y}
+                fill="rgba(239, 68, 68, 0.14)"
+                r={eraserSize}
+                stroke="rgba(220, 38, 38, 0.9)"
+                strokeWidth={Math.max(1, page.width * 0.0012)}
+                vectorEffect="non-scaling-stroke"
+              />
+            </svg>
+          ) : null}
+        </div>
         </div>
       </div>
     </div>
@@ -1556,7 +1950,15 @@ function BaseLayer({ page, sourceDocument }) {
     return <div className="blank-canvas" />;
   }
 
-  return <img alt="" className="base-preview" src={preview} />;
+  return (
+    <img
+      alt=""
+      className="base-preview"
+      src={preview}
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
+    />
+  );
 }
 
 function AnnotationItem({ item, onPointerDown, onResizePointerDown, onTextChange, page, selected }) {
@@ -1585,18 +1987,24 @@ function AnnotationItem({ item, onPointerDown, onResizePointerDown, onTextChange
           item.text
         )}
         {selected ? (
-          <span
-            aria-hidden="true"
-            className="resize-handle"
-            onPointerDown={(event) => onResizePointerDown(item, event)}
-          />
+          <>
+            <span className="annotation-knob annotation-knob--tl" aria-hidden="true" />
+            <span className="annotation-knob annotation-knob--tr" aria-hidden="true" />
+            <span className="annotation-knob annotation-knob--bl" aria-hidden="true" />
+            <button
+              type="button"
+              aria-label="Metin boyutu"
+              className="annotation-knob annotation-knob--br"
+              onPointerDown={(event) => onResizePointerDown(item, event)}
+            />
+          </>
         ) : null}
       </div>
     );
   }
 
   return (
-    <button
+    <div
       className={selected ? "annotation-item signature selected" : "annotation-item signature"}
       style={{
         left,
@@ -1604,18 +2012,35 @@ function AnnotationItem({ item, onPointerDown, onResizePointerDown, onTextChange
         width: `${(item.width / page.width) * 100}%`,
         height: `${(item.height / page.height) * 100}%`,
       }}
-      type="button"
+      role="presentation"
       onPointerDown={(event) => onPointerDown(item, event)}
     >
-      <img alt="" src={item.dataUrl} />
+      <img
+        alt=""
+        className="annotation-sig-img"
+        src={item.dataUrl}
+        draggable={false}
+        onDragStart={(e) => e.preventDefault()}
+        onPointerDown={(e) => {
+          if (e.cancelable) {
+            e.preventDefault();
+          }
+        }}
+      />
       {selected ? (
-        <span
-          aria-hidden="true"
-          className="resize-handle"
-          onPointerDown={(event) => onResizePointerDown(item, event)}
-        />
+        <>
+          <span className="annotation-knob annotation-knob--tl" aria-hidden="true" />
+          <span className="annotation-knob annotation-knob--tr" aria-hidden="true" />
+          <span className="annotation-knob annotation-knob--bl" aria-hidden="true" />
+          <button
+            type="button"
+            aria-label="Imza boyutu"
+            className="annotation-knob annotation-knob--br"
+            onPointerDown={(event) => onResizePointerDown(item, event)}
+          />
+        </>
       ) : null}
-    </button>
+    </div>
   );
 }
 
@@ -1757,6 +2182,11 @@ function createProject() {
   };
 }
 
+/** Bos / hic sayfa eklenmemis proje: otomatik kayit ve gecemse yazilmaz. */
+function shouldPersistProject(project) {
+  return Array.isArray(project?.pages) && project.pages.length > 0;
+}
+
 function ensureProjectMeta(project) {
   return {
     ...project,
@@ -1772,22 +2202,26 @@ function ensureProjectMeta(project) {
 function itemContainsPoint(item, point, padding = 0) {
   if (item.type === "text") {
     const width = Math.max(item.text.length * item.fontSize * 0.55, item.fontSize * 3);
-    const height = item.fontSize * Math.max(item.text.split("\n").length, 1) * 1.35;
-
+    const h = item.fontSize * Math.max(item.text.split("\n").length, 1) * 1.35;
+    // item.y: yukari dogru artan PDF koordinati; yuzeyin alt-kenari referans, kutu yukari dogru uzar
     return (
       point.x >= item.x - padding &&
       point.x <= item.x + width + padding &&
-      point.y <= item.y + padding &&
-      point.y >= item.y - height - padding
+      point.y >= item.y - padding &&
+      point.y <= item.y + h + padding
     );
   }
 
-  return (
-    point.x >= item.x - padding &&
-    point.x <= item.x + item.width + padding &&
-    point.y <= item.y + padding &&
-    point.y >= item.y - item.height - padding
-  );
+  if (item.type === "signature") {
+    return (
+      point.x >= item.x - padding &&
+      point.x <= item.x + item.width + padding &&
+      point.y >= item.y - padding &&
+      point.y <= item.y + item.height + padding
+    );
+  }
+
+  return false;
 }
 
 function splitStrokeByEraser(stroke, point, radius) {
