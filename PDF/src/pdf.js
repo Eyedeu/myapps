@@ -296,8 +296,9 @@ async function renderAnnotations(page, width, height, options = {}) {
       context.textBaseline = "bottom";
       const lines = item.text.split("\n");
 
+      const lineHeight = item.fontSize * 1.35;
       lines.forEach((line, index) => {
-        context.fillText(line, item.x, height - item.y - (lines.length - 1 - index) * item.fontSize * 1.2);
+        context.fillText(line, item.x, height - item.y - (lines.length - 1 - index) * lineHeight);
       });
     }
   }

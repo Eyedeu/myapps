@@ -382,7 +382,13 @@ export default function App() {
     }
 
     if (selectedItem.type === "text") {
-      updateSelectedItem({ fontSize: Math.round(scale) });
+      if (!selectedPage) {
+        return;
+      }
+      const fs = Math.round(scale);
+      let { width, height } = measureTextBox(selectedItem.text, fs);
+      width = Math.min(width, selectedPage.width - selectedItem.x);
+      updateSelectedItem({ fontSize: fs, width, height });
       return;
     }
 
@@ -1392,7 +1398,22 @@ function SortablePageCard({
   );
 }
 
-/** Imza / gorsel kutusu ve metin punto: tutamac yonune gore yeni olculer. */
+/** Metin kutusu boyutu (PDF birimi); imza ile ayni kutu modeli. */
+function measureTextBox(text, fontSize) {
+  const lines = Math.max(String(text).split("\n").length, 1);
+  const width = Math.max(String(text).length * fontSize * 0.55, fontSize * 3);
+  const height = fontSize * lines * 1.35;
+  return { width, height };
+}
+
+function getTextLayoutSize(item) {
+  if (item.width != null && item.height != null) {
+    return { width: item.width, height: item.height };
+  }
+  return measureTextBox(item.text, item.fontSize);
+}
+
+/** Imza / gorsel kutusu ve metin punto: sadece kose tutamaclari. */
 function computeResizePatch(state, coords, pageW, pageH) {
   const dx = coords.x - state.start.x;
   const dy = coords.y - state.start.y;
@@ -1413,24 +1434,17 @@ function computeResizePatch(state, coords, pageW, pageH) {
       case "tl":
         delta = Math.max(-dx, dy) * 0.12;
         break;
-      case "e":
-        delta = dx * 0.12;
-        break;
-      case "w":
-        delta = -dx * 0.12;
-        break;
-      case "n":
-        delta = dy * 0.12;
-        break;
-      case "s":
-        delta = -dy * 0.12;
-        break;
       default:
         delta = Math.max(dx, -dy) * 0.12;
     }
+    const fontSize = Math.round(clamp(state.fontSize + delta, 8, 140));
+    let { width, height } = measureTextBox(state.text ?? "", fontSize);
+    width = Math.min(width, pageW - x0);
     return {
       kind: "text",
-      fontSize: Math.round(clamp(state.fontSize + delta, 8, 140)),
+      fontSize,
+      width,
+      height,
     };
   }
 
@@ -1467,52 +1481,6 @@ function computeResizePatch(state, coords, pageW, pageH) {
       w = h / ratio0;
       x = right0 - w;
       y = y0;
-      break;
-    }
-    case "e": {
-      w = clamp(coords.x - x0, 24, pageW - x0);
-      h = w * ratio0;
-      x = x0;
-      y = y0;
-      if (y + h > pageH) {
-        h = pageH - y;
-        w = h / ratio0;
-      }
-      break;
-    }
-    case "w": {
-      w = clamp(right0 - coords.x, 24, right0);
-      x = right0 - w;
-      h = w * ratio0;
-      y = y0;
-      if (y + h > pageH) {
-        h = pageH - y;
-        w = h / ratio0;
-        x = right0 - w;
-      }
-      break;
-    }
-    case "n": {
-      h = clamp(top0 - coords.y, 24, top0 - y0);
-      w = h / ratio0;
-      y = top0 - h;
-      x = x0;
-      if (x + w > pageW) {
-        w = pageW - x;
-        h = w * ratio0;
-        y = top0 - h;
-      }
-      break;
-    }
-    case "s": {
-      h = clamp(coords.y - y0, 24, pageH - y0);
-      w = h / ratio0;
-      x = x0;
-      y = y0;
-      if (x + w > pageW) {
-        w = pageW - x;
-        h = w * ratio0;
-      }
       break;
     }
     default: {
@@ -1816,11 +1784,8 @@ function PageEditor({
 
   function getAnnotationShellElement(pointerEvent) {
     const t = pointerEvent.currentTarget;
-    if (t?.classList?.contains("annotation-text-drag")) {
-      return t.parentElement?.closest?.(".annotation-item") ?? t.parentElement;
-    }
-    if (t?.classList?.contains("annotation-text-pad")) {
-      return t.closest(".annotation-item");
+    if (t?.classList?.contains("annotation-text-selected-shell")) {
+      return t.closest(".annotation-item") ?? t;
     }
     return t;
   }
@@ -1846,14 +1811,20 @@ function PageEditor({
     }
 
     if (tool === "text") {
+      const t = textValue.trim() || DEFAULT_TEXT;
+      const fs = fontSize;
+      let { width: tw, height: th } = measureTextBox(t, fs);
+      tw = Math.min(tw, page.width - coords.x);
       const item = {
         id: uid("item"),
         type: "text",
-        text: textValue.trim() || DEFAULT_TEXT,
+        text: t,
         x: coords.x,
         y: coords.y,
         color: accentColor,
-        fontSize,
+        fontSize: fs,
+        width: tw,
+        height: th,
       };
 
       updatePage({
@@ -1997,7 +1968,12 @@ function PageEditor({
                   return item;
                 }
                 if (patch.kind === "text") {
-                  return { ...item, fontSize: patch.fontSize };
+                  return {
+                    ...item,
+                    fontSize: patch.fontSize,
+                    width: patch.width,
+                    height: patch.height,
+                  };
                 }
                 return { ...item, x: patch.x, y: patch.y, width: patch.width, height: patch.height };
               }),
@@ -2126,7 +2102,12 @@ function PageEditor({
               return item;
             }
             if (patch.kind === "text") {
-              return { ...item, fontSize: patch.fontSize };
+              return {
+                ...item,
+                fontSize: patch.fontSize,
+                width: patch.width,
+                height: patch.height,
+              };
             }
             return { ...item, x: patch.x, y: patch.y, width: patch.width, height: patch.height };
           }),
@@ -2285,9 +2266,17 @@ function PageEditor({
       ...page,
       annotations: {
         ...page.annotations,
-        items: page.annotations.items.map((item) =>
-          item.id === itemId ? { ...item, text } : item,
-        ),
+        items: page.annotations.items.map((item) => {
+          if (item.id !== itemId) {
+            return item;
+          }
+          if (item.type !== "text") {
+            return { ...item, text };
+          }
+          let { width, height } = measureTextBox(text, item.fontSize);
+          width = Math.min(width, page.width - item.x);
+          return { ...item, text, width, height };
+        }),
       },
     });
   }
@@ -2335,6 +2324,7 @@ function PageEditor({
       w0: item.width ?? 0,
       h0: item.height ?? 0,
       fontSize: item.fontSize,
+      ...(item.type === "text" ? { text: item.text } : {}),
     };
   }
 
@@ -2532,47 +2522,49 @@ function AnnotationItem({ item, onPointerDown, onResizePointerDown, onTextChange
   const resize = (handle) => (event) => onResizePointerDown(item, event, handle);
 
   if (item.type === "text") {
+    const { width: bw, height: bh } = getTextLayoutSize(item);
+    const wPct = `${(bw / page.width) * 100}%`;
+    const hPct = `${(bh / page.height) * 100}%`;
     return (
       <div
         className={selected ? "annotation-item text selected" : "annotation-item text"}
-        style={{ left, bottom, color: item.color, fontSize: `${item.fontSize}px` }}
+        style={{
+          left,
+          bottom,
+          width: wPct,
+          height: hPct,
+          color: item.color,
+          fontSize: `${item.fontSize}px`,
+        }}
+        role="presentation"
         onPointerDown={selected ? undefined : (event) => onPointerDown(item, event)}
       >
         {selected ? (
-          <div className="annotation-text-selected-inner">
-            <button type="button" className="annotation-knob-corner annotation-knob--tl" aria-label="Sol ust" onPointerDown={resize("tl")} />
-            <button type="button" className="annotation-knob-edge annotation-knob--n" aria-label="Ust boyut" onPointerDown={resize("n")} />
-            <button type="button" className="annotation-knob-corner annotation-knob--tr" aria-label="Sag ust" onPointerDown={resize("tr")} />
-            <button type="button" className="annotation-knob-edge annotation-knob--w" aria-label="Sol boyut" onPointerDown={resize("w")} />
-            <div className="annotation-text-core">
-              <div className="annotation-text-row">
-                <textarea
-                  aria-label="Metin"
-                  className="inline-textarea"
-                  style={{ color: item.color, fontSize: `${item.fontSize}px` }}
-                  value={item.text}
-                  onChange={(event) => onTextChange(item.id, event.target.value)}
-                  onPointerDown={(event) => event.stopPropagation()}
-                />
-                <div
-                  className="annotation-text-pad annotation-text-pad--x"
-                  title="Surukle"
-                  onPointerDown={(event) => onPointerDown(item, event)}
-                />
-              </div>
-              <div
-                className="annotation-text-pad annotation-text-pad--below"
-                title="Surukle"
-                onPointerDown={(event) => onPointerDown(item, event)}
+          <>
+            <div
+              className="annotation-text-selected-shell"
+              onPointerDown={(event) => {
+                if (event.target === event.currentTarget) {
+                  onPointerDown(item, event);
+                }
+              }}
+            >
+              <textarea
+                aria-label="Metin"
+                className="inline-textarea"
+                style={{ color: item.color, fontSize: `${item.fontSize}px` }}
+                value={item.text}
+                onChange={(event) => onTextChange(item.id, event.target.value)}
+                onPointerDown={(event) => event.stopPropagation()}
               />
             </div>
-            <button type="button" className="annotation-knob-edge annotation-knob--e" aria-label="Sag boyut" onPointerDown={resize("e")} />
+            <button type="button" className="annotation-knob-corner annotation-knob--tl" aria-label="Sol ust" onPointerDown={resize("tl")} />
+            <button type="button" className="annotation-knob-corner annotation-knob--tr" aria-label="Sag ust" onPointerDown={resize("tr")} />
             <button type="button" className="annotation-knob-corner annotation-knob--bl" aria-label="Sol alt" onPointerDown={resize("bl")} />
-            <button type="button" className="annotation-knob-edge annotation-knob--s" aria-label="Alt boyut" onPointerDown={resize("s")} />
             <button type="button" className="annotation-knob-corner annotation-knob--br" aria-label="Sag alt" onPointerDown={resize("br")} />
-          </div>
+          </>
         ) : (
-          item.text
+          <div className="annotation-text-fill">{item.text}</div>
         )}
       </div>
     );
@@ -2599,21 +2591,12 @@ function AnnotationItem({ item, onPointerDown, onResizePointerDown, onTextChange
         src={item.dataUrl}
         draggable={false}
         onDragStart={(e) => e.preventDefault()}
-        onPointerDown={(e) => {
-          if (e.cancelable) {
-            e.preventDefault();
-          }
-        }}
       />
       {selected ? (
         <>
           <button type="button" className="annotation-knob-corner annotation-knob--tl" aria-label={`${resizeLabel} sol ust`} onPointerDown={resize("tl")} />
-          <button type="button" className="annotation-knob-edge annotation-knob--n" aria-label={`${resizeLabel} ust`} onPointerDown={resize("n")} />
           <button type="button" className="annotation-knob-corner annotation-knob--tr" aria-label={`${resizeLabel} sag ust`} onPointerDown={resize("tr")} />
-          <button type="button" className="annotation-knob-edge annotation-knob--w" aria-label={`${resizeLabel} sol`} onPointerDown={resize("w")} />
-          <button type="button" className="annotation-knob-edge annotation-knob--e" aria-label={`${resizeLabel} sag`} onPointerDown={resize("e")} />
           <button type="button" className="annotation-knob-corner annotation-knob--bl" aria-label={`${resizeLabel} sol alt`} onPointerDown={resize("bl")} />
-          <button type="button" className="annotation-knob-edge annotation-knob--s" aria-label={`${resizeLabel} alt`} onPointerDown={resize("s")} />
           <button type="button" className="annotation-knob-corner annotation-knob--br" aria-label={`${resizeLabel} sag alt`} onPointerDown={resize("br")} />
         </>
       ) : null}
@@ -2873,9 +2856,7 @@ function ensureProjectMeta(project) {
 
 function itemContainsPoint(item, point, padding = 0) {
   if (item.type === "text") {
-    const width = Math.max(item.text.length * item.fontSize * 0.55, item.fontSize * 3);
-    const h = item.fontSize * Math.max(item.text.split("\n").length, 1) * 1.35;
-    // item.y: yukari dogru artan PDF koordinati; yuzeyin alt-kenari referans, kutu yukari dogru uzar
+    const { width, height: h } = getTextLayoutSize(item);
     return (
       point.x >= item.x - padding &&
       point.x <= item.x + width + padding &&
