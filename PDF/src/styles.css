@@ -1,7 +1,7 @@
 :root {
   color-scheme: light;
   font-family: "Segoe UI", "Trebuchet MS", sans-serif;
-  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  background: #f4f6f8;
   color: #111827;
 }
 
@@ -17,9 +17,7 @@ body,
 
 body {
   margin: 0;
-  background:
-    radial-gradient(circle at top, rgba(148, 163, 184, 0.14), transparent 28%),
-    linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  background: #f4f6f8;
 }
 
 button,
@@ -33,17 +31,21 @@ button {
 }
 
 .app-shell {
-  min-height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  gap: 0.8rem;
-  padding: max(0.9rem, env(safe-area-inset-top)) 0.9rem max(0.9rem, env(safe-area-inset-bottom));
+  gap: 8px;
+  min-height: 100vh;
+  padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom));
+}
+
+.app-shell.editing {
+  padding-inline: 4px;
 }
 
 .topbar,
 .workspace-shell,
 .status-bar {
-  width: min(1320px, 100%);
+  width: min(1440px, 100%);
   margin: 0 auto;
 }
 
@@ -51,138 +53,266 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 12px;
+  min-height: 52px;
 }
 
 .topbar h1 {
-  margin: 0.2rem 0 0;
-  font-size: clamp(1.35rem, 2vw, 1.9rem);
+  margin: 1px 0 0;
+  font-size: 1.2rem;
   line-height: 1.1;
 }
 
 .eyebrow {
   margin: 0;
+  color: #667085;
+  font-size: 0.72rem;
+  letter-spacing: 0;
   text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-size: 0.75rem;
-  color: #64748b;
 }
 
 .toolbar-actions,
 .stage-actions,
-.menu-inline-actions,
-.thumb-meta,
-.status-bar {
+.status-bar,
+.modal-actions {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .soft-btn,
 .primary-btn,
-.tool-pill {
-  border: none;
-  border-radius: 16px;
+.tool-btn {
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
-  padding: 0.85rem 1rem;
-  transition: transform 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
-}
-
-.soft-btn {
-  background: rgba(255, 255, 255, 0.92);
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 11px;
+  background: #ffffff;
   color: #111827;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-}
-
-.soft-btn.danger {
-  background: #fee2e2;
-  color: #b91c1c;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
 }
 
 .primary-btn {
+  border-color: #111827;
   background: #111827;
-  color: white;
-  box-shadow: 0 14px 32px rgba(17, 24, 39, 0.18);
+  color: #ffffff;
 }
 
-.compact-btn {
-  padding: 0.75rem 0.9rem;
+.soft-btn.danger,
+.tool-btn.danger {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #b91c1c;
+}
+
+.compact-btn,
+.icon-btn {
+  min-width: 40px;
+  padding: 8px;
 }
 
 .workspace-shell {
   display: grid;
-  gap: 0.9rem;
+  gap: 8px;
   min-height: 0;
-}
-
-.stage-shell,
-.film-strip,
-.empty-state,
-.editor-menu,
-.signature-modal {
-  background: rgba(255, 255, 255, 0.84);
-  border: 1px solid rgba(203, 213, 225, 0.9);
-  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
-  backdrop-filter: blur(12px);
 }
 
 .stage-shell {
   display: grid;
-  gap: 0.8rem;
-  border-radius: 28px;
-  padding: 0.8rem;
-  min-height: 0;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 8px;
+  min-height: calc(100vh - 190px);
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.editing .stage-shell {
+  min-height: calc(100vh - 152px);
 }
 
 .stage-topbar {
   display: flex;
-  justify-content: space-between;
-  gap: 0.8rem;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .page-badge {
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
-  padding: 0.75rem 0.95rem;
-  border-radius: 999px;
-  background: #eef2ff;
-  color: #3730a3;
-  font-weight: 600;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #f2f4f7;
+  color: #344054;
+  font-weight: 700;
+}
+
+.edit-zone {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #eaecf0;
+  border-radius: 8px;
+  background: #f9fafb;
+  padding: 8px;
+}
+
+.edit-toolbar,
+.tool-settings,
+.selection-bar,
+.zoom-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tool-btn.active {
+  border-color: #111827;
+  background: #111827;
+  color: #ffffff;
+}
+
+.tool-settings,
+.selection-bar {
+  border-top: 1px solid #eaecf0;
+  padding-top: 8px;
+}
+
+.tool-settings label,
+.selection-bar label {
+  display: inline-grid;
+  grid-template-columns: auto minmax(92px, 180px);
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  color: #475467;
+  font-size: 0.9rem;
+}
+
+.tool-settings input[type="range"],
+.selection-bar input[type="range"],
+.zoom-strip input[type="range"] {
+  width: 160px;
+}
+
+.swatch-control {
+  grid-template-columns: auto 42px !important;
+}
+
+.swatch-control input {
+  width: 42px;
+  height: 34px;
+  border: none;
+  background: transparent;
+}
+
+.text-inline-input {
+  min-width: 220px;
+  min-height: 38px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: #ffffff;
+}
+
+.signature-tray {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
+  gap: 8px;
+  border-top: 1px solid #eaecf0;
+  padding-top: 8px;
+}
+
+.signature-option {
+  position: relative;
+  min-height: 76px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.signature-option.active {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.16);
+}
+
+.signature-option > button:first-child {
+  width: 100%;
+  height: 76px;
+  border: none;
+  background: #ffffff;
+  padding: 6px;
+}
+
+.signature-option img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.mini-danger {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: #b91c1c;
+}
+
+.add-signature {
+  min-height: 76px;
+  border: 1px dashed #98a2b3;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344054;
 }
 
 .page-editor-shell {
-  min-height: min(72vh, 920px);
+  min-height: 0;
 }
 
 .page-stage {
   display: grid;
   place-items: center;
-  min-height: inherit;
-  border-radius: 24px;
+  width: 100%;
+  height: 100%;
+  min-height: min(76vh, 900px);
+  overflow: auto;
+  border-radius: 8px;
   background:
-    linear-gradient(180deg, rgba(241, 245, 249, 0.95), rgba(226, 232, 240, 0.95)),
-    repeating-linear-gradient(
-      45deg,
-      rgba(203, 213, 225, 0.35),
-      rgba(203, 213, 225, 0.35) 14px,
-      transparent 14px,
-      transparent 28px
-    );
-  padding: 0.8rem;
+    linear-gradient(45deg, #e5e7eb 25%, transparent 25%),
+    linear-gradient(-45deg, #e5e7eb 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e5e7eb 75%),
+    linear-gradient(-45deg, transparent 75%, #e5e7eb 75%);
+  background-color: #f8fafc;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+  background-size: 20px 20px;
+  padding: 12px;
+}
+
+.editing .page-stage {
+  min-height: min(82vh, 980px);
 }
 
 .page-stage-inner {
   position: relative;
+  flex: 0 0 auto;
   overflow: hidden;
-  border-radius: 20px;
-  background: white;
-  box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(16, 24, 40, 0.18);
   touch-action: none;
 }
 
@@ -208,19 +338,21 @@ button {
 
 .annotation-item {
   inset: auto;
-  background: transparent;
   border: 1px dashed transparent;
-  padding: 0.2rem 0.25rem;
+  background: transparent;
+  padding: 2px 3px;
   transform: translate(-10%, 14%);
 }
 
 .annotation-item.selected {
-  border-color: rgba(59, 130, 246, 0.8);
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.04);
 }
 
 .annotation-item.text {
+  max-width: 76%;
   text-align: left;
-  max-width: 72%;
+  white-space: pre-wrap;
 }
 
 .annotation-item.signature img {
@@ -244,38 +376,49 @@ button {
     );
 }
 
+.zoom-strip {
+  justify-content: center;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 6px;
+  color: #475467;
+}
+
 .film-strip {
-  border-radius: 24px;
-  padding: 0.7rem;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px;
 }
 
 .film-scroll {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 108px;
-  gap: 0.7rem;
+  grid-auto-columns: 96px;
+  gap: 8px;
   overflow-x: auto;
-  padding-bottom: 0.2rem;
+  padding-bottom: 2px;
 }
 
 .thumb-card {
-  border: 1px solid transparent;
-  border-radius: 18px;
-  padding: 0.45rem;
-  background: white;
   display: grid;
-  gap: 0.45rem;
+  gap: 5px;
   min-width: 0;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 5px;
 }
 
 .thumb-card.selected {
   border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.14);
 }
 
 .thumb-frame {
-  border-radius: 14px;
   overflow: hidden;
+  border-radius: 6px;
   background: #f8fafc;
 }
 
@@ -287,9 +430,11 @@ button {
 }
 
 .thumb-meta {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  font-size: 0.86rem;
-  color: #475569;
+  color: #667085;
+  font-size: 0.85rem;
 }
 
 .thumb-grip {
@@ -303,142 +448,69 @@ button {
 .status-pill {
   display: inline-flex;
   align-items: center;
-  min-height: 46px;
-  padding: 0.75rem 0.95rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  min-height: 40px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px 11px;
+  color: #475467;
 }
 
-.editor-menu-backdrop {
+.signature-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.28);
+  z-index: 40;
   display: grid;
-  place-items: end center;
-  padding: 1rem;
-  z-index: 30;
+  place-items: center;
+  padding: 16px;
+  background: rgba(17, 24, 39, 0.36);
 }
 
-.editor-menu,
 .signature-modal {
-  width: min(780px, 100%);
-  border-radius: 28px;
-  padding: 1rem;
   display: grid;
-  gap: 1rem;
+  gap: 12px;
+  width: min(620px, 100%);
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px;
+  box-shadow: 0 20px 48px rgba(16, 24, 40, 0.18);
 }
 
-.menu-header,
-.selected-panel-head {
+.modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 8px;
 }
 
-.menu-header h2,
-.selected-panel-head span {
+.modal-header h2 {
   margin: 0;
   font-size: 1rem;
 }
 
-.tool-row {
-  display: flex;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-.tool-pill {
-  background: #e5e7eb;
-  color: #111827;
-  min-width: 76px;
-}
-
-.tool-pill.active {
-  background: #111827;
-  color: white;
-}
-
-.control-grid,
-.selected-panel {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.8rem;
-}
-
-.control-grid label,
-.selected-panel label {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.control-grid span,
-.selected-panel span {
-  font-size: 0.88rem;
-  color: #475569;
-}
-
-.control-grid textarea,
-.selected-panel textarea {
-  width: 100%;
-  min-height: 96px;
-  border: 1px solid #cbd5e1;
-  border-radius: 16px;
-  padding: 0.8rem 0.9rem;
-  resize: vertical;
-}
-
-.full-span {
-  grid-column: 1 / -1;
-}
-
-.signature-grid {
-  display: grid;
-  gap: 0.8rem;
-}
-
-.signature-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 0.7rem;
-}
-
-.signature-chip {
-  border: 1px solid #dbeafe;
-  border-radius: 18px;
-  background: white;
-  padding: 0.7rem;
-}
-
-.signature-chip.active {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-}
-
-.signature-chip img {
-  width: 100%;
-  height: 60px;
-  object-fit: contain;
-  display: block;
-}
-
 .signature-canvas {
   width: 100%;
-  border-radius: 20px;
-  border: 1px solid #cbd5e1;
-  background: white;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
   touch-action: none;
 }
 
+.modal-actions {
+  justify-content: flex-end;
+}
+
 .empty-state {
-  border-radius: 28px;
-  padding: 2rem;
   display: grid;
-  gap: 0.9rem;
+  place-items: center;
   align-content: center;
-  justify-items: center;
-  min-height: min(72vh, 920px);
+  gap: 12px;
+  min-height: calc(100vh - 128px);
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 24px;
   text-align: center;
 }
 
@@ -447,17 +519,16 @@ button {
   margin: 0;
 }
 
+.empty-state p {
+  color: #667085;
+}
+
 @media (max-width: 900px) {
   .topbar,
   .stage-topbar,
   .status-bar {
-    flex-direction: column;
     align-items: stretch;
-  }
-
-  .toolbar-actions,
-  .stage-actions {
-    width: 100%;
+    flex-direction: column;
   }
 
   .toolbar-actions > *,
@@ -465,22 +536,92 @@ button {
     flex: 1 1 auto;
   }
 
-  .control-grid,
-  .selected-panel {
-    grid-template-columns: 1fr;
+  .stage-shell {
+    min-height: calc(100vh - 160px);
+  }
+
+  .editing .stage-shell {
+    min-height: calc(100vh - 118px);
+  }
+
+  .page-stage {
+    min-height: 68vh;
+  }
+
+  .editing .page-stage {
+    min-height: 74vh;
   }
 }
 
 @media (max-width: 640px) {
   .app-shell {
-    padding-inline: 0.65rem;
+    gap: 6px;
+    padding: max(6px, env(safe-area-inset-top)) 4px max(6px, env(safe-area-inset-bottom));
   }
 
-  .page-editor-shell {
-    min-height: 60vh;
+  .topbar h1 {
+    font-size: 1rem;
+  }
+
+  .soft-btn,
+  .primary-btn,
+  .tool-btn {
+    min-height: 38px;
+    padding: 7px 8px;
+  }
+
+  .stage-shell,
+  .film-strip,
+  .zoom-strip,
+  .status-pill {
+    border-radius: 6px;
+  }
+
+  .stage-shell {
+    padding: 5px;
+  }
+
+  .edit-zone {
+    padding: 6px;
+  }
+
+  .edit-toolbar,
+  .tool-settings,
+  .selection-bar {
+    gap: 6px;
+  }
+
+  .tool-settings label,
+  .selection-bar label {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .tool-settings input[type="range"],
+  .selection-bar input[type="range"],
+  .zoom-strip input[type="range"] {
+    width: 118px;
+  }
+
+  .text-inline-input {
+    min-width: 150px;
+    flex: 1 1 160px;
+  }
+
+  .signature-tray {
+    grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+  }
+
+  .page-stage {
+    min-height: 64vh;
+    padding: 8px;
+  }
+
+  .editing .page-stage {
+    min-height: 72vh;
   }
 
   .film-scroll {
-    grid-auto-columns: 92px;
+    grid-auto-columns: 82px;
   }
 }
