@@ -1302,6 +1302,10 @@ button {
   box-shadow: none;
 }
 
+.annotation-item.signature.selected {
+  background: transparent !important;
+}
+
 .annotation-item.selected {
   border-color: #2563eb;
   background: rgba(0, 0, 0, 0.02);

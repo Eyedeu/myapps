@@ -769,11 +769,13 @@ export default function App() {
       {signaturePickerOpen ? (
         <SignatureModal
           onClose={() => setSignaturePickerOpen(false)}
-          onSave={(dataUrl) => {
+          onSave={(payload) => {
             const customSignature = {
               id: uid("signature"),
               label: "Benim imzam",
-              dataUrl,
+              dataUrl: payload.dataUrl,
+              naturalWidth: payload.naturalWidth,
+              naturalHeight: payload.naturalHeight,
             };
 
             setSignatureOptions((current) => [...current, customSignature]);
@@ -1719,27 +1721,50 @@ function PageEditor({
         return;
       }
 
-      const item = {
-        id: uid("item"),
-        type: "signature",
-        dataUrl: activeSignature.dataUrl,
-        x: Math.max(0, coords.x - 90),
-        y: coords.y,
-        width: 180,
-        height: 72,
-      };
+      const dataUrl = activeSignature.dataUrl;
 
-      updatePage({
-        ...page,
-        annotations: {
-          ...page.annotations,
-          items: [...page.annotations.items, item],
-        },
-      });
-      setSelectedItemId(item.id);
-      setSelectedStrokeId(null);
-      setTool("select");
-      setStatus("Imza eklendi. Konumunu ve boyutunu ayarlayabilirsiniz.");
+      function finalizePlacement(inkDataUrl, iw, ih) {
+        const maxW = Math.min(240, page.width * 0.42, page.width - 8);
+        const w = Math.min(Math.max(iw, 8), maxW);
+        const h = Math.max((ih * w) / iw, 10);
+        const x = clamp(coords.x - w / 2, 4, Math.max(4, page.width - w - 4));
+        const y = clamp(coords.y - h / 2, 4, Math.max(4, page.height - h - 4));
+        const item = {
+          id: uid("item"),
+          type: "signature",
+          dataUrl: inkDataUrl,
+          x,
+          y,
+          width: w,
+          height: h,
+        };
+
+        updatePage({
+          ...page,
+          annotations: {
+            ...page.annotations,
+            items: [...page.annotations.items, item],
+          },
+        });
+        setSelectedItemId(item.id);
+        setSelectedStrokeId(null);
+        setTool("select");
+        setStatus("Imza eklendi. Sadece cizgi gorunur; surukleyip boyutlandirabilirsiniz.");
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        const trimmed = imageElementToTrimmedSignaturePng(img);
+        if (trimmed) {
+          finalizePlacement(trimmed.dataUrl, trimmed.naturalWidth, trimmed.naturalHeight);
+        } else {
+          finalizePlacement(dataUrl, img.naturalWidth || 180, img.naturalHeight || 72);
+        }
+      };
+      img.onerror = () => {
+        finalizePlacement(dataUrl, 180, 72);
+      };
+      img.src = dataUrl;
       return;
     }
 
@@ -2372,6 +2397,86 @@ function AnnotationItem({ item, onPointerDown, onResizePointerDown, onTextChange
   );
 }
 
+/** Beyaz / acik pikselleri seffaflastir, murekkep sinirlarina kirp (sayfada beyaz kutu olmasin). */
+function canvasToTrimmedSignaturePng(sourceCanvas) {
+  const w = sourceCanvas.width;
+  const h = sourceCanvas.height;
+  const ctx = sourceCanvas.getContext("2d", { alpha: true });
+  if (!ctx || w < 1 || h < 1) {
+    return null;
+  }
+
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const p = imageData.data;
+
+  const isBackground = (i) => {
+    const a = p[i + 3];
+    if (a < 12) {
+      return true;
+    }
+    return p[i] > 244 && p[i + 1] > 244 && p[i + 2] > 244;
+  };
+
+  let minX = w;
+  let minY = h;
+  let maxX = -1;
+  let maxY = -1;
+  for (let py = 0; py < h; py += 1) {
+    for (let px = 0; px < w; px += 1) {
+      const i = (py * w + px) * 4;
+      if (!isBackground(i)) {
+        if (px < minX) minX = px;
+        if (px > maxX) maxX = px;
+        if (py < minY) minY = py;
+        if (py > maxY) maxY = py;
+      }
+    }
+  }
+  if (maxX < minX) {
+    return null;
+  }
+
+  const pad = Math.max(2, Math.round(4 * (w / 900)));
+  minX = Math.max(0, minX - pad);
+  minY = Math.max(0, minY - pad);
+  maxX = Math.min(w - 1, maxX + pad);
+  maxY = Math.min(h - 1, maxY + pad);
+
+  const cw = maxX - minX + 1;
+  const ch = maxY - minY + 1;
+  const cropped = ctx.getImageData(minX, minY, cw, ch);
+  const cp = cropped.data;
+  for (let i = 0; i < cp.length; i += 4) {
+    if (cp[i] > 244 && cp[i + 1] > 244 && cp[i + 2] > 244) {
+      cp[i + 3] = 0;
+    }
+  }
+
+  const out = document.createElement("canvas");
+  out.width = cw;
+  out.height = ch;
+  const octx = out.getContext("2d", { alpha: true });
+  octx.putImageData(cropped, 0, 0);
+
+  return {
+    dataUrl: out.toDataURL("image/png"),
+    naturalWidth: cw,
+    naturalHeight: ch,
+  };
+}
+
+function imageElementToTrimmedSignaturePng(img) {
+  if (!img?.naturalWidth || !img?.naturalHeight) {
+    return null;
+  }
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth;
+  c.height = img.naturalHeight;
+  const x = c.getContext("2d", { alpha: true });
+  x.drawImage(img, 0, 0);
+  return canvasToTrimmedSignaturePng(c);
+}
+
 function SignatureModal({ onClose, onSave }) {
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -2453,7 +2558,17 @@ function SignatureModal({ onClose, onSave }) {
           <button className="soft-btn" onClick={clear}>
             Temizle
           </button>
-          <button className="primary-btn compact-btn" disabled={!hasInk} onClick={() => onSave(canvasRef.current.toDataURL("image/png"))}>
+          <button
+            className="primary-btn compact-btn"
+            disabled={!hasInk}
+            onClick={() => {
+              const trimmed = canvasToTrimmedSignaturePng(canvasRef.current);
+              if (!trimmed) {
+                return;
+              }
+              onSave(trimmed);
+            }}
+          >
             Kaydet
           </button>
         </div>
