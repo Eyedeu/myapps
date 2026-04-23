@@ -5,7 +5,9 @@ import "./styles.css";
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => undefined);
+    const base = import.meta.env.BASE_URL;
+    const path = new URL("sw.js", new URL(base, self.location.origin)).toString();
+    navigator.serviceWorker.register(path, { scope: base }).catch(() => undefined);
   });
 }
 

@@ -19,6 +19,7 @@ import {
   Download,
   Eraser,
   FilePlus2,
+  FolderPlus,
   GripVertical,
   Highlighter,
   ImagePlus,
@@ -439,6 +440,19 @@ export default function App() {
     });
   }
 
+  function startNewProject() {
+    setProject(createProject());
+    setSelectedPageId(null);
+    setSelectedItemId(null);
+    setSelectedStrokeId(null);
+    setReplaceTargetPageId(null);
+    setEditMode(false);
+    setTool("select");
+    setSignatureListOpen(false);
+    setPageZoom(1);
+    setStatus("Yeni proje. PDF, foto veya A4 ekleyin.");
+  }
+
   function downloadPdfFileName() {
     const base = (project.title || "pdf-pocket-studio").replace(/[<>:"/\\|?*]/g, "-").trim() || "cikti";
     return `${base}-${Date.now()}.pdf`;
@@ -514,6 +528,10 @@ export default function App() {
             <h1>PDF duzenleme</h1>
           </div>
           <div className="toolbar-actions">
+            <button className="soft-btn" type="button" title="Bos yeni proje" onClick={startNewProject}>
+              <FolderPlus size={18} />
+              Yeni proje
+            </button>
             <button className="soft-btn" title="PDF yukle" onClick={() => pdfInputRef.current?.click()}>
               <FilePlus2 size={18} />
               PDF
