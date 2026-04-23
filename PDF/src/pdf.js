@@ -7,6 +7,9 @@ GlobalWorkerOptions.workerSrc = workerUrl;
 const pdfProxyCache = new Map();
 const pdfLibCache = new Map();
 
+/** Cikti PDF'inde tarama kalitesi (anotasyon katmani); koordinat duzlemi hala 'width'x'height' noktasi. */
+const ANNOTATION_EXPORT_SCALE = 2.75;
+
 export function uid(prefix) {
   return `${prefix}-${crypto.randomUUID()}`;
 }
@@ -108,8 +111,10 @@ export async function exportProject(project) {
 
   for (const page of project.pages) {
     let pdfPage;
-    let pageWidth = page.width;
-    let pageHeight = page.height;
+    const coordW = page.width;
+    const coordH = page.height;
+    let pageWidth = coordW;
+    let pageHeight = coordH;
 
     if (page.kind === "pdf") {
       const source = project.documents.find((documentRecord) => documentRecord.id === page.sourceId);
@@ -141,7 +146,7 @@ export async function exportProject(project) {
     }
 
     if (page.annotations.strokes.length || page.annotations.items.length) {
-      const overlayDataUrl = await renderAnnotations(page, pageWidth, pageHeight);
+      const overlayDataUrl = await renderAnnotations(page, coordW, coordH, { scale: ANNOTATION_EXPORT_SCALE });
       const overlayBytes = await fetch(overlayDataUrl).then((response) => response.arrayBuffer());
       const overlayImage = await output.embedPng(overlayBytes);
 
@@ -217,12 +222,23 @@ export function fitIntoBox(contentWidth, contentHeight, boxWidth, boxHeight) {
   };
 }
 
-async function renderAnnotations(page, width, height) {
+async function renderAnnotations(page, width, height, options = {}) {
+  const scale = Number.isFinite(options.scale) && options.scale > 0 ? options.scale : 1;
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("2D canvas desteklenmiyor");
+  }
 
-  canvas.width = width;
-  canvas.height = height;
+  const pxW = Math.max(1, Math.round(width * scale));
+  const pxH = Math.max(1, Math.round(height * scale));
+  canvas.width = pxW;
+  canvas.height = pxH;
+
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  context.scale(scale, scale);
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
 
   context.clearRect(0, 0, width, height);
   context.lineCap = "round";
@@ -261,6 +277,7 @@ async function renderAnnotations(page, width, height) {
     if (item.type === "text") {
       context.fillStyle = item.color;
       context.font = `${item.fontSize}px sans-serif`;
+      context.textRendering = "geometricPrecision";
       context.textBaseline = "bottom";
       const lines = item.text.split("\n");
 

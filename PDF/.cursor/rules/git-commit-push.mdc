@@ -1,0 +1,8 @@
+---
+description: After code changes, commit and push without waiting for the user to ask
+alwaysApply: true
+---
+
+# Git: commit and push
+
+After completing substantive edits in this project (any task that changes source files), run `git add`, `git commit` with a clear one-line message in English or Turkish, and `git push` to `origin` on the current branch, unless the user explicitly says not to or the repo has merge conflicts. Do not only describe what to run—execute it. If there is nothing to commit, say so briefly.
