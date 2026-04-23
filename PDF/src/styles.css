@@ -1311,71 +1311,228 @@ button {
   background: rgba(0, 0, 0, 0.02);
 }
 
-.annotation-knob {
-  position: absolute;
-  z-index: 6;
-  width: 7px;
-  height: 7px;
-  box-sizing: border-box;
-  border: 1.5px solid #2563eb;
-  background: rgba(37, 99, 235, 0.12);
-  border-radius: 1px;
-  padding: 0;
-  margin: 0;
-  touch-action: none;
+.annotation-item.text.selected {
+  background: transparent !important;
 }
 
-.annotation-knob--tl {
-  top: -4px;
-  left: -4px;
-  pointer-events: none;
-  opacity: 0.5;
-}
-.annotation-knob--tr {
-  top: -4px;
-  right: -4px;
-  pointer-events: none;
-  opacity: 0.5;
-}
-.annotation-knob--bl {
-  left: -4px;
-  bottom: -4px;
-  pointer-events: none;
-  opacity: 0.5;
-}
-.annotation-knob--br {
-  right: -4px;
-  bottom: -4px;
-  background: #2563eb;
-  border: 1px solid #1d4ed8;
-  cursor: nwse-resize;
-  z-index: 7;
-  box-shadow: 0 1px 0 rgba(16, 24, 40, 0.12);
-  opacity: 1;
-  pointer-events: auto;
+/* Kose / kenar tutamac (metin + imza); mobil icin genis dokunma */
+.annotation-knob-corner,
+.annotation-knob-edge {
+  box-sizing: border-box;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  padding: 0;
+  margin: 0;
   appearance: none;
-  min-width: 0;
-  min-height: 0;
+  border: 1.5px solid #2563eb;
+  background: rgba(37, 99, 235, 0.14);
+  border-radius: 3px;
+  z-index: 8;
   line-height: 0;
   font-size: 0;
 }
 
-.annotation-text-drag {
-  flex: 0 0 auto;
-  height: 12px;
-  min-height: 12px;
-  width: 100%;
-  border-radius: 2px 2px 0 0;
-  background: linear-gradient(180deg, rgba(37, 99, 235, 0.18), rgba(37, 99, 235, 0.06));
-  touch-action: none;
-  -webkit-tap-highlight-color: transparent;
-  cursor: grab;
-  margin-bottom: 2px;
-  flex-shrink: 0;
+.annotation-knob-corner {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  cursor: nwse-resize;
+  justify-self: center;
+  align-self: center;
 }
 
-.annotation-text-drag:active {
+.annotation-knob-edge {
+  min-height: 22px;
+  min-width: 22px;
+  cursor: ns-resize;
+}
+
+.annotation-knob-edge.annotation-knob--w,
+.annotation-knob-edge.annotation-knob--e {
+  cursor: ew-resize;
+  width: 22px;
+  height: auto;
+  align-self: stretch;
+  min-height: 36px;
+}
+
+.annotation-text-selected-inner {
+  display: grid;
+  grid-template-columns: 28px 1fr 28px;
+  grid-template-rows: 28px 1fr 28px;
+  gap: 2px;
+  align-items: stretch;
+  min-width: 120px;
+  max-width: min(92vw, 440px);
+}
+
+.annotation-text-selected-inner .annotation-knob--tl {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.annotation-text-selected-inner .annotation-knob--n {
+  grid-column: 2;
+  grid-row: 1;
+  width: 100%;
+  height: 24px;
+  justify-self: stretch;
+}
+
+.annotation-text-selected-inner .annotation-knob--tr {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.annotation-text-selected-inner .annotation-knob--w {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.annotation-text-core {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.annotation-text-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+  gap: 0;
+}
+
+.annotation-text-pad {
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  flex: 1 1 auto;
+  cursor: grab;
+  background: transparent;
+}
+
+.annotation-text-pad:active {
   cursor: grabbing;
+}
+
+.annotation-text-pad--x {
+  min-width: 12px;
+  min-height: 1.35em;
+  align-self: stretch;
+}
+
+.annotation-text-pad--below {
+  min-height: 14px;
+  flex: 1 1 auto;
+}
+
+.annotation-text-selected-inner .annotation-knob--e {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.annotation-text-selected-inner .annotation-knob--bl {
+  grid-column: 1;
+  grid-row: 3;
+}
+
+.annotation-text-selected-inner .annotation-knob--s {
+  grid-column: 2;
+  grid-row: 3;
+  width: 100%;
+  height: 24px;
+}
+
+.annotation-text-selected-inner .annotation-knob--br {
+  grid-column: 3;
+  grid-row: 3;
+}
+
+/* Imza / gorsel kutusu: tutamaclar mutlak konum */
+.annotation-item.signature.selected,
+.annotation-item.embedded-image.selected {
+  position: absolute;
+}
+
+.annotation-item.signature .annotation-knob-corner,
+.annotation-item.embedded-image .annotation-knob-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+}
+
+.annotation-item.signature .annotation-knob-edge,
+.annotation-item.embedded-image .annotation-knob-edge {
+  position: absolute;
+}
+
+.annotation-item.signature .annotation-knob--tl,
+.annotation-item.embedded-image .annotation-knob--tl {
+  top: 0;
+  left: 0;
+  transform: translate(-50%, -50%);
+}
+
+.annotation-item.signature .annotation-knob--tr,
+.annotation-item.embedded-image .annotation-knob--tr {
+  top: 0;
+  right: 0;
+  transform: translate(50%, -50%);
+}
+
+.annotation-item.signature .annotation-knob--br,
+.annotation-item.embedded-image .annotation-knob--br {
+  bottom: 0;
+  right: 0;
+  transform: translate(50%, 50%);
+}
+
+.annotation-item.signature .annotation-knob--bl,
+.annotation-item.embedded-image .annotation-knob--bl {
+  bottom: 0;
+  left: 0;
+  transform: translate(-50%, 50%);
+}
+
+.annotation-item.signature .annotation-knob--n,
+.annotation-item.embedded-image .annotation-knob--n {
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 24px;
+}
+
+.annotation-item.signature .annotation-knob--s,
+.annotation-item.embedded-image .annotation-knob--s {
+  bottom: 0;
+  left: 50%;
+  transform: translate(-50%, 50%);
+  width: 40px;
+  height: 24px;
+}
+
+.annotation-item.signature .annotation-knob--w,
+.annotation-item.embedded-image .annotation-knob--w {
+  left: 0;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 40px;
+}
+
+.annotation-item.signature .annotation-knob--e,
+.annotation-item.embedded-image .annotation-knob--e {
+  right: 0;
+  top: 50%;
+  transform: translate(50%, -50%);
+  width: 24px;
+  height: 40px;
 }
 
 .annotation-item.text {
@@ -1390,15 +1547,9 @@ button {
   min-width: 0;
 }
 
-.annotation-item.text.selected {
-  background: rgba(0, 0, 0, 0);
-  border-radius: 1px;
-  padding: 0;
-}
-
 .inline-textarea {
   display: block;
-  min-width: 8em;
+  min-width: 2em;
   min-height: 1.3em;
   line-height: 1.35;
   border: none;
@@ -1411,10 +1562,18 @@ button {
   font: inherit;
   box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
   field-sizing: content;
   -webkit-user-select: text;
   user-select: text;
   -webkit-user-drag: none;
+}
+
+.annotation-text-row .inline-textarea {
+  width: auto;
+  flex: 0 1 auto;
+  max-width: calc(100% - 8px);
+  min-width: 0;
 }
 
 .annotation-sig-img {
@@ -1572,6 +1731,31 @@ button {
 .modal-header h2 {
   margin: 0;
   font-size: 1rem;
+}
+
+.signature-pen-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.signature-pen-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475467;
+}
+
+.signature-pen-slider {
+  flex: 1 1 140px;
+  min-width: 100px;
+}
+
+.signature-pen-val {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: #475467;
+  min-width: 3rem;
 }
 
 .signature-canvas {

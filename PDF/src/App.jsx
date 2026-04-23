@@ -1392,6 +1392,150 @@ function SortablePageCard({
   );
 }
 
+/** Imza / gorsel kutusu ve metin punto: tutamac yonune gore yeni olculer. */
+function computeResizePatch(state, coords, pageW, pageH) {
+  const dx = coords.x - state.start.x;
+  const dy = coords.y - state.start.y;
+  const { x0, y0, w0, h0, handle, type } = state;
+
+  if (type === "text") {
+    let delta = 0;
+    switch (handle) {
+      case "br":
+        delta = Math.max(dx, -dy) * 0.12;
+        break;
+      case "bl":
+        delta = Math.max(-dx, -dy) * 0.12;
+        break;
+      case "tr":
+        delta = Math.max(dx, dy) * 0.12;
+        break;
+      case "tl":
+        delta = Math.max(-dx, dy) * 0.12;
+        break;
+      case "e":
+        delta = dx * 0.12;
+        break;
+      case "w":
+        delta = -dx * 0.12;
+        break;
+      case "n":
+        delta = dy * 0.12;
+        break;
+      case "s":
+        delta = -dy * 0.12;
+        break;
+      default:
+        delta = Math.max(dx, -dy) * 0.12;
+    }
+    return {
+      kind: "text",
+      fontSize: Math.round(clamp(state.fontSize + delta, 8, 140)),
+    };
+  }
+
+  const ratio0 = h0 / w0 || 0.4;
+  const top0 = y0 + h0;
+  const right0 = x0 + w0;
+  let x = x0;
+  let y = y0;
+  let w = w0;
+  let h = h0;
+
+  switch (handle) {
+    case "br": {
+      w = clamp(w0 + Math.max(dx, -dy * 1.8), 24, pageW - x0);
+      h = w * ratio0;
+      break;
+    }
+    case "tr": {
+      w = clamp(coords.x - x0, 24, pageW - x0);
+      h = w * ratio0;
+      x = x0;
+      y = y0;
+      break;
+    }
+    case "bl": {
+      w = clamp(right0 - coords.x, 24, right0);
+      h = w * ratio0;
+      x = right0 - w;
+      y = top0 - h;
+      break;
+    }
+    case "tl": {
+      h = clamp(coords.y - y0, 24, top0 - y0);
+      w = h / ratio0;
+      x = right0 - w;
+      y = y0;
+      break;
+    }
+    case "e": {
+      w = clamp(coords.x - x0, 24, pageW - x0);
+      h = w * ratio0;
+      x = x0;
+      y = y0;
+      if (y + h > pageH) {
+        h = pageH - y;
+        w = h / ratio0;
+      }
+      break;
+    }
+    case "w": {
+      w = clamp(right0 - coords.x, 24, right0);
+      x = right0 - w;
+      h = w * ratio0;
+      y = y0;
+      if (y + h > pageH) {
+        h = pageH - y;
+        w = h / ratio0;
+        x = right0 - w;
+      }
+      break;
+    }
+    case "n": {
+      h = clamp(top0 - coords.y, 24, top0 - y0);
+      w = h / ratio0;
+      y = top0 - h;
+      x = x0;
+      if (x + w > pageW) {
+        w = pageW - x;
+        h = w * ratio0;
+        y = top0 - h;
+      }
+      break;
+    }
+    case "s": {
+      h = clamp(coords.y - y0, 24, pageH - y0);
+      w = h / ratio0;
+      x = x0;
+      y = y0;
+      if (x + w > pageW) {
+        w = pageW - x;
+        h = w * ratio0;
+      }
+      break;
+    }
+    default: {
+      w = clamp(w0 + Math.max(dx, -dy * 1.8), 24, pageW - x0);
+      h = w * ratio0;
+      x = x0;
+      y = y0;
+    }
+  }
+
+  w = Math.round(clamp(w, 24, pageW));
+  h = Math.round(clamp(h, 24, pageH));
+  x = clamp(x, 0, Math.max(0, pageW - w));
+  y = clamp(y, 0, Math.max(0, pageH - h));
+  if (y + h > pageH) {
+    h = Math.max(24, pageH - y);
+  }
+  if (x + w > pageW) {
+    w = Math.max(24, pageW - x);
+  }
+  return { kind: "box", x, y, width: w, height: h };
+}
+
 function PageEditor({
   accentColor,
   activeSignature,
@@ -1425,6 +1569,11 @@ function PageEditor({
   const resizeState = useRef(null);
   const strokeDragState = useRef(null);
   const annotationPointerCaptureRef = useRef(null);
+  const pageSyncRef = useRef(page);
+  const itemDragRafRef = useRef(null);
+  const pendingItemDragRef = useRef(null);
+  const resizeRafRef = useRef(null);
+  const pendingResizeRef = useRef(null);
   const pageRef = useRef(page);
   const pageZoomRef = useRef(pageZoom);
   const drawingStrokeIdRef = useRef(drawingStrokeId);
@@ -1432,6 +1581,9 @@ function PageEditor({
 
   useEffect(() => {
     pageRef.current = page;
+  }, [page]);
+  useEffect(() => {
+    pageSyncRef.current = page;
   }, [page]);
   useEffect(() => {
     pageZoomRef.current = pageZoom;
@@ -1665,7 +1817,10 @@ function PageEditor({
   function getAnnotationShellElement(pointerEvent) {
     const t = pointerEvent.currentTarget;
     if (t?.classList?.contains("annotation-text-drag")) {
-      return t.parentElement;
+      return t.parentElement?.closest?.(".annotation-item") ?? t.parentElement;
+    }
+    if (t?.classList?.contains("annotation-text-pad")) {
+      return t.closest(".annotation-item");
     }
     return t;
   }
@@ -1823,36 +1978,33 @@ function PageEditor({
 
     if (tool === "select" && resizeState.current) {
       const state = resizeState.current;
-      const dx = coords.x - state.start.x;
-      const dy = coords.y - state.start.y;
-
-      updatePage({
-        ...page,
-        annotations: {
-          ...page.annotations,
-          items: page.annotations.items.map((item) => {
-            if (item.id !== state.itemId) {
-              return item;
-            }
-
-            if (state.type === "text") {
-              return {
-                ...item,
-                fontSize: Math.round(clamp(state.fontSize + Math.max(dx, -dy) * 0.12, 8, 140)),
-              };
-            }
-
-            const ratio = state.height / state.width || 0.4;
-            const width = clamp(state.width + Math.max(dx, -dy * 1.8), 40, page.width);
-
-            return {
-              ...item,
-              width: Math.round(width),
-              height: Math.round(width * ratio),
-            };
-          }),
-        },
-      });
+      pendingResizeRef.current = { state, coords };
+      if (!resizeRafRef.current) {
+        resizeRafRef.current = requestAnimationFrame(() => {
+          resizeRafRef.current = null;
+          const pr = pendingResizeRef.current;
+          if (!pr || !resizeState.current) {
+            return;
+          }
+          const pg = pageSyncRef.current;
+          const patch = computeResizePatch(pr.state, pr.coords, pg.width, pg.height);
+          updatePage({
+            ...pg,
+            annotations: {
+              ...pg.annotations,
+              items: pg.annotations.items.map((item) => {
+                if (item.id !== pr.state.itemId) {
+                  return item;
+                }
+                if (patch.kind === "text") {
+                  return { ...item, fontSize: patch.fontSize };
+                }
+                return { ...item, x: patch.x, y: patch.y, width: patch.width, height: patch.height };
+              }),
+            },
+          });
+        });
+      }
       return;
     }
 
@@ -1875,21 +2027,32 @@ function PageEditor({
 
     if (tool === "select" && dragState.current) {
       const { itemId, offsetX, offsetY } = dragState.current;
-      updatePage({
-        ...page,
-        annotations: {
-          ...page.annotations,
-          items: page.annotations.items.map((item) =>
-            item.id === itemId
-              ? {
-                  ...item,
-                  x: clamp(coords.x - offsetX, 0, page.width),
-                  y: clamp(coords.y - offsetY, 0, page.height),
-                }
-              : item,
-          ),
-        },
-      });
+      pendingItemDragRef.current = { itemId, coords, offsetX, offsetY };
+      if (!itemDragRafRef.current) {
+        itemDragRafRef.current = requestAnimationFrame(() => {
+          itemDragRafRef.current = null;
+          const p = pendingItemDragRef.current;
+          if (!p || !dragState.current) {
+            return;
+          }
+          const pg = pageSyncRef.current;
+          updatePage({
+            ...pg,
+            annotations: {
+              ...pg.annotations,
+              items: pg.annotations.items.map((item) =>
+                item.id === p.itemId
+                  ? {
+                      ...item,
+                      x: clamp(p.coords.x - p.offsetX, 0, pg.width),
+                      y: clamp(p.coords.y - p.offsetY, 0, pg.height),
+                    }
+                  : item,
+              ),
+            },
+          });
+        });
+      }
     }
 
     if (tool === "select" && strokeDragState.current) {
@@ -1923,7 +2086,59 @@ function PageEditor({
     }
   }
 
+  function flushDragResizeFromPointer(event) {
+    if (itemDragRafRef.current) {
+      cancelAnimationFrame(itemDragRafRef.current);
+      itemDragRafRef.current = null;
+    }
+    if (resizeRafRef.current) {
+      cancelAnimationFrame(resizeRafRef.current);
+      resizeRafRef.current = null;
+    }
+    const c = event ? toPdfCoordinates(event.clientX, event.clientY) : null;
+    const pg = pageSyncRef.current;
+    if (c && dragState.current) {
+      const { itemId, offsetX, offsetY } = dragState.current;
+      updatePage({
+        ...pg,
+        annotations: {
+          ...pg.annotations,
+          items: pg.annotations.items.map((item) =>
+            item.id === itemId
+              ? {
+                  ...item,
+                  x: clamp(c.x - offsetX, 0, pg.width),
+                  y: clamp(c.y - offsetY, 0, pg.height),
+                }
+              : item,
+          ),
+        },
+      });
+    } else if (c && resizeState.current) {
+      const st = resizeState.current;
+      const patch = computeResizePatch(st, c, pg.width, pg.height);
+      updatePage({
+        ...pg,
+        annotations: {
+          ...pg.annotations,
+          items: pg.annotations.items.map((item) => {
+            if (item.id !== st.itemId) {
+              return item;
+            }
+            if (patch.kind === "text") {
+              return { ...item, fontSize: patch.fontSize };
+            }
+            return { ...item, x: patch.x, y: patch.y, width: patch.width, height: patch.height };
+          }),
+        },
+      });
+    }
+    pendingItemDragRef.current = null;
+    pendingResizeRef.current = null;
+  }
+
   function handleStagePointerUp(event) {
+    flushDragResizeFromPointer(event);
     clearErasingPointer(event);
     if (annotationPointerCaptureRef.current && event.pointerId != null) {
       try {
@@ -1960,6 +2175,7 @@ function PageEditor({
   }
 
   function handleStagePointerLeave() {
+    flushDragResizeFromPointer(null);
     setEraserGuide(null);
     setDrawingStrokeId(null);
     dragState.current = null;
@@ -2090,7 +2306,7 @@ function PageEditor({
     setSelectedStrokeId(null);
   }
 
-  function beginItemResize(item, event) {
+  function beginItemResize(item, event, handle = "br") {
     if (viewScrollUnlocked) {
       return;
     }
@@ -2112,9 +2328,12 @@ function PageEditor({
     resizeState.current = {
       itemId: item.id,
       type: item.type,
+      handle,
       start: coords,
-      width: item.width,
-      height: item.height,
+      x0: item.x,
+      y0: item.y,
+      w0: item.width ?? 0,
+      h0: item.height ?? 0,
       fontSize: item.fontSize,
     };
   }
@@ -2310,6 +2529,7 @@ function BaseLayer({ page, sourceDocument }) {
 function AnnotationItem({ item, onPointerDown, onResizePointerDown, onTextChange, page, selected }) {
   const left = `${(item.x / page.width) * 100}%`;
   const bottom = `${(item.y / page.height) * 100}%`;
+  const resize = (handle) => (event) => onResizePointerDown(item, event, handle);
 
   if (item.type === "text") {
     return (
@@ -2319,42 +2539,47 @@ function AnnotationItem({ item, onPointerDown, onResizePointerDown, onTextChange
         onPointerDown={selected ? undefined : (event) => onPointerDown(item, event)}
       >
         {selected ? (
-          <>
-            <div
-              className="annotation-text-drag"
-              title="Surukle (tasimak icin buradan tutun)"
-              onPointerDown={(event) => onPointerDown(item, event)}
-            />
-            <textarea
-              aria-label="Metin"
-              className="inline-textarea"
-              style={{ color: item.color, fontSize: `${item.fontSize}px` }}
-              value={item.text}
-              onChange={(event) => onTextChange(item.id, event.target.value)}
-            />
-          </>
+          <div className="annotation-text-selected-inner">
+            <button type="button" className="annotation-knob-corner annotation-knob--tl" aria-label="Sol ust" onPointerDown={resize("tl")} />
+            <button type="button" className="annotation-knob-edge annotation-knob--n" aria-label="Ust boyut" onPointerDown={resize("n")} />
+            <button type="button" className="annotation-knob-corner annotation-knob--tr" aria-label="Sag ust" onPointerDown={resize("tr")} />
+            <button type="button" className="annotation-knob-edge annotation-knob--w" aria-label="Sol boyut" onPointerDown={resize("w")} />
+            <div className="annotation-text-core">
+              <div className="annotation-text-row">
+                <textarea
+                  aria-label="Metin"
+                  className="inline-textarea"
+                  style={{ color: item.color, fontSize: `${item.fontSize}px` }}
+                  value={item.text}
+                  onChange={(event) => onTextChange(item.id, event.target.value)}
+                  onPointerDown={(event) => event.stopPropagation()}
+                />
+                <div
+                  className="annotation-text-pad annotation-text-pad--x"
+                  title="Surukle"
+                  onPointerDown={(event) => onPointerDown(item, event)}
+                />
+              </div>
+              <div
+                className="annotation-text-pad annotation-text-pad--below"
+                title="Surukle"
+                onPointerDown={(event) => onPointerDown(item, event)}
+              />
+            </div>
+            <button type="button" className="annotation-knob-edge annotation-knob--e" aria-label="Sag boyut" onPointerDown={resize("e")} />
+            <button type="button" className="annotation-knob-corner annotation-knob--bl" aria-label="Sol alt" onPointerDown={resize("bl")} />
+            <button type="button" className="annotation-knob-edge annotation-knob--s" aria-label="Alt boyut" onPointerDown={resize("s")} />
+            <button type="button" className="annotation-knob-corner annotation-knob--br" aria-label="Sag alt" onPointerDown={resize("br")} />
+          </div>
         ) : (
           item.text
         )}
-        {selected ? (
-          <>
-            <span className="annotation-knob annotation-knob--tl" aria-hidden="true" />
-            <span className="annotation-knob annotation-knob--tr" aria-hidden="true" />
-            <span className="annotation-knob annotation-knob--bl" aria-hidden="true" />
-            <button
-              type="button"
-              aria-label="Metin boyutu"
-              className="annotation-knob annotation-knob--br"
-              onPointerDown={(event) => onResizePointerDown(item, event)}
-            />
-          </>
-        ) : null}
       </div>
     );
   }
 
   const imgKind = item.type === "embeddedImage" ? "embedded-image" : "signature";
-  const resizeLabel = item.type === "embeddedImage" ? "Gorsel boyutu" : "Imza boyutu";
+  const resizeLabel = item.type === "embeddedImage" ? "Gorsel" : "Imza";
 
   return (
     <div
@@ -2382,15 +2607,14 @@ function AnnotationItem({ item, onPointerDown, onResizePointerDown, onTextChange
       />
       {selected ? (
         <>
-          <span className="annotation-knob annotation-knob--tl" aria-hidden="true" />
-          <span className="annotation-knob annotation-knob--tr" aria-hidden="true" />
-          <span className="annotation-knob annotation-knob--bl" aria-hidden="true" />
-          <button
-            type="button"
-            aria-label={resizeLabel}
-            className="annotation-knob annotation-knob--br"
-            onPointerDown={(event) => onResizePointerDown(item, event)}
-          />
+          <button type="button" className="annotation-knob-corner annotation-knob--tl" aria-label={`${resizeLabel} sol ust`} onPointerDown={resize("tl")} />
+          <button type="button" className="annotation-knob-edge annotation-knob--n" aria-label={`${resizeLabel} ust`} onPointerDown={resize("n")} />
+          <button type="button" className="annotation-knob-corner annotation-knob--tr" aria-label={`${resizeLabel} sag ust`} onPointerDown={resize("tr")} />
+          <button type="button" className="annotation-knob-edge annotation-knob--w" aria-label={`${resizeLabel} sol`} onPointerDown={resize("w")} />
+          <button type="button" className="annotation-knob-edge annotation-knob--e" aria-label={`${resizeLabel} sag`} onPointerDown={resize("e")} />
+          <button type="button" className="annotation-knob-corner annotation-knob--bl" aria-label={`${resizeLabel} sol alt`} onPointerDown={resize("bl")} />
+          <button type="button" className="annotation-knob-edge annotation-knob--s" aria-label={`${resizeLabel} alt`} onPointerDown={resize("s")} />
+          <button type="button" className="annotation-knob-corner annotation-knob--br" aria-label={`${resizeLabel} sag alt`} onPointerDown={resize("br")} />
         </>
       ) : null}
     </div>
@@ -2479,8 +2703,14 @@ function imageElementToTrimmedSignaturePng(img) {
 
 function SignatureModal({ onClose, onSave }) {
   const canvasRef = useRef(null);
+  const penWidthRef = useRef(3);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasInk, setHasInk] = useState(false);
+  const [penWidth, setPenWidth] = useState(3);
+
+  useEffect(() => {
+    penWidthRef.current = penWidth;
+  }, [penWidth]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -2492,7 +2722,7 @@ function SignatureModal({ onClose, onSave }) {
 
     const context = canvas.getContext("2d", { alpha: true });
     context.scale(ratio, ratio);
-    context.lineWidth = 2.6;
+    context.lineWidth = penWidthRef.current;
     context.lineCap = "round";
     context.lineJoin = "round";
     context.strokeStyle = "#111827";
@@ -2509,6 +2739,7 @@ function SignatureModal({ onClose, onSave }) {
 
   function start(event) {
     const context = canvasRef.current.getContext("2d", { alpha: true });
+    context.lineWidth = penWidthRef.current;
     const { x, y } = position(event);
     context.beginPath();
     context.moveTo(x, y);
@@ -2522,6 +2753,7 @@ function SignatureModal({ onClose, onSave }) {
     }
 
     const context = canvasRef.current.getContext("2d", { alpha: true });
+    context.lineWidth = penWidthRef.current;
     const { x, y } = position(event);
     context.lineTo(x, y);
     context.stroke();
@@ -2545,6 +2777,20 @@ function SignatureModal({ onClose, onSave }) {
           <button className="soft-btn compact-btn" onClick={onClose}>
             Kapat
           </button>
+        </div>
+        <div className="signature-pen-row">
+          <span className="signature-pen-label">Kalem</span>
+          <input
+            aria-label="Kalem kalinligi"
+            className="signature-pen-slider"
+            max={8}
+            min={1}
+            step={0.5}
+            type="range"
+            value={penWidth}
+            onChange={(e) => setPenWidth(Number(e.target.value))}
+          />
+          <span className="signature-pen-val">{penWidth}px</span>
         </div>
         <canvas
           ref={canvasRef}
