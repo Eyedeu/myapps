@@ -484,6 +484,22 @@ button {
   justify-content: flex-end;
 }
 
+.view-scroll-pill {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.06);
+  color: #374151;
+  margin-right: 0.1rem;
+  white-space: nowrap;
+}
+
+.view-scroll-pill.is-on {
+  background: rgba(16, 185, 129, 0.15);
+  color: #047857;
+}
+
 .tool-rail__btn--back {
   min-width: 44px;
   max-width: 48px;
@@ -1037,6 +1053,14 @@ button {
   -webkit-overflow-scrolling: touch;
 }
 
+.signature-tray-pro__empty {
+  margin: 0.35rem 0.4rem 0.75rem;
+  color: #6b7280;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  flex: 1 1 100%;
+}
+
 .sig-card {
   position: relative;
   flex: 0 0 auto;
@@ -1217,6 +1241,11 @@ button {
   -webkit-user-drag: none;
 }
 
+/* Iki kere tik: sayfayi yatay/dikey serbestce kaydir; cift tik tekrar: cizim/imza. */
+.page-stage-inner.page-stage-inner--pan {
+  touch-action: pan-x pan-y;
+}
+
 .base-preview,
 .annotation-svg,
 .annotation-item {
@@ -1266,7 +1295,8 @@ button {
   z-index: 2;
 }
 
-.annotation-item.signature {
+.annotation-item.signature,
+.annotation-item.embedded-image {
   z-index: 3;
   background: transparent;
   box-shadow: none;

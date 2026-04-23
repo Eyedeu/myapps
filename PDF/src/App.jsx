@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   closestCenter,
   DndContext,
@@ -58,11 +58,6 @@ const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2.5;
 const ZOOM_STEP = 0.02;
 const SIGNATURE_STORAGE_KEY = "pdf-pocket-studio-signatures";
-const SIGNATURE_PRESETS = [
-  makeSignaturePreset("preset-1", "E. Kaya"),
-  makeSignaturePreset("preset-2", "Enes Kaya"),
-  makeSignaturePreset("preset-3", "E. K."),
-];
 
 export default function App() {
   const [project, setProject] = useState(() => createProject());
@@ -85,12 +80,14 @@ export default function App() {
   const [isExporting, setIsExporting] = useState(false);
   const [signaturePickerOpen, setSignaturePickerOpen] = useState(false);
   const [signaturesHydrated, setSignaturesHydrated] = useState(false);
-  const [signatureOptions, setSignatureOptions] = useState(SIGNATURE_PRESETS);
-  const [activeSignatureId, setActiveSignatureId] = useState(SIGNATURE_PRESETS[0].id);
+  const [signatureOptions, setSignatureOptions] = useState([]);
+  const [activeSignatureId, setActiveSignatureId] = useState(null);
+  const [viewScrollUnlocked, setViewScrollUnlocked] = useState(false);
   const [historyProjects, setHistoryProjects] = useState([]);
   const autosaveTimer = useRef(null);
   const pdfInputRef = useRef(null);
   const imageInputRef = useRef(null);
+  const embeddedPhotoInputRef = useRef(null);
   const replaceInputRef = useRef(null);
 
   const documentsById = useMemo(
@@ -396,6 +393,68 @@ export default function App() {
     });
   }
 
+  function addEmbeddedImageToPage(dataUrl, naturalW, naturalH) {
+    if (!selectedPage) {
+      return;
+    }
+    const maxW = Math.min(280, selectedPage.width * 0.55, selectedPage.width - 8);
+    const w = Math.min(naturalW, maxW, selectedPage.width - 8);
+    const h = (naturalH * w) / naturalW;
+    const x = (selectedPage.width - w) / 2;
+    const y = (selectedPage.height - h) / 2;
+    const item = {
+      id: uid("item"),
+      type: "embeddedImage",
+      dataUrl,
+      x: Math.max(4, Math.min(x, selectedPage.width - w - 4)),
+      y: Math.max(4, Math.min(y, selectedPage.height - h - 4)),
+      width: w,
+      height: h,
+    };
+    patchSelectedPage((page) => ({
+      ...page,
+      annotations: { ...page.annotations, items: [...page.annotations.items, item] },
+    }));
+    setSelectedItemId(item.id);
+    setSelectedStrokeId(null);
+    setTool("select");
+    setStatus("Gorsel eklendi. Surukleyin, koseden boyutlandirin. Indir digiminde sayfada yer alir.");
+  }
+
+  function handleEmbeddedPhotoFile(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    if (!selectedPage) {
+      setStatus("Once duzenlemek icin bir sayfa secin.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      const img = new Image();
+      img.onload = () => addEmbeddedImageToPage(dataUrl, img.naturalWidth, img.naturalHeight);
+      img.onerror = () => setStatus("Gorsel yuklenemedi.");
+      img.src = dataUrl;
+    };
+    reader.onerror = () => setStatus("Gorsel okunamadi.");
+    reader.readAsDataURL(file);
+  }
+
+  const toggleViewScroll = useCallback(() => {
+    setViewScrollUnlocked((prev) => {
+      const next = !prev;
+      setStatus(
+        next
+          ? "Sayfa kaydirma: acik. Cift tik tekrar: ciz, imza, tasma, silgi (sayfa oynamaz). "
+          : "Duzenleme modu. Cift tik: sayfayi yukari asagi saga sola serbestce kaydir.",
+      );
+      return next;
+    });
+  }, []);
+
   function removeSelectedItem() {
     if (!selectedPage) {
       return;
@@ -450,6 +509,7 @@ export default function App() {
     setTool("select");
     setSignatureListOpen(false);
     setPageZoom(1);
+    setViewScrollUnlocked(false);
     setStatus("Yeni proje. PDF, foto veya A4 ekleyin.");
   }
 
@@ -512,6 +572,7 @@ export default function App() {
     <div className={editMode ? "app-shell editing" : "app-shell"}>
       <input accept="application/pdf" hidden multiple ref={pdfInputRef} type="file" onChange={handlePdfUpload} />
       <input accept="image/*" hidden multiple ref={imageInputRef} type="file" onChange={handleImageUpload} />
+      <input accept="image/*" hidden ref={embeddedPhotoInputRef} type="file" onChange={handleEmbeddedPhotoFile} />
       <input
         accept="application/pdf,image/*"
         hidden
@@ -630,7 +691,10 @@ export default function App() {
                   setEditMode(false);
                   setTool("select");
                   setSignatureListOpen(false);
+                  setViewScrollUnlocked(false);
                 }}
+                onAddEmbeddedImage={() => embeddedPhotoInputRef.current?.click()}
+                viewScrollUnlocked={viewScrollUnlocked}
                 onCreateSignature={() => setSignaturePickerOpen(true)}
                 onDownloadPdf={downloadProject}
                 onChangePageByIndex={(index) => {
@@ -690,6 +754,8 @@ export default function App() {
                 textValue={textValue}
                 tool={tool}
                 updatePage={updateSinglePage}
+                viewScrollUnlocked={viewScrollUnlocked}
+                onViewScrollToggle={toggleViewScroll}
               />
             </section>
 
@@ -809,6 +875,7 @@ function EditToolbar({
   fontSize,
   isExporting,
   onActivateTool,
+  onAddEmbeddedImage,
   onBack,
   onChangePageByIndex,
   onCreateSignature,
@@ -837,8 +904,12 @@ function EditToolbar({
   tool,
   updateSelectedItem,
   updateSelectedItemScale,
+  viewScrollUnlocked,
 }) {
-  const selectedScale = selectedItem?.type === "signature" ? selectedItem.width : selectedItem?.fontSize;
+  const selectedScale =
+    selectedItem?.type === "signature" || selectedItem?.type === "embeddedImage"
+      ? selectedItem.width
+      : selectedItem?.fontSize;
   const hasSelection = Boolean(selectedItem || selectedStroke);
   const subpanelTool = tool === "draw" || tool === "text" || tool === "eraser" ? tool : null;
   const showToolRow = Boolean(subpanelTool);
@@ -904,6 +975,15 @@ function EditToolbar({
           </button>
           <button
             type="button"
+            className="tool-rail__btn"
+            title="Sayfaya gorsel (PDF'de gosterilir, surulebilir, boyutlanir)"
+            onClick={onAddEmbeddedImage}
+          >
+            <ImagePlus size={20} />
+            <span>Sayfa gorsel</span>
+          </button>
+          <button
+            type="button"
             className="tool-rail__btn tool-rail__btn--download"
             title="PDF indir"
             disabled={exportDisabled || isExporting}
@@ -915,6 +995,12 @@ function EditToolbar({
           <div className="tool-rail__trailing">
             <PageIndexControl onChangeIndex={onChangePageByIndex} pageCount={pageCount} pageIndex={selectedPageIndex} />
             <div className="tool-rail__zoom" title="Sayfa yakinlastirma">
+              <span
+                className={viewScrollUnlocked ? "view-scroll-pill is-on" : "view-scroll-pill"}
+                title="Cift tik: mod degistir. Acikken sayfayi serbestce kaydir; kapaliyken cizim hareket etmez"
+              >
+                {viewScrollUnlocked ? "Kaydirma" : "Duzenleme"}
+              </span>
               <button
                 className="zoom-inline-btn"
                 type="button"
@@ -1033,14 +1119,20 @@ function EditToolbar({
         {showSelectionRow && selectedItem ? (
           <div className="subpanel-row subpanel-row--selection">
             <span className="subpanel-kind">
-              {selectedStroke ? "Cizim" : selectedItem.type === "signature" ? "Imza" : "Metin"}
+              {selectedStroke
+                ? "Cizim"
+                : selectedItem.type === "signature"
+                  ? "Imza"
+                  : selectedItem.type === "embeddedImage"
+                    ? "Gorsel"
+                    : "Metin"}
             </span>
             <div className="subpanel-group">
               <span className="subpanel-w">Boyut</span>
               <input
                 className="subpanel-slider"
-                max={selectedItem.type === "signature" ? "520" : "120"}
-                min={selectedItem.type === "signature" ? "60" : "10"}
+                max={selectedItem.type === "text" ? "120" : "520"}
+                min={selectedItem.type === "text" ? "10" : "60"}
                 type="range"
                 value={selectedScale}
                 onChange={(event) => updateSelectedItemScale(Number(event.target.value))}
@@ -1087,19 +1179,23 @@ function EditToolbar({
             </button>
           </div>
           <div className="signature-tray-pro__scroll">
-            {signatureOptions.map((option) => (
-              <div
-                key={option.id}
-                className={option.id === activeSignature?.id ? "sig-card is-active" : "sig-card"}
-              >
-                <button className="sig-card__img" type="button" onClick={() => onSelectSignature(option.id)}>
-                  <img alt={option.label} src={option.dataUrl} />
-                </button>
-                <button className="sig-card__del" type="button" title="Kaldir" onClick={() => onRemoveSignature(option.id)}>
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
+            {signatureOptions.length ? (
+              signatureOptions.map((option) => (
+                <div
+                  key={option.id}
+                  className={option.id === activeSignature?.id ? "sig-card is-active" : "sig-card"}
+                >
+                  <button className="sig-card__img" type="button" onClick={() => onSelectSignature(option.id)}>
+                    <img alt={option.label} src={option.dataUrl} />
+                  </button>
+                  <button className="sig-card__del" type="button" title="Kaldir" onClick={() => onRemoveSignature(option.id)}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))
+            ) : (
+              <p className="signature-tray-pro__empty">Henuz imza yok. Ustte &quot;Yeni ciz&quot; ile kendi imzanizi olusturun.</p>
+            )}
           </div>
         </div>
       ) : null}
@@ -1298,6 +1394,7 @@ function PageEditor({
   activeSignature,
   documentsById,
   fontSize,
+  onViewScrollToggle,
   page,
   pageZoom,
   penMode,
@@ -1312,6 +1409,7 @@ function PageEditor({
   textValue,
   tool,
   updatePage,
+  viewScrollUnlocked,
 }) {
   const hostRef = useRef(null);
   const [hostSize, setHostSize] = useState({ width: 0, height: 0 });
@@ -1364,6 +1462,37 @@ function PageEditor({
       el.removeEventListener("pointercancel", blockScrollWhenErasing, opts);
     };
   }, [tool]);
+
+  const lastPointerTapRef = useRef({ t: 0, x: 0, y: 0 });
+
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) {
+      return undefined;
+    }
+    const onDown = (event) => {
+      if (event.button > 0) {
+        return;
+      }
+      const now = performance.now();
+      const last = lastPointerTapRef.current;
+      if (now - last.t < 400 && last.t > 0) {
+        const dist = Math.hypot(event.clientX - last.x, event.clientY - last.y);
+        if (dist < 72) {
+          onViewScrollToggle();
+          if (event.cancelable) {
+            event.preventDefault();
+          }
+          event.stopImmediatePropagation();
+          lastPointerTapRef.current = { t: 0, x: 0, y: 0 };
+          return;
+        }
+      }
+      lastPointerTapRef.current = { t: now, x: event.clientX, y: event.clientY };
+    };
+    el.addEventListener("pointerdown", onDown, { capture: true });
+    return () => el.removeEventListener("pointerdown", onDown, { capture: true });
+  }, [onViewScrollToggle]);
 
   function setErasingPointer(event) {
     if (event.pointerId != null) {
@@ -1434,6 +1563,10 @@ function PageEditor({
   }
 
   function handleStagePointerDown(event) {
+    if (viewScrollUnlocked) {
+      return;
+    }
+
     const coords = toPdfCoordinates(event.clientX, event.clientY);
     if (!coords) {
       return;
@@ -1531,6 +1664,10 @@ function PageEditor({
   }
 
   function handleStagePointerMove(event) {
+    if (viewScrollUnlocked) {
+      return;
+    }
+
     const coords = toPdfCoordinates(event.clientX, event.clientY);
     if (!coords) {
       return;
@@ -1654,7 +1791,20 @@ function PageEditor({
         // ignore
       }
     }
+    const endedStrokeId = drawingStrokeId;
     setDrawingStrokeId(null);
+    if (endedStrokeId) {
+      const ended = page.annotations.strokes.find((stroke) => stroke.id === endedStrokeId);
+      if (ended && ended.points.length < 2) {
+        updatePage({
+          ...page,
+          annotations: {
+            ...page.annotations,
+            strokes: page.annotations.strokes.filter((stroke) => stroke.id !== endedStrokeId),
+          },
+        });
+      }
+    }
     dragState.current = null;
     resizeState.current = null;
     strokeDragState.current = null;
@@ -1669,6 +1819,10 @@ function PageEditor({
   }
 
   function beginItemDrag(item, event) {
+    if (viewScrollUnlocked) {
+      return;
+    }
+
     event.stopPropagation();
     if (event.cancelable) {
       event.preventDefault();
@@ -1711,6 +1865,10 @@ function PageEditor({
   }
 
   function beginStrokeDrag(stroke, event) {
+    if (viewScrollUnlocked) {
+      return;
+    }
+
     event.stopPropagation();
 
     if (tool === "eraser") {
@@ -1767,6 +1925,10 @@ function PageEditor({
   }
 
   function beginItemResize(item, event) {
+    if (viewScrollUnlocked) {
+      return;
+    }
+
     event.stopPropagation();
     event.preventDefault();
     event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -1804,7 +1966,7 @@ function PageEditor({
       >
         <div className="page-stage-pan">
         <div
-          className="page-stage-inner"
+          className={viewScrollUnlocked ? "page-stage-inner page-stage-inner--pan" : "page-stage-inner"}
           style={{
             width: `${stageWidth}px`,
             height: `${stageHeight}px`,
@@ -1839,7 +2001,7 @@ function PageEditor({
           </svg>
 
           {page.annotations.items
-            .filter((item) => item.type === "signature")
+            .filter((item) => item.type === "signature" || item.type === "embeddedImage")
             .map((item) => (
               <AnnotationItem
                 key={item.id}
@@ -2021,9 +2183,12 @@ function AnnotationItem({ item, onPointerDown, onResizePointerDown, onTextChange
     );
   }
 
+  const imgKind = item.type === "embeddedImage" ? "embedded-image" : "signature";
+  const resizeLabel = item.type === "embeddedImage" ? "Gorsel boyutu" : "Imza boyutu";
+
   return (
     <div
-      className={selected ? "annotation-item signature selected" : "annotation-item signature"}
+      className={selected ? `annotation-item ${imgKind} selected` : `annotation-item ${imgKind}`}
       style={{
         left,
         bottom,
@@ -2052,7 +2217,7 @@ function AnnotationItem({ item, onPointerDown, onResizePointerDown, onTextChange
           <span className="annotation-knob annotation-knob--bl" aria-hidden="true" />
           <button
             type="button"
-            aria-label="Imza boyutu"
+            aria-label={resizeLabel}
             className="annotation-knob annotation-knob--br"
             onPointerDown={(event) => onResizePointerDown(item, event)}
           />
@@ -2174,21 +2339,6 @@ function EmptyState({ onAddA4, onUploadImage, onUploadPdf }) {
   );
 }
 
-function makeSignaturePreset(id, text) {
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120">
-      <rect width="320" height="120" fill="white"/>
-      <text x="18" y="82" font-size="54" fill="#111827" font-family="cursive">${text}</text>
-    </svg>
-  `;
-
-  return {
-    id,
-    label: text,
-    dataUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
-  };
-}
-
 function createProject() {
   return {
     id: uid("project"),
@@ -2230,7 +2380,7 @@ function itemContainsPoint(item, point, padding = 0) {
     );
   }
 
-  if (item.type === "signature") {
+  if (item.type === "signature" || item.type === "embeddedImage") {
     return (
       point.x >= item.x - padding &&
       point.x <= item.x + item.width + padding &&

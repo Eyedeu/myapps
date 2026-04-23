@@ -260,7 +260,7 @@ async function renderAnnotations(page, width, height, options = {}) {
   context.lineJoin = "round";
 
   for (const item of page.annotations.items) {
-    if (item.type === "signature") {
+    if (item.type === "signature" || item.type === "embeddedImage") {
       const image = await loadImage(item.dataUrl);
       context.drawImage(image, item.x, height - item.y - item.height, item.width, item.height);
     }
