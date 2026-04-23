@@ -1356,12 +1356,34 @@ button {
   font-size: 0;
 }
 
+.annotation-text-drag {
+  flex: 0 0 auto;
+  height: 12px;
+  min-height: 12px;
+  width: 100%;
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.18), rgba(37, 99, 235, 0.06));
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: grab;
+  margin-bottom: 2px;
+  flex-shrink: 0;
+}
+
+.annotation-text-drag:active {
+  cursor: grabbing;
+}
+
 .annotation-item.text {
   z-index: 6;
   max-width: 76%;
   text-align: left;
   white-space: pre-wrap;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
 }
 
 .annotation-item.text.selected {
@@ -1399,7 +1421,7 @@ button {
   object-fit: contain;
   display: block;
   pointer-events: auto;
-  mix-blend-mode: multiply;
+  mix-blend-mode: normal;
   background: none;
   border-radius: 0;
   -webkit-user-drag: none;
@@ -1549,10 +1571,19 @@ button {
 }
 
 .signature-canvas {
+  display: block;
   width: 100%;
   border: 1px solid #d0d5dd;
   border-radius: 8px;
-  background: #ffffff;
+  /* Tuval pikselleri seffaf; yuzey: dama tahtasi (imza ayracini gorme) */
+  background-color: #f1f5f9;
+  background-image:
+    linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+    linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+    linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+  background-size: 12px 12px;
+  background-position: 0 0, 0 6px, 6px -6px, -6px 0;
   touch-action: none;
 }
 

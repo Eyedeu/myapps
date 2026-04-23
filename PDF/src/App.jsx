@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   closestCenter,
   DndContext,
@@ -756,6 +756,7 @@ export default function App() {
                 updatePage={updateSinglePage}
                 viewScrollUnlocked={viewScrollUnlocked}
                 onViewScrollToggle={toggleViewScroll}
+                setPageZoom={setPageZoom}
               />
             </section>
 
@@ -994,7 +995,7 @@ function EditToolbar({
           </button>
           <div className="tool-rail__trailing">
             <PageIndexControl onChangeIndex={onChangePageByIndex} pageCount={pageCount} pageIndex={selectedPageIndex} />
-            <div className="tool-rail__zoom" title="Sayfa yakinlastirma">
+            <div className="tool-rail__zoom" title="Yakinlastirma: slider veya mobilde 2 parmak (pinch)">
               <span
                 className={viewScrollUnlocked ? "view-scroll-pill is-on" : "view-scroll-pill"}
                 title="Cift tik: mod degistir. Acikken sayfayi serbestce kaydir; kapaliyken cizim hareket etmez"
@@ -1404,6 +1405,7 @@ function PageEditor({
   setSelectedItemId,
   setSelectedStrokeId,
   setStatus,
+  setPageZoom,
   setTool,
   strokeWidth,
   textValue,
@@ -1420,6 +1422,21 @@ function PageEditor({
   const dragState = useRef(null);
   const resizeState = useRef(null);
   const strokeDragState = useRef(null);
+  const annotationPointerCaptureRef = useRef(null);
+  const pageRef = useRef(page);
+  const pageZoomRef = useRef(pageZoom);
+  const drawingStrokeIdRef = useRef(drawingStrokeId);
+  const pinchStateRef = useRef(null);
+
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+  useEffect(() => {
+    pageZoomRef.current = pageZoom;
+  }, [pageZoom]);
+  useEffect(() => {
+    drawingStrokeIdRef.current = drawingStrokeId;
+  }, [drawingStrokeId]);
 
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
@@ -1494,6 +1511,87 @@ function PageEditor({
     return () => el.removeEventListener("pointerdown", onDown, { capture: true });
   }, [onViewScrollToggle]);
 
+  useLayoutEffect(() => {
+    const el = hostRef.current;
+    if (!el) {
+      return undefined;
+    }
+
+    function touchDist(touches) {
+      return Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+    }
+
+    function cancelOngoingForPinch() {
+      const sid = drawingStrokeIdRef.current;
+      if (sid) {
+        const p = pageRef.current;
+        updatePage({
+          ...p,
+          annotations: {
+            ...p.annotations,
+            strokes: p.annotations.strokes.filter((stroke) => stroke.id !== sid),
+          },
+        });
+        setDrawingStrokeId(null);
+      }
+      eraserActivePointerIdRef.current = null;
+      setEraserGuide(null);
+      dragState.current = null;
+      resizeState.current = null;
+      strokeDragState.current = null;
+    }
+
+    const onTouchStart = (event) => {
+      if (event.touches.length !== 2) {
+        return;
+      }
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+      cancelOngoingForPinch();
+      const d0 = touchDist(event.touches);
+      if (d0 < 8) {
+        pinchStateRef.current = null;
+        return;
+      }
+      pinchStateRef.current = { d0, z0: pageZoomRef.current };
+    };
+
+    const onTouchMove = (event) => {
+      if (event.touches.length !== 2 || !pinchStateRef.current) {
+        return;
+      }
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+      const d = touchDist(event.touches);
+      const { d0, z0 } = pinchStateRef.current;
+      if (d < 2) {
+        return;
+      }
+      const z = clamp(z0 * (d / d0), ZOOM_MIN, ZOOM_MAX);
+      setPageZoom(z);
+    };
+
+    const onTouchEnd = (event) => {
+      if (event.touches.length < 2) {
+        pinchStateRef.current = null;
+      }
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: false, capture: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false, capture: true });
+    el.addEventListener("touchend", onTouchEnd, { capture: true });
+    el.addEventListener("touchcancel", onTouchEnd, { capture: true });
+
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart, { capture: true });
+      el.removeEventListener("touchmove", onTouchMove, { capture: true });
+      el.removeEventListener("touchend", onTouchEnd, { capture: true });
+      el.removeEventListener("touchcancel", onTouchEnd, { capture: true });
+    };
+  }, [setPageZoom, updatePage, setDrawingStrokeId]);
+
   function setErasingPointer(event) {
     if (event.pointerId != null) {
       eraserActivePointerIdRef.current = event.pointerId;
@@ -1560,6 +1658,24 @@ function PageEditor({
       x: clamp(x, 0, page.width),
       y: clamp(y, 0, page.height),
     };
+  }
+
+  function getAnnotationShellElement(pointerEvent) {
+    const t = pointerEvent.currentTarget;
+    if (t?.classList?.contains("annotation-text-drag")) {
+      return t.parentElement;
+    }
+    return t;
+  }
+
+  /** item.x, item.y ile piksel yerlesimi ayni referansi kullansin diye: kutunun sol-alti (PDF) */
+  function getItemBottomLeftPdf(pointerEvent) {
+    const shell = getAnnotationShellElement(pointerEvent);
+    if (!shell) {
+      return null;
+    }
+    const r = shell.getBoundingClientRect();
+    return toPdfCoordinates(r.left, r.bottom);
   }
 
   function handleStagePointerDown(event) {
@@ -1784,6 +1900,14 @@ function PageEditor({
 
   function handleStagePointerUp(event) {
     clearErasingPointer(event);
+    if (annotationPointerCaptureRef.current && event.pointerId != null) {
+      try {
+        annotationPointerCaptureRef.current.releasePointerCapture(event.pointerId);
+      } catch {
+        // ignore
+      }
+      annotationPointerCaptureRef.current = null;
+    }
     if (hostRef.current && event.pointerId != null) {
       try {
         hostRef.current.releasePointerCapture(event.pointerId);
@@ -1844,24 +1968,41 @@ function PageEditor({
       return;
     }
 
-    if (hostRef.current && event.pointerId != null) {
-      try {
-        hostRef.current.setPointerCapture(event.pointerId);
-      } catch {
-        // ignore
-      }
-    }
-
     const coords = toPdfCoordinates(event.clientX, event.clientY);
     if (!coords) {
       return;
     }
 
+    const anchor = getItemBottomLeftPdf(event) ?? { x: item.x, y: item.y };
     dragState.current = {
       itemId: item.id,
-      offsetX: coords.x - item.x,
-      offsetY: coords.y - item.y,
+      offsetX: coords.x - anchor.x,
+      offsetY: coords.y - anchor.y,
     };
+
+    if (hostRef.current && event.pointerId != null) {
+      try {
+        hostRef.current.releasePointerCapture(event.pointerId);
+      } catch {
+        // ignore
+      }
+    }
+    const shell = getAnnotationShellElement(event);
+    if (shell && event.pointerId != null) {
+      try {
+        shell.setPointerCapture(event.pointerId);
+        annotationPointerCaptureRef.current = shell;
+      } catch {
+        if (hostRef.current) {
+          try {
+            hostRef.current.setPointerCapture(event.pointerId);
+          } catch {
+            // ignore
+          }
+        }
+        annotationPointerCaptureRef.current = null;
+      }
+    }
   }
 
   function beginStrokeDrag(stroke, event) {
@@ -2150,19 +2291,23 @@ function AnnotationItem({ item, onPointerDown, onResizePointerDown, onTextChange
       <div
         className={selected ? "annotation-item text selected" : "annotation-item text"}
         style={{ left, bottom, color: item.color, fontSize: `${item.fontSize}px` }}
-        onPointerDown={(event) => onPointerDown(item, event)}
+        onPointerDown={selected ? undefined : (event) => onPointerDown(item, event)}
       >
         {selected ? (
-          <textarea
-            aria-label="Metin"
-            className="inline-textarea"
-            style={{ color: item.color, fontSize: `${item.fontSize}px` }}
-            value={item.text}
-            onChange={(event) => onTextChange(item.id, event.target.value)}
-            onPointerDown={(event) => {
-              event.stopPropagation();
-            }}
-          />
+          <>
+            <div
+              className="annotation-text-drag"
+              title="Surukle (tasimak icin buradan tutun)"
+              onPointerDown={(event) => onPointerDown(item, event)}
+            />
+            <textarea
+              aria-label="Metin"
+              className="inline-textarea"
+              style={{ color: item.color, fontSize: `${item.fontSize}px` }}
+              value={item.text}
+              onChange={(event) => onTextChange(item.id, event.target.value)}
+            />
+          </>
         ) : (
           item.text
         )}
@@ -2240,14 +2385,13 @@ function SignatureModal({ onClose, onSave }) {
     canvas.style.width = "100%";
     canvas.style.height = "180px";
 
-    const context = canvas.getContext("2d");
+    const context = canvas.getContext("2d", { alpha: true });
     context.scale(ratio, ratio);
     context.lineWidth = 2.6;
     context.lineCap = "round";
     context.lineJoin = "round";
     context.strokeStyle = "#111827";
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, 900, 320);
+    context.clearRect(0, 0, 900, 320);
   }, []);
 
   function position(event) {
@@ -2259,7 +2403,7 @@ function SignatureModal({ onClose, onSave }) {
   }
 
   function start(event) {
-    const context = canvasRef.current.getContext("2d");
+    const context = canvasRef.current.getContext("2d", { alpha: true });
     const { x, y } = position(event);
     context.beginPath();
     context.moveTo(x, y);
@@ -2272,7 +2416,7 @@ function SignatureModal({ onClose, onSave }) {
       return;
     }
 
-    const context = canvasRef.current.getContext("2d");
+    const context = canvasRef.current.getContext("2d", { alpha: true });
     const { x, y } = position(event);
     context.lineTo(x, y);
     context.stroke();
@@ -2283,9 +2427,8 @@ function SignatureModal({ onClose, onSave }) {
   }
 
   function clear() {
-    const context = canvasRef.current.getContext("2d");
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, 900, 320);
+    const context = canvasRef.current.getContext("2d", { alpha: true });
+    context.clearRect(0, 0, 900, 320);
     setHasInk(false);
   }
 
