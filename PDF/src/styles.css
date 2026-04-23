@@ -173,6 +173,57 @@ button {
   color: #b91c1c;
 }
 
+.history-panel {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #eaecf0;
+  padding-top: 12px;
+}
+
+.history-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  min-width: 0;
+}
+
+.history-item > button:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.history-item strong,
+.history-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-item span {
+  color: #667085;
+  font-size: 0.85rem;
+}
+
+.history-item .danger {
+  width: 40px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: #b91c1c;
+}
+
 .soft-btn,
 .primary-btn,
 .tool-btn {
@@ -377,8 +428,9 @@ button {
 }
 
 .page-stage {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
   width: 100%;
   height: 100%;
   min-height: min(76vh, 900px);
@@ -402,6 +454,7 @@ button {
 .page-stage-inner {
   position: relative;
   flex: 0 0 auto;
+  margin: 0 auto;
   overflow: hidden;
   background: #ffffff;
   box-shadow: 0 12px 28px rgba(16, 24, 40, 0.18);
@@ -437,7 +490,7 @@ button {
   border: 1px dashed transparent;
   background: transparent;
   padding: 2px 3px;
-  transform: translate(-10%, 14%);
+  touch-action: none;
 }
 
 .annotation-item.selected {
@@ -447,15 +500,16 @@ button {
 
 .resize-handle {
   position: absolute;
-  right: -10px;
-  bottom: -10px;
-  width: 22px;
-  height: 22px;
+  right: 2px;
+  bottom: 2px;
+  width: 24px;
+  height: 24px;
   border: 2px solid #ffffff;
   border-radius: 999px;
   background: #2563eb;
   box-shadow: 0 2px 8px rgba(16, 24, 40, 0.28);
   cursor: nwse-resize;
+  z-index: 5;
   touch-action: none;
 }
 
@@ -473,7 +527,8 @@ button {
   outline: none;
   resize: none;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.7);
+  background: transparent;
+  caret-color: currentColor;
   color: inherit;
 }
 
