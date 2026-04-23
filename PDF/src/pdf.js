@@ -66,6 +66,7 @@ export async function inspectPdf(file) {
 }
 
 export async function inspectImage(file) {
+  const buffer = await fileToArrayBuffer(file);
   const dataUrl = await fileToDataUrl(file);
 
   const meta = await new Promise((resolve, reject) => {
@@ -79,20 +80,11 @@ export async function inspectImage(file) {
     id: uid("image"),
     kind: "image",
     name: file.name,
+    buffer,
+    mimeType: file.type || "image/png",
     dataUrl,
     width: meta.width,
     height: meta.height,
-  };
-}
-
-export function normalizeImageSize(width, height) {
-  const maxSide = 900;
-  const scale = Math.min(maxSide / Math.max(width, height), 1);
-  const safeScale = Number.isFinite(scale) ? scale : 1;
-
-  return {
-    width: Math.max(300, Math.round(width * safeScale)),
-    height: Math.max(300, Math.round(height * safeScale)),
   };
 }
 
@@ -131,9 +123,7 @@ export async function exportProject(project) {
       pdfPage = output.addPage([pageWidth, pageHeight]);
 
       if (page.kind === "image") {
-        const pngDataUrl = await normalizeToPng(page.imageDataUrl);
-        const imageBytes = await fetch(pngDataUrl).then((response) => response.arrayBuffer());
-        const embeddedImage = await output.embedPng(imageBytes);
+        const embeddedImage = await embedPageImage(output, page);
         const fitted = fitIntoBox(
           embeddedImage.width,
           embeddedImage.height,
@@ -201,15 +191,15 @@ export function pageFromPdf(documentRecord, pageMeta) {
 }
 
 export function pageFromImage(imageRecord) {
-  const size = normalizeImageSize(imageRecord.width, imageRecord.height);
-
   return {
     id: uid("page"),
     kind: "image",
     name: imageRecord.name,
     imageDataUrl: imageRecord.dataUrl,
-    width: size.width,
-    height: size.height,
+    imageBuffer: imageRecord.buffer,
+    imageType: imageRecord.mimeType,
+    width: imageRecord.width,
+    height: imageRecord.height,
     annotations: { strokes: [], items: [] },
   };
 }
@@ -285,7 +275,21 @@ function loadImage(src) {
   });
 }
 
-async function normalizeToPng(dataUrl) {
+async function embedPageImage(output, page) {
+  if (page.imageType === "image/png") {
+    return await output.embedPng(page.imageBuffer.slice(0));
+  }
+
+  if (page.imageType === "image/jpeg" || page.imageType === "image/jpg") {
+    return await output.embedJpg(page.imageBuffer.slice(0));
+  }
+
+  const pngDataUrl = await convertImageToPng(page.imageDataUrl);
+  const pngBytes = await fetch(pngDataUrl).then((response) => response.arrayBuffer());
+  return await output.embedPng(pngBytes);
+}
+
+async function convertImageToPng(dataUrl) {
   const image = await loadImage(dataUrl);
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");

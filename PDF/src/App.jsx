@@ -7,26 +7,26 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import {
-  SortableContext,
   arrayMove,
+  horizontalListSortingStrategy,
+  SortableContext,
   useSortable,
-  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  Check,
   Download,
   Eraser,
-  FileInput,
   FilePlus2,
   GripVertical,
   ImagePlus,
-  Layers3,
-  Pencil,
+  PencilLine,
   Plus,
+  Replace,
   Save,
-  ScanText,
   Signature,
   Trash2,
+  Type,
 } from "lucide-react";
 import { loadSnapshot, saveSnapshot } from "./db";
 import {
@@ -42,13 +42,17 @@ import {
 } from "./pdf";
 
 const DEFAULT_TEXT = "Metin";
-const EMPTY_ANNOTATIONS = { strokes: [], items: [] };
-const BLANK_TEMPLATES = ["A4", "Letter", "Square", "Story"];
 const TOOL_OPTIONS = [
   { id: "select", label: "Sec" },
-  { id: "text", label: "Metin" },
   { id: "draw", label: "Ciz" },
+  { id: "text", label: "Metin" },
   { id: "signature", label: "Imza" },
+];
+
+const SIGNATURE_PRESETS = [
+  makeSignaturePreset("preset-1", "E. Kaya"),
+  makeSignaturePreset("preset-2", "Enes Kaya"),
+  makeSignaturePreset("preset-3", "E. K."),
 ];
 
 export default function App() {
@@ -56,19 +60,22 @@ export default function App() {
   const [selectedPageId, setSelectedPageId] = useState(null);
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [tool, setTool] = useState("select");
-  const [accentColor, setAccentColor] = useState("#16a34a");
+  const [showEditorMenu, setShowEditorMenu] = useState(false);
+  const [accentColor, setAccentColor] = useState("#111827");
   const [textValue, setTextValue] = useState(DEFAULT_TEXT);
-  const [fontSize, setFontSize] = useState(22);
-  const [strokeWidth, setStrokeWidth] = useState(4);
-  const [status, setStatus] = useState("Yeni bir PDF yukleyin veya bos bir sayfa olusturun.");
+  const [fontSize, setFontSize] = useState(24);
+  const [strokeWidth, setStrokeWidth] = useState(3);
+  const [status, setStatus] = useState("PDF yukleyin, foto ekleyin veya bos A4 sayfa olusturun.");
   const [isHydrated, setIsHydrated] = useState(false);
-  const [signatureDraft, setSignatureDraft] = useState(null);
-  const [signaturePickerOpen, setSignaturePickerOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [signaturePickerOpen, setSignaturePickerOpen] = useState(false);
+  const [signatureOptions, setSignatureOptions] = useState(SIGNATURE_PRESETS);
+  const [activeSignatureId, setActiveSignatureId] = useState(SIGNATURE_PRESETS[0].id);
 
   const autosaveTimer = useRef(null);
-  const pageInputRef = useRef(null);
+  const pdfInputRef = useRef(null);
   const imageInputRef = useRef(null);
+  const replaceInputRef = useRef(null);
 
   const documentsById = useMemo(
     () => Object.fromEntries(project.documents.map((documentRecord) => [documentRecord.id, documentRecord])),
@@ -85,20 +92,14 @@ export default function App() {
 
     return selectedPage.annotations.items.find((item) => item.id === selectedItemId) ?? null;
   }, [selectedItemId, selectedPage]);
-  const libraryPages = useMemo(() => {
-    const items = [];
-    project.documents.forEach((documentRecord) => {
-      documentRecord.pages.forEach((pageMeta) => {
-        items.push(pageFromPdf(documentRecord, pageMeta));
-      });
-    });
-    project.pages.forEach((page) => {
-      if (page.kind === "image") {
-        items.push({ ...page });
-      }
-    });
-    return items;
-  }, [project.documents, project.pages]);
+  const activeSignature = useMemo(
+    () => signatureOptions.find((option) => option.id === activeSignatureId) ?? signatureOptions[0],
+    [activeSignatureId, signatureOptions],
+  );
+  const selectedPageIndex = useMemo(
+    () => project.pages.findIndex((page) => page.id === selectedPageId),
+    [project.pages, selectedPageId],
+  );
 
   useEffect(() => {
     loadSnapshot()
@@ -106,7 +107,7 @@ export default function App() {
         if (snapshot?.pages?.length) {
           setProject(snapshot);
           setSelectedPageId(snapshot.pages[0].id);
-          setStatus("Son calisma otomatik olarak geri yuklendi.");
+          setStatus("Son calisma geri yuklendi.");
         }
       })
       .catch(() => undefined)
@@ -121,9 +122,9 @@ export default function App() {
     window.clearTimeout(autosaveTimer.current);
     autosaveTimer.current = window.setTimeout(() => {
       saveSnapshot(project)
-        .then(() => setStatus("Calisma otomatik kaydedildi."))
-        .catch(() => setStatus("Otomatik kayit sirasinda bir sorun olustu."));
-    }, 800);
+        .then(() => setStatus("Calisma kaydedildi."))
+        .catch(() => setStatus("Kayit sirasinda bir sorun olustu."));
+    }, 700);
 
     return () => window.clearTimeout(autosaveTimer.current);
   }, [isHydrated, project]);
@@ -148,7 +149,7 @@ export default function App() {
       return;
     }
 
-    setStatus("PDF dosyalari isleniyor...");
+    setStatus("PDF dosyalari yukleniyor...");
 
     try {
       const documents = [];
@@ -167,9 +168,9 @@ export default function App() {
         pages: [...current.pages, ...pages],
       }));
       setSelectedPageId((current) => current ?? pages[0]?.id ?? null);
-      setStatus(`${files.length} PDF yuklendi ve sayfalar belgeye eklendi.`);
+      setStatus(`${files.length} PDF eklendi.`);
     } catch {
-      setStatus("PDF okunurken hata olustu.");
+      setStatus("PDF okunamadi.");
     } finally {
       event.target.value = "";
     }
@@ -181,7 +182,7 @@ export default function App() {
       return;
     }
 
-    setStatus("Gorseller ekleniyor...");
+    setStatus("Fotograflar ekleniyor...");
 
     try {
       const pages = [];
@@ -193,47 +194,82 @@ export default function App() {
 
       setProject((current) => ({ ...current, pages: [...current.pages, ...pages] }));
       setSelectedPageId((current) => current ?? pages[0]?.id ?? null);
-      setStatus(`${files.length} gorsel yeni PDF sayfasi olarak eklendi.`);
+      setStatus(`${files.length} gorsel eklendi.`);
     } catch {
-      setStatus("Gorsel okunurken hata olustu.");
+      setStatus("Gorsel okunamadi.");
     } finally {
       event.target.value = "";
     }
   }
 
-  function insertBlankPage(template) {
-    const blank = createBlankPage(template);
+  async function handleReplaceUpload(event) {
+    const files = Array.from(event.target.files ?? []);
+    if (!files.length || !selectedPage) {
+      return;
+    }
+
+    setStatus("Secili sayfa degistiriliyor...");
+
+    try {
+      const replacementPages = [];
+      const newDocuments = [];
+
+      for (const file of files) {
+        if (file.type === "application/pdf") {
+          const documentRecord = await inspectPdf(file);
+          newDocuments.push(documentRecord);
+          documentRecord.pages.forEach((pageMeta) => replacementPages.push(pageFromPdf(documentRecord, pageMeta)));
+        } else if (file.type.startsWith("image/")) {
+          const imageRecord = await inspectImage(file);
+          replacementPages.push(pageFromImage(imageRecord));
+        }
+      }
+
+      if (!replacementPages.length) {
+        setStatus("Degistirme icin uygun dosya bulunamadi.");
+        return;
+      }
+
+      setProject((current) => {
+        const pages = [...current.pages];
+        pages.splice(selectedPageIndex, 1, ...replacementPages);
+
+        return {
+          documents: [...current.documents, ...newDocuments],
+          pages,
+        };
+      });
+
+      setSelectedPageId(replacementPages[0].id);
+      setSelectedItemId(null);
+      setTool("select");
+      setStatus(
+        replacementPages.length > 1
+          ? "Secili sayfa degistirildi, kalan sayfalar arkasina eklendi."
+          : "Secili sayfa degistirildi.",
+      );
+    } catch {
+      setStatus("Secili sayfa degistirilemedi.");
+    } finally {
+      event.target.value = "";
+    }
+  }
+
+  function insertBlankA4Page() {
+    const blank = createBlankPage("A4");
 
     setProject((current) => {
       if (!selectedPageId) {
         return { ...current, pages: [...current.pages, blank] };
       }
 
-      const index = current.pages.findIndex((page) => page.id === selectedPageId);
       const pages = [...current.pages];
-      pages.splice(index + 1, 0, blank);
+      pages.splice(selectedPageIndex + 1, 0, blank);
       return { ...current, pages };
     });
 
     setSelectedPageId(blank.id);
-    setStatus(`${template} boyutunda bos sayfa eklendi.`);
-  }
-
-  function deleteSelectedPage() {
-    if (!selectedPageId) {
-      return;
-    }
-
-    setProject((current) => {
-      const selectedIndex = current.pages.findIndex((page) => page.id === selectedPageId);
-      const pages = current.pages.filter((page) => page.id !== selectedPageId);
-      const nextSelected = pages[Math.max(0, selectedIndex - 1)];
-      setSelectedPageId(nextSelected?.id ?? null);
-      setSelectedItemId(null);
-      return { ...current, pages };
-    });
-
-    setStatus("Secili sayfa silindi.");
+    setStatus("Bos A4 sayfa eklendi.");
   }
 
   function duplicateSelectedPage() {
@@ -247,31 +283,49 @@ export default function App() {
     clone.annotations.strokes = clone.annotations.strokes.map((stroke) => ({ ...stroke, id: uid("stroke") }));
 
     setProject((current) => {
-      const index = current.pages.findIndex((page) => page.id === selectedPageId);
       const pages = [...current.pages];
-      pages.splice(index + 1, 0, clone);
+      pages.splice(selectedPageIndex + 1, 0, clone);
       return { ...current, pages };
     });
 
     setSelectedPageId(clone.id);
-    setStatus("Secili sayfanin kopyasi olusturuldu.");
+    setSelectedItemId(null);
+    setTool("select");
+    setStatus("Sayfa kopyalandi.");
   }
 
-  function replaceSelectedPageWithLibrary(libraryEntry) {
+  function deleteSelectedPage() {
     if (!selectedPage) {
       return;
     }
 
-    patchSelectedPage(() => ({
-      ...libraryEntry,
-      id: selectedPage.id,
-      annotations: structuredClone(EMPTY_ANNOTATIONS),
-    }));
+    setProject((current) => {
+      const pages = current.pages.filter((page) => page.id !== selectedPage.id);
+      const nextSelected = pages[Math.max(0, selectedPageIndex - 1)];
+      setSelectedPageId(nextSelected?.id ?? null);
+      return { ...current, pages };
+    });
+
     setSelectedItemId(null);
-    setStatus("Secili sayfa yeni kaynakla degistirildi.");
+    setTool("select");
+    setStatus("Sayfa silindi.");
   }
 
-  function updateSelectedText(patch) {
+  function clearCurrentAnnotations() {
+    if (!selectedPage) {
+      return;
+    }
+
+    updateSinglePage({
+      ...selectedPage,
+      annotations: { strokes: [], items: [] },
+    });
+    setSelectedItemId(null);
+    setTool("select");
+    setStatus("Cizimler ve eklenen ogeler temizlendi.");
+  }
+
+  function updateSelectedItem(patch) {
     if (!selectedPage || !selectedItem) {
       return;
     }
@@ -281,14 +335,14 @@ export default function App() {
       annotations: {
         ...page.annotations,
         items: page.annotations.items.map((item) =>
-          item.id === selectedItemId ? { ...item, ...patch } : item,
+          item.id === selectedItem.id ? { ...item, ...patch } : item,
         ),
       },
     }));
   }
 
   function removeSelectedItem() {
-    if (!selectedPage || !selectedItemId) {
+    if (!selectedPage || !selectedItem) {
       return;
     }
 
@@ -296,11 +350,12 @@ export default function App() {
       ...page,
       annotations: {
         ...page.annotations,
-        items: page.annotations.items.filter((item) => item.id !== selectedItemId),
+        items: page.annotations.items.filter((item) => item.id !== selectedItem.id),
       },
     }));
     setSelectedItemId(null);
-    setStatus("Secili nesne kaldirildi.");
+    setTool("select");
+    setStatus("Secili oge kaldirildi.");
   }
 
   async function downloadProject() {
@@ -309,7 +364,7 @@ export default function App() {
     }
 
     setIsExporting(true);
-    setStatus("PDF disa aktariliyor...");
+    setStatus("PDF hazirlaniyor...");
 
     try {
       const bytes = await exportProject(project);
@@ -322,7 +377,7 @@ export default function App() {
       URL.revokeObjectURL(url);
       setStatus("PDF indirildi.");
     } catch {
-      setStatus("PDF olusturulamadi.");
+      setStatus("PDF disa aktarilamadi.");
     } finally {
       setIsExporting(false);
     }
@@ -337,190 +392,161 @@ export default function App() {
     setProject((current) => {
       const oldIndex = current.pages.findIndex((page) => page.id === active.id);
       const newIndex = current.pages.findIndex((page) => page.id === over.id);
-
       return {
         ...current,
         pages: arrayMove(current.pages, oldIndex, newIndex),
       };
     });
+
     setStatus("Sayfa sirasi guncellendi.");
   }
 
   return (
     <div className="app-shell">
+      <input accept="application/pdf" hidden multiple ref={pdfInputRef} type="file" onChange={handlePdfUpload} />
+      <input accept="image/*" hidden multiple ref={imageInputRef} type="file" onChange={handleImageUpload} />
+      <input
+        accept="application/pdf,image/*"
+        hidden
+        multiple
+        ref={replaceInputRef}
+        type="file"
+        onChange={handleReplaceUpload}
+      />
+
       <header className="topbar">
         <div>
           <p className="eyebrow">PDF Pocket Studio</p>
-          <h1>Mobil PDF duzenleme ve olusturma uygulamasi</h1>
-          <p className="subtle">
-            PDF birlestir, sayfa sirala, metin ekle, ciz, imza koy, gorsel yerlestir ve tek
-            dokunusla disa aktar.
-          </p>
+          <h1>Basit ve tam ekran PDF duzenleme</h1>
         </div>
-        <button className="primary-btn" disabled={isExporting || !project.pages.length} onClick={downloadProject}>
-          <Download size={18} />
-          {isExporting ? "Hazirlaniyor" : "PDF indir"}
-        </button>
+        <div className="toolbar-actions">
+          <button className="soft-btn" onClick={() => pdfInputRef.current?.click()}>
+            <FilePlus2 size={18} />
+            PDF
+          </button>
+          <button className="soft-btn" onClick={() => imageInputRef.current?.click()}>
+            <ImagePlus size={18} />
+            Foto
+          </button>
+          <button className="soft-btn" onClick={insertBlankA4Page}>
+            <Plus size={18} />
+            Bos A4
+          </button>
+          <button className="primary-btn" disabled={isExporting || !project.pages.length} onClick={downloadProject}>
+            <Download size={18} />
+            {isExporting ? "Hazirlaniyor" : "Indir"}
+          </button>
+        </div>
       </header>
 
-      <section className="hero-grid">
-        <div className="glass-card">
-          <div className="card-title">
-            <FileInput size={18} />
-            <span>Belge akisi</span>
-          </div>
-          <div className="button-grid">
-            <button className="action-btn" onClick={() => pageInputRef.current?.click()}>
-              <FilePlus2 size={18} />
-              PDF yukle
-            </button>
-            <button className="action-btn" onClick={() => imageInputRef.current?.click()}>
-              <ImagePlus size={18} />
-              Gorsel yukle
-            </button>
-            {BLANK_TEMPLATES.map((template) => (
-              <button
-                key={template}
-                className="action-btn secondary"
-                onClick={() => insertBlankPage(template)}
-              >
-                <Plus size={18} />
-                Bos {template}
-              </button>
-            ))}
-          </div>
-          <input accept="application/pdf" hidden multiple ref={pageInputRef} type="file" onChange={handlePdfUpload} />
-          <input accept="image/*" hidden multiple ref={imageInputRef} type="file" onChange={handleImageUpload} />
-        </div>
+      <main className="workspace-shell">
+        {selectedPage ? (
+          <>
+            <section className="stage-shell">
+              <div className="stage-topbar">
+                <div className="page-badge">
+                  Sayfa {selectedPageIndex + 1} / {project.pages.length}
+                </div>
+                <div className="stage-actions">
+                  <button className="soft-btn" onClick={() => replaceInputRef.current?.click()}>
+                    <Replace size={18} />
+                    Degistir
+                  </button>
+                  <button className="soft-btn" onClick={duplicateSelectedPage}>
+                    <Plus size={18} />
+                    Kopyala
+                  </button>
+                  <button className="soft-btn danger" onClick={deleteSelectedPage}>
+                    <Trash2 size={18} />
+                    Sil
+                  </button>
+                  <button
+                    className={showEditorMenu ? "primary-btn compact-btn" : "soft-btn"}
+                    onClick={() => setShowEditorMenu((current) => !current)}
+                  >
+                    <PencilLine size={18} />
+                    Duzenle
+                  </button>
+                </div>
+              </div>
 
-        <div className="glass-card compact">
-          <div className="card-title">
-            <ScanText size={18} />
-            <span>Duzenleme araci</span>
-          </div>
-          <div className="tool-row">
-            {TOOL_OPTIONS.map((option) => (
-              <button
-                key={option.id}
-                className={tool === option.id ? "tool-chip active" : "tool-chip"}
-                onClick={() => setTool(option.id)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-          <div className="field-grid">
-            <label>
-              <span>Renk</span>
-              <input type="color" value={accentColor} onChange={(event) => setAccentColor(event.target.value)} />
-            </label>
-            <label>
-              <span>Yazi boyutu</span>
-              <input
-                max="64"
-                min="10"
-                type="range"
-                value={fontSize}
-                onChange={(event) => setFontSize(Number(event.target.value))}
+              <PageEditor
+                accentColor={accentColor}
+                activeSignature={activeSignature}
+                documentsById={documentsById}
+                fontSize={fontSize}
+                page={selectedPage}
+                selectedItemId={selectedItemId}
+                setSelectedItemId={setSelectedItemId}
+                setTool={setTool}
+                strokeWidth={strokeWidth}
+                textValue={textValue}
+                tool={tool}
+                updatePage={updateSinglePage}
               />
-            </label>
-            <label>
-              <span>Kalem kalinligi</span>
-              <input
-                max="12"
-                min="1"
-                type="range"
-                value={strokeWidth}
-                onChange={(event) => setStrokeWidth(Number(event.target.value))}
-              />
-            </label>
-          </div>
-          <textarea
-            className="text-editor"
-            rows="3"
-            value={textValue}
-            onChange={(event) => setTextValue(event.target.value)}
-          />
-          <div className="micro-actions">
-            <button className="ghost-btn" onClick={() => setSignaturePickerOpen(true)}>
-              <Signature size={16} />
-              Imza hazirla
-            </button>
-            <button className="ghost-btn" onClick={() => saveSnapshot(project)}>
-              <Save size={16} />
-              Manuel kaydet
-            </button>
-          </div>
-        </div>
-      </section>
+            </section>
 
-      <main className="workspace">
-        <PageList
-          documentsById={documentsById}
-          pages={project.pages}
-          selectedPageId={selectedPageId}
-          setSelectedPageId={setSelectedPageId}
-          onDelete={deleteSelectedPage}
-          onDuplicate={duplicateSelectedPage}
-          onSort={handleDragEnd}
-        />
-
-        <section className="editor-panel glass-card">
-          {selectedPage ? (
-            <PageEditor
-              accentColor={accentColor}
+            <PageStrip
               documentsById={documentsById}
-              fontSize={fontSize}
-              page={selectedPage}
-              selectedItemId={selectedItemId}
-              setSelectedItemId={setSelectedItemId}
-              signatureDraft={signatureDraft}
-              strokeWidth={strokeWidth}
-              textValue={textValue}
-              tool={tool}
-              updatePage={updateSinglePage}
+              pages={project.pages}
+              selectedPageId={selectedPageId}
+              setSelectedPageId={setSelectedPageId}
+              onSort={handleDragEnd}
             />
-          ) : (
-            <EmptyState />
-          )}
-        </section>
-
-        <aside className="side-panel">
-          <LibraryPanel
-            entries={libraryPages}
-            onAppend={(entry) => {
-              const copy = { ...entry, id: uid("page"), annotations: structuredClone(EMPTY_ANNOTATIONS) };
-              setProject((current) => ({ ...current, pages: [...current.pages, copy] }));
-              setStatus("Kutuphane sayfasi belgeye eklendi.");
-            }}
-            onReplace={replaceSelectedPageWithLibrary}
-            selectedPage={selectedPage}
-          />
-
-          <Inspector
-            selectedItem={selectedItem}
-            updateSelectedText={updateSelectedText}
-            removeSelectedItem={removeSelectedItem}
-          />
-        </aside>
+          </>
+        ) : (
+          <EmptyState onAddA4={insertBlankA4Page} onUploadImage={() => imageInputRef.current?.click()} onUploadPdf={() => pdfInputRef.current?.click()} />
+        )}
       </main>
 
       <footer className="status-bar">
         <div className="status-pill">{status}</div>
-        <div className="status-pill">
-          <Layers3 size={14} />
-          {project.pages.length} sayfa
-        </div>
+        <button className="soft-btn compact-btn" onClick={() => saveSnapshot(project)}>
+          <Save size={16} />
+          Kaydet
+        </button>
       </footer>
+
+      {showEditorMenu ? (
+        <EditorMenu
+          accentColor={accentColor}
+          activeSignature={activeSignature}
+          fontSize={fontSize}
+          onClearCurrentAnnotations={clearCurrentAnnotations}
+          onClose={() => setShowEditorMenu(false)}
+          onCreateSignature={() => setSignaturePickerOpen(true)}
+          onRemoveSelectedItem={removeSelectedItem}
+          onSelectSignature={setActiveSignatureId}
+          selectedItem={selectedItem}
+          setAccentColor={setAccentColor}
+          setFontSize={setFontSize}
+          setStrokeWidth={setStrokeWidth}
+          setTextValue={setTextValue}
+          setTool={setTool}
+          signatureOptions={signatureOptions}
+          strokeWidth={strokeWidth}
+          textValue={textValue}
+          tool={tool}
+          updateSelectedItem={updateSelectedItem}
+        />
+      ) : null}
 
       {signaturePickerOpen ? (
         <SignatureModal
           onClose={() => setSignaturePickerOpen(false)}
           onSave={(dataUrl) => {
-            setSignatureDraft(dataUrl);
-            setSignaturePickerOpen(false);
+            const customSignature = {
+              id: uid("signature"),
+              label: "Benim imzam",
+              dataUrl,
+            };
+
+            setSignatureOptions((current) => [...current, customSignature]);
+            setActiveSignatureId(customSignature.id);
             setTool("signature");
-            setStatus("Imza kaydedildi. Sayfaya dokunarak yerlestirin.");
+            setSignaturePickerOpen(false);
+            setShowEditorMenu(true);
+            setStatus("Imza kaydedildi. Sayfaya dokunup yerlestirin.");
           }}
         />
       ) : null}
@@ -528,28 +554,14 @@ export default function App() {
   );
 }
 
-function PageList({ documentsById, pages, selectedPageId, setSelectedPageId, onDelete, onDuplicate, onSort }) {
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+function PageStrip({ documentsById, pages, selectedPageId, setSelectedPageId, onSort }) {
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   return (
-    <section className="page-list glass-card">
-      <div className="section-header">
-        <h2>Sayfalar</h2>
-        <div className="micro-actions">
-          <button className="ghost-btn" onClick={onDuplicate}>
-            <Plus size={16} />
-            Kopyala
-          </button>
-          <button className="ghost-btn danger" onClick={onDelete}>
-            <Trash2 size={16} />
-            Sil
-          </button>
-        </div>
-      </div>
-
+    <section className="film-strip">
       <DndContext collisionDetection={closestCenter} onDragEnd={onSort} sensors={sensors}>
-        <SortableContext items={pages.map((page) => page.id)} strategy={verticalListSortingStrategy}>
-          <div className="page-scroll">
+        <SortableContext items={pages.map((page) => page.id)} strategy={horizontalListSortingStrategy}>
+          <div className="film-scroll">
             {pages.map((page, index) => (
               <SortablePageCard
                 key={page.id}
@@ -584,7 +596,7 @@ function SortablePageCard({ index, isSelected, page, setSelectedPageId, sourceDo
 
     let active = true;
 
-    renderPdfPage(sourceDocument, page.sourcePageIndex, 0.45)
+    renderPdfPage(sourceDocument, page.sourcePageIndex, 0.35)
       .then((dataUrl) => {
         if (active) {
           setPreview(dataUrl);
@@ -604,36 +616,33 @@ function SortablePageCard({ index, isSelected, page, setSelectedPageId, sourceDo
   return (
     <button
       ref={setNodeRef}
-      className={isSelected ? "page-card selected" : "page-card"}
+      className={isSelected ? "thumb-card selected" : "thumb-card"}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       type="button"
       onClick={() => setSelectedPageId(page.id)}
     >
-      <div className="page-card-top">
+      <div className="thumb-frame" style={{ aspectRatio: `${page.width} / ${page.height}` }}>
+        {preview ? <img alt="" src={preview} /> : <div className="blank-canvas" />}
+      </div>
+      <div className="thumb-meta">
         <span>{index + 1}</span>
-        <span className="page-meta">
-          {page.kind === "pdf" ? "PDF" : page.kind === "image" ? "Image" : "Blank"}
-        </span>
-        <span className="drag-handle" {...attributes} {...listeners}>
-          <GripVertical size={16} />
+        <span className="thumb-grip" {...attributes} {...listeners}>
+          <GripVertical size={14} />
         </span>
       </div>
-      <div className="page-thumb" style={{ aspectRatio: `${page.width} / ${page.height}` }}>
-        {preview ? <img alt="" src={preview} /> : <div className="blank-thumb" />}
-      </div>
-      <strong>{page.name}</strong>
     </button>
   );
 }
 
 function PageEditor({
   accentColor,
+  activeSignature,
   documentsById,
   fontSize,
   page,
   selectedItemId,
   setSelectedItemId,
-  signatureDraft,
+  setTool,
   strokeWidth,
   textValue,
   tool,
@@ -708,18 +717,19 @@ function PageEditor({
         },
       });
       setSelectedItemId(item.id);
+      setTool("select");
       return;
     }
 
-    if (tool === "signature" && signatureDraft) {
+    if (tool === "signature" && activeSignature) {
       const item = {
         id: uid("item"),
         type: "signature",
-        dataUrl: signatureDraft,
-        x: Math.max(0, coords.x - 80),
+        dataUrl: activeSignature.dataUrl,
+        x: Math.max(0, coords.x - 90),
         y: coords.y,
-        width: 160,
-        height: 70,
+        width: 180,
+        height: 72,
       };
 
       updatePage({
@@ -730,6 +740,7 @@ function PageEditor({
         },
       });
       setSelectedItemId(item.id);
+      setTool("select");
       return;
     }
 
@@ -778,9 +789,8 @@ function PageEditor({
       });
     }
 
-    if (dragState.current) {
+    if (tool === "select" && dragState.current) {
       const { itemId, offsetX, offsetY } = dragState.current;
-
       updatePage({
         ...page,
         annotations: {
@@ -789,8 +799,8 @@ function PageEditor({
             item.id === itemId
               ? {
                   ...item,
-                  x: Math.max(0, coords.x - offsetX),
-                  y: Math.max(0, coords.y - offsetY),
+                  x: clamp(coords.x - offsetX, 0, page.width),
+                  y: clamp(coords.y - offsetY, 0, page.height),
                 }
               : item,
           ),
@@ -806,13 +816,17 @@ function PageEditor({
 
   function beginItemDrag(item, event) {
     event.stopPropagation();
+    setSelectedItemId(item.id);
+
+    if (tool !== "select") {
+      return;
+    }
 
     const coords = toPdfCoordinates(event.clientX, event.clientY);
     if (!coords) {
       return;
     }
 
-    setSelectedItemId(item.id);
     dragState.current = {
       itemId: item.id,
       offsetX: coords.x - item.x,
@@ -822,27 +836,6 @@ function PageEditor({
 
   return (
     <div className="page-editor-shell">
-      <div className="section-header">
-        <div>
-          <h2>{page.name}</h2>
-          <p className="subtle">
-            Dokunarak metin ekleyin, serbest cizin, imza yerlestirin veya nesneleri surukleyin.
-          </p>
-        </div>
-        <button
-          className="ghost-btn"
-          onClick={() =>
-            updatePage({
-              ...page,
-              annotations: { strokes: [], items: [] },
-            })
-          }
-        >
-          <Eraser size={16} />
-          Katmani temizle
-        </button>
-      </div>
-
       <div
         ref={hostRef}
         className="page-stage"
@@ -906,7 +899,7 @@ function BaseLayer({ page, sourceDocument }) {
 
     let active = true;
 
-    renderPdfPage(sourceDocument, page.sourcePageIndex, 1.4)
+    renderPdfPage(sourceDocument, page.sourcePageIndex, 1.6)
       .then((dataUrl) => {
         if (active) {
           setPreview(dataUrl);
@@ -964,93 +957,171 @@ function AnnotationItem({ item, onPointerDown, page, selected }) {
   );
 }
 
-function LibraryPanel({ entries, onAppend, onReplace, selectedPage }) {
+function EditorMenu({
+  accentColor,
+  activeSignature,
+  fontSize,
+  onClearCurrentAnnotations,
+  onClose,
+  onCreateSignature,
+  onRemoveSelectedItem,
+  onSelectSignature,
+  selectedItem,
+  setAccentColor,
+  setFontSize,
+  setStrokeWidth,
+  setTextValue,
+  setTool,
+  signatureOptions,
+  strokeWidth,
+  textValue,
+  tool,
+  updateSelectedItem,
+}) {
   return (
-    <section className="glass-card">
-      <div className="section-header">
-        <h2>Kaynak kutuphanesi</h2>
-      </div>
-      <p className="subtle">
-        Yuklediginiz PDF sayfalarini sonradan tekrar ekleyebilir veya secili sayfanin yerine koyabilirsiniz.
-      </p>
-      <div className="library-scroll">
-        {entries.map((entry) => (
-          <div
-            key={entry.kind === "pdf" ? `${entry.sourceId}-${entry.sourcePageIndex}` : entry.id}
-            className="library-item"
-          >
-            <div className="library-meta">
-              <strong>{entry.name}</strong>
-              <span>
-                {Math.round(entry.width)} x {Math.round(entry.height)}
-              </span>
+    <div className="editor-menu-backdrop" onClick={onClose}>
+      <section className="editor-menu" onClick={(event) => event.stopPropagation()}>
+        <div className="menu-header">
+          <h2>Duzenle</h2>
+          <button className="soft-btn compact-btn" onClick={onClose}>
+            <Check size={16} />
+            Tamam
+          </button>
+        </div>
+
+        <div className="tool-row">
+          {TOOL_OPTIONS.map((option) => (
+            <button
+              key={option.id}
+              className={tool === option.id ? "tool-pill active" : "tool-pill"}
+              onClick={() => setTool(option.id)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        {(tool === "draw" || tool === "text") ? (
+          <div className="control-grid">
+            <label>
+              <span>Renk</span>
+              <input type="color" value={accentColor} onChange={(event) => setAccentColor(event.target.value)} />
+            </label>
+            {tool === "draw" ? (
+              <label>
+                <span>Kalem</span>
+                <input
+                  max="12"
+                  min="1"
+                  type="range"
+                  value={strokeWidth}
+                  onChange={(event) => setStrokeWidth(Number(event.target.value))}
+                />
+              </label>
+            ) : null}
+            {tool === "text" ? (
+              <>
+                <label>
+                  <span>Boyut</span>
+                  <input
+                    max="72"
+                    min="12"
+                    type="range"
+                    value={fontSize}
+                    onChange={(event) => setFontSize(Number(event.target.value))}
+                  />
+                </label>
+                <label className="full-span">
+                  <span>Yazi</span>
+                  <textarea rows="3" value={textValue} onChange={(event) => setTextValue(event.target.value)} />
+                </label>
+              </>
+            ) : null}
+          </div>
+        ) : null}
+
+        {tool === "signature" ? (
+          <div className="signature-grid">
+            <div className="signature-list">
+              {signatureOptions.map((option) => (
+                <button
+                  key={option.id}
+                  className={option.id === activeSignature?.id ? "signature-chip active" : "signature-chip"}
+                  onClick={() => onSelectSignature(option.id)}
+                >
+                  <img alt={option.label} src={option.dataUrl} />
+                </button>
+              ))}
             </div>
-            <div className="micro-actions">
-              <button className="ghost-btn" onClick={() => onAppend(entry)}>
-                Ekle
-              </button>
-              <button className="ghost-btn" disabled={!selectedPage} onClick={() => onReplace(entry)}>
-                Degistir
+            <div className="menu-inline-actions">
+              <button className="soft-btn" onClick={onCreateSignature}>
+                <Signature size={16} />
+                Yeni imza
               </button>
             </div>
           </div>
-        ))}
-        {!entries.length ? <div className="empty-panel">Kutuphane, yuklediginiz PDF kaynaklarini burada tutar.</div> : null}
-      </div>
-    </section>
-  );
-}
+        ) : null}
 
-function Inspector({ selectedItem, updateSelectedText, removeSelectedItem }) {
-  return (
-    <section className="glass-card">
-      <div className="section-header">
-        <h2>Nesne denetimi</h2>
-      </div>
+        {selectedItem?.type === "text" ? (
+          <div className="selected-panel">
+            <div className="selected-panel-head">
+              <Type size={16} />
+              <span>Secili metin</span>
+            </div>
+            <label className="full-span">
+              <span>Icerik</span>
+              <textarea
+                rows="3"
+                value={selectedItem.text}
+                onChange={(event) => updateSelectedItem({ text: event.target.value })}
+              />
+            </label>
+            <label>
+              <span>Renk</span>
+              <input
+                type="color"
+                value={selectedItem.color}
+                onChange={(event) => updateSelectedItem({ color: event.target.value })}
+              />
+            </label>
+            <label>
+              <span>Boyut</span>
+              <input
+                max="72"
+                min="12"
+                type="range"
+                value={selectedItem.fontSize}
+                onChange={(event) => updateSelectedItem({ fontSize: Number(event.target.value) })}
+              />
+            </label>
+            <button className="soft-btn danger" onClick={onRemoveSelectedItem}>
+              <Trash2 size={16} />
+              Ogeyi sil
+            </button>
+          </div>
+        ) : null}
 
-      {selectedItem?.type === "text" ? (
-        <div className="field-grid">
-          <label>
-            <span>Metin</span>
-            <textarea
-              rows="4"
-              value={selectedItem.text}
-              onChange={(event) => updateSelectedText({ text: event.target.value })}
-            />
-          </label>
-          <label>
-            <span>Renk</span>
-            <input
-              type="color"
-              value={selectedItem.color}
-              onChange={(event) => updateSelectedText({ color: event.target.value })}
-            />
-          </label>
-          <label>
-            <span>Boyut</span>
-            <input
-              max="72"
-              min="10"
-              type="range"
-              value={selectedItem.fontSize}
-              onChange={(event) => updateSelectedText({ fontSize: Number(event.target.value) })}
-            />
-          </label>
-          <button className="ghost-btn danger" onClick={removeSelectedItem}>
-            Nesneyi sil
+        {selectedItem?.type === "signature" ? (
+          <div className="selected-panel">
+            <div className="selected-panel-head">
+              <Signature size={16} />
+              <span>Secili imza</span>
+            </div>
+            <button className="soft-btn danger" onClick={onRemoveSelectedItem}>
+              <Trash2 size={16} />
+              Imzayi sil
+            </button>
+          </div>
+        ) : null}
+
+        <div className="menu-inline-actions">
+          <button className="soft-btn danger" onClick={onClearCurrentAnnotations}>
+            <Eraser size={16} />
+            Katmani temizle
           </button>
         </div>
-      ) : selectedItem ? (
-        <div className="field-grid">
-          <p className="subtle">Imza nesnesi secili. Sayfada surukleyerek yeniden konumlandirabilirsiniz.</p>
-          <button className="ghost-btn danger" onClick={removeSelectedItem}>
-            Imzayi sil
-          </button>
-        </div>
-      ) : (
-        <div className="empty-panel">Duzenlemek icin sayfadaki bir yazi veya imzayi secin.</div>
-      )}
-    </section>
+      </section>
+    </div>
   );
 }
 
@@ -1062,8 +1133,8 @@ function SignatureModal({ onClose, onSave }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     const ratio = window.devicePixelRatio || 1;
-    canvas.width = 600 * ratio;
-    canvas.height = 240 * ratio;
+    canvas.width = 900 * ratio;
+    canvas.height = 320 * ratio;
     canvas.style.width = "100%";
     canvas.style.height = "180px";
 
@@ -1072,16 +1143,16 @@ function SignatureModal({ onClose, onSave }) {
     context.lineWidth = 2.6;
     context.lineCap = "round";
     context.lineJoin = "round";
-    context.strokeStyle = "#0f172a";
+    context.strokeStyle = "#111827";
     context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, 600, 240);
+    context.fillRect(0, 0, 900, 320);
   }, []);
 
   function position(event) {
     const rect = canvasRef.current.getBoundingClientRect();
     return {
-      x: ((event.clientX - rect.left) / rect.width) * 600,
-      y: ((event.clientY - rect.top) / rect.height) * 240,
+      x: ((event.clientX - rect.left) / rect.width) * 900,
+      y: ((event.clientY - rect.top) / rect.height) * 320,
     };
   }
 
@@ -1112,16 +1183,16 @@ function SignatureModal({ onClose, onSave }) {
   function clear() {
     const context = canvasRef.current.getContext("2d");
     context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, 600, 240);
+    context.fillRect(0, 0, 900, 320);
     setHasInk(false);
   }
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-card">
-        <div className="section-header">
+    <div className="editor-menu-backdrop" onClick={onClose}>
+      <section className="signature-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="menu-header">
           <h2>Imza olustur</h2>
-          <button className="ghost-btn" onClick={onClose}>
+          <button className="soft-btn compact-btn" onClick={onClose}>
             Kapat
           </button>
         </div>
@@ -1133,28 +1204,54 @@ function SignatureModal({ onClose, onSave }) {
           onPointerUp={stop}
           onPointerLeave={stop}
         />
-        <div className="micro-actions">
-          <button className="ghost-btn" onClick={clear}>
+        <div className="menu-inline-actions">
+          <button className="soft-btn" onClick={clear}>
             Temizle
           </button>
-          <button className="primary-btn" disabled={!hasInk} onClick={() => onSave(canvasRef.current.toDataURL("image/png"))}>
-            Imzayi kaydet
+          <button className="primary-btn compact-btn" disabled={!hasInk} onClick={() => onSave(canvasRef.current.toDataURL("image/png"))}>
+            Kaydet
           </button>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
 
-function EmptyState() {
+function EmptyState({ onAddA4, onUploadImage, onUploadPdf }) {
   return (
-    <div className="empty-state">
-      <Pencil size={28} />
-      <h2>Duzenlemeye hazir bir belge yok</h2>
-      <p>
-        PDF yukleyin, birden fazla belgeyi birlestirin veya bos bir sayfadan yeni dosyanizi
-        olusturmaya baslayin.
-      </p>
-    </div>
+    <section className="empty-state">
+      <h2>Ilk sayfayi ekleyin</h2>
+      <p>Asil ekran dogrudan PDF duzenleme alani olacak. Baslamak icin sadece bir kaynak secin.</p>
+      <div className="toolbar-actions">
+        <button className="soft-btn" onClick={onUploadPdf}>
+          PDF yukle
+        </button>
+        <button className="soft-btn" onClick={onUploadImage}>
+          Foto ekle
+        </button>
+        <button className="primary-btn" onClick={onAddA4}>
+          Bos A4 olustur
+        </button>
+      </div>
+    </section>
   );
+}
+
+function makeSignaturePreset(id, text) {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120">
+      <rect width="320" height="120" fill="white"/>
+      <text x="18" y="82" font-size="54" fill="#111827" font-family="cursive">${text}</text>
+    </svg>
+  `;
+
+  return {
+    id,
+    label: text,
+    dataUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+  };
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
 }
