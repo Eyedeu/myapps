@@ -1543,6 +1543,22 @@ function getTextLayoutSize(item) {
   return measureTextBox(item.text, item.fontSize, item.maxWidth);
 }
 
+function getTextEditBox(item, text, page) {
+  const margin = 4;
+  const minWidth = Math.min(Math.max(item.fontSize * 12, 120), Math.max(24, page.width - margin * 2));
+  const currentCenter = item.x + (item.width ?? minWidth) / 2;
+  const leftCapacity = Math.max(0, currentCenter - margin);
+  const rightCapacity = Math.max(0, page.width - margin - currentCenter);
+  const balancedWidth = Math.max(24, Math.min(page.width - margin * 2, Math.min(leftCapacity, rightCapacity) * 2));
+  const width = Math.max(minWidth, balancedWidth);
+  const x = clamp(currentCenter - width / 2, margin, Math.max(margin, page.width - width - margin));
+  const maxWidth = Math.max(24, Math.min(width, page.width - x - margin));
+  const measured = measureTextBox(text, item.fontSize, maxWidth);
+  const height = Math.min(measured.height, Math.max(24, page.height - item.y));
+
+  return { x, width: maxWidth, height, maxWidth };
+}
+
 /** Koseyle verilen kutuya sigacak en buyuk punto (ikili arama). */
 function fitFontSizeToBox(text, maxW, maxH) {
   const w = Math.max(24, maxW);
@@ -1995,24 +2011,23 @@ function PageEditor({
     if (tool === "text") {
       const t = textValue.trim() || DEFAULT_TEXT;
       const fs = fontSize;
-      const maxWidth = Math.max(24, page.width - coords.x - 4);
-      let { width: tw, height: th } = measureTextBox(t, fs, maxWidth);
+      const initialMaxWidth = Math.max(24, page.width - 8);
+      let { width: tw, height: th } = measureTextBox(t, fs, initialMaxWidth);
       th = Math.min(th, page.height - 8);
       const x = clamp(coords.x - tw / 2, 4, Math.max(4, page.width - tw - 4));
       const y = clamp(coords.y - th / 2, 4, Math.max(4, page.height - th - 4));
-      const itemMaxWidth = Math.max(24, page.width - x - 4);
-      const fitted = measureTextBox(t, fs, itemMaxWidth);
+      const editBox = getTextEditBox({ x, y, width: tw, fontSize: fs }, t, page);
       const item = {
         id: uid("item"),
         type: "text",
         text: t,
-        x,
+        x: editBox.x,
         y,
         color: accentColor,
         fontSize: fs,
-        width: fitted.width,
-        height: Math.min(fitted.height, page.height - y),
-        maxWidth: itemMaxWidth,
+        width: editBox.width,
+        height: editBox.height,
+        maxWidth: editBox.maxWidth,
       };
 
       updatePage({
@@ -2541,21 +2556,14 @@ function PageEditor({
           if (item.type !== "text") {
             return { ...item, text };
           }
-          const pageMaxWidth = Math.max(24, page.width - 8);
-          const centerX = item.x + (item.width ?? 0) / 2;
-          const natural = measureTextBox(text, item.fontSize, pageMaxWidth);
-          const width = Math.min(Math.max(natural.width, item.fontSize * 3), pageMaxWidth);
-          const x = clamp(centerX - width / 2, 4, Math.max(4, page.width - width - 4));
-          const maxWidth = Math.max(24, page.width - x - 4);
-          const m = measureTextBox(text, item.fontSize, maxWidth);
-          const height = Math.min(m.height, Math.max(24, page.height - item.y));
+          const editBox = getTextEditBox(item, text, page);
           return {
             ...item,
             text,
-            x,
-            width: Math.min(m.width, maxWidth),
-            height,
-            maxWidth,
+            x: editBox.x,
+            width: editBox.width,
+            height: editBox.height,
+            maxWidth: editBox.maxWidth,
           };
         }),
       },
