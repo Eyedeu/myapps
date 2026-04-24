@@ -57,6 +57,7 @@ const DEFAULT_TEXT = "Metin";
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2.5;
 const ZOOM_STEP = 0.02;
+const DEFAULT_PAGE_ZOOM = 1.1;
 const SIGNATURE_STORAGE_KEY = "pdf-pocket-studio-signatures";
 
 export default function App() {
@@ -74,7 +75,7 @@ export default function App() {
   const [strokeWidth, setStrokeWidth] = useState(3);
   const [penMode, setPenMode] = useState("pen");
   const [eraserSize, setEraserSize] = useState(28);
-  const [pageZoom, setPageZoom] = useState(1);
+  const [pageZoom, setPageZoom] = useState(DEFAULT_PAGE_ZOOM);
   const [status, setStatus] = useState("PDF yukleyin, foto ekleyin veya bos A4 sayfa olusturun.");
   const [isHydrated, setIsHydrated] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -394,9 +395,17 @@ export default function App() {
         return;
       }
       const fs = Math.round(scale);
-      let { width, height } = measureTextBox(selectedItem.text, fs);
-      width = Math.min(width, selectedPage.width - selectedItem.x);
-      updateSelectedItem({ fontSize: fs, width, height });
+      const oldFs = selectedItem.fontSize || 24;
+      const r = fs / oldFs;
+      const { width: w0, height: h0 } = getTextLayoutSize(selectedItem);
+      const width = Math.min(Math.max(24, Math.round(w0 * r)), selectedPage.width - selectedItem.x);
+      const height = Math.max(24, Math.round(h0 * r));
+      const m = measureTextBox(selectedItem.text, fs);
+      updateSelectedItem({
+        fontSize: fs,
+        width: Math.max(width, Math.min(m.width, selectedPage.width - selectedItem.x)),
+        height: Math.max(height, m.height),
+      });
       return;
     }
 
@@ -526,7 +535,7 @@ export default function App() {
     setEditMode(false);
     setTool("select");
     setSignatureListOpen(false);
-    setPageZoom(1);
+    setPageZoom(DEFAULT_PAGE_ZOOM);
     setViewScrollUnlocked(false);
     setTextEditingItemId(null);
     setStatus("Yeni proje. PDF, foto veya A4 ekleyin.");
@@ -1439,11 +1448,31 @@ function getTextLayoutSize(item) {
   return measureTextBox(item.text, item.fontSize);
 }
 
+/** Koseyle verilen kutuya sigacak en buyuk punto (ikili arama). */
+function fitFontSizeToBox(text, maxW, maxH) {
+  const w = Math.max(24, maxW);
+  const h = Math.max(24, maxH);
+  let lo = 8;
+  let hi = 140;
+  let best = 8;
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    const { width, height } = measureTextBox(text ?? "", mid);
+    if (width <= w && height <= h) {
+      best = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return best;
+}
+
 /** Imza / gorsel / metin kutusu: ayni PDF kose geometrisi (x,y,w,h). */
 function computeResizePatch(state, coords, pageW, pageH) {
   const dx = coords.x - state.start.x;
   const dy = coords.y - state.start.y;
-  const { x0, y0, w0, h0, handle } = state;
+  const { x0, y0, w0, h0, handle, type, text } = state;
 
   const ratio0 = h0 / w0 || 0.4;
   const top0 = y0 + h0;
@@ -1498,7 +1527,11 @@ function computeResizePatch(state, coords, pageW, pageH) {
   if (x + w > pageW) {
     w = Math.max(24, pageW - x);
   }
-  return { x, y, width: w, height: h };
+  const patch = { x, y, width: w, height: h };
+  if (type === "text") {
+    patch.fontSize = fitFontSizeToBox(text ?? "", w, h);
+  }
+  return patch;
 }
 
 const TEXT_DRAG_THRESHOLD_PX = 14;
@@ -1593,6 +1626,27 @@ function PageEditor({
 
     return () => observer.disconnect();
   }, []);
+
+  const prevPageIdForCenterRef = useRef(null);
+  useLayoutEffect(() => {
+    const el = hostRef.current;
+    if (!el || hostSize.width < 4) {
+      return;
+    }
+    const isNewPage = prevPageIdForCenterRef.current !== page.id;
+    prevPageIdForCenterRef.current = page.id;
+    if (!isNewPage) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      const stageEl = hostRef.current;
+      if (!stageEl) {
+        return;
+      }
+      stageEl.scrollLeft = Math.max(0, (stageEl.scrollWidth - stageEl.clientWidth) / 2);
+      stageEl.scrollTop = Math.max(0, (stageEl.scrollHeight - stageEl.clientHeight) / 2);
+    });
+  }, [page.id, hostSize.width, hostSize.height, pageZoom, page.width, page.height]);
 
   useEffect(() => {
     if (tool !== "eraser") {
@@ -2007,7 +2061,14 @@ function PageEditor({
                 if (item.id !== pr.state.itemId) {
                   return item;
                 }
-                return { ...item, x: patch.x, y: patch.y, width: patch.width, height: patch.height };
+                return {
+                  ...item,
+                  x: patch.x,
+                  y: patch.y,
+                  width: patch.width,
+                  height: patch.height,
+                  ...(patch.fontSize != null ? { fontSize: patch.fontSize } : {}),
+                };
               }),
             },
           });
@@ -2133,7 +2194,14 @@ function PageEditor({
             if (item.id !== st.itemId) {
               return item;
             }
-            return { ...item, x: patch.x, y: patch.y, width: patch.width, height: patch.height };
+            return {
+              ...item,
+              x: patch.x,
+              y: patch.y,
+              width: patch.width,
+              height: patch.height,
+              ...(patch.fontSize != null ? { fontSize: patch.fontSize } : {}),
+            };
           }),
         },
       });
@@ -2252,7 +2320,8 @@ function PageEditor({
     const anchor = getItemBottomLeftPdf(event) ?? { x: item.x, y: item.y };
     const offsetX = coords.x - anchor.x;
     const offsetY = coords.y - anchor.y;
-    if (item.type === "text") {
+    const touchLike = event.pointerType === "touch" || event.pointerType === "pen";
+    if (item.type === "text" && !touchLike) {
       itemDragArmRef.current = {
         itemId: item.id,
         offsetX,
@@ -2397,6 +2466,7 @@ function PageEditor({
       y0: item.y,
       w0: box.width,
       h0: box.height,
+      ...(item.type === "text" ? { text: item.text } : {}),
     };
   }
 
