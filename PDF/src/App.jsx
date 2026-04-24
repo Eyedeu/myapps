@@ -1728,12 +1728,13 @@ function PageEditor({
     };
 
     let raf = 0;
+    let lockedTop = null;
     const setExactScroll = (left, top) => {
       host.style.scrollBehavior = "auto";
       host.scrollLeft = left;
       host.scrollTop = top;
     };
-    const keepTextAboveKeyboard = () => {
+    const keepTextAboveKeyboard = (force = false) => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         const annotation = host.querySelector(`[data-item-id="${textEditingItemId}"]`);
@@ -1752,16 +1753,24 @@ function PageEditor({
         const restoreLeft = restore?.left ?? host.scrollLeft;
         let nextTop = host.scrollTop;
 
+        if (!force && lockedTop != null && itemRect.top >= visibleTop && itemRect.bottom <= visibleBottom) {
+          setExactScroll(restoreLeft, lockedTop);
+          return;
+        }
+
         if (itemRect.bottom > visibleBottom) {
           nextTop += itemRect.bottom - visibleBottom;
         } else if (itemRect.top < visibleTop) {
           nextTop -= visibleTop - itemRect.top;
         }
-        setExactScroll(restoreLeft, clamp(nextTop, 0, Math.max(0, host.scrollHeight - host.clientHeight)));
+        lockedTop = clamp(nextTop, 0, Math.max(0, host.scrollHeight - host.clientHeight));
+        setExactScroll(restoreLeft, lockedTop);
       });
     };
 
-    keepTextAboveKeyboard();
+    keepTextAboveKeyboard(true);
+    window.setTimeout(() => keepTextAboveKeyboard(true), 80);
+    window.setTimeout(() => keepTextAboveKeyboard(true), 220);
     window.visualViewport?.addEventListener("resize", keepTextAboveKeyboard);
     window.visualViewport?.addEventListener("scroll", keepTextAboveKeyboard);
     window.addEventListener("resize", keepTextAboveKeyboard);
@@ -2904,11 +2913,20 @@ function AnnotationItem({
     if (item.type !== "text" || !selected || !textEditing || !textAreaRef.current) {
       return;
     }
+    const input = textAreaRef.current;
     try {
-      textAreaRef.current.focus({ preventScroll: true });
+      input.focus({ preventScroll: true });
     } catch {
-      textAreaRef.current.focus();
+      input.focus();
     }
+    const end = input.value.length;
+    try {
+      input.setSelectionRange(end, end);
+    } catch {
+      // ignore
+    }
+    input.scrollLeft = input.scrollWidth;
+    input.scrollTop = 0;
   }, [item.type, item.id, selected, textEditing]);
 
   if (item.type === "text") {
