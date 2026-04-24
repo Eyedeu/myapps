@@ -49,6 +49,7 @@ import {
   inspectPdf,
   pageFromImage,
   pageFromPdf,
+  renderPagePreview,
   renderPdfPage,
   uid,
 } from "./pdf";
@@ -1364,19 +1365,9 @@ function SortablePageCard({
   const [preview, setPreview] = useState(null);
 
   useEffect(() => {
-    if (page.kind === "image") {
-      setPreview(page.imageDataUrl);
-      return undefined;
-    }
-
-    if (page.kind === "blank") {
-      setPreview(null);
-      return undefined;
-    }
-
     let active = true;
 
-    renderPdfPage(sourceDocument, page.sourcePageIndex, 0.35)
+    renderPagePreview(page, sourceDocument, 0.35)
       .then((dataUrl) => {
         if (active) {
           setPreview(dataUrl);

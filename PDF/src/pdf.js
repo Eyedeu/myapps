@@ -121,6 +121,39 @@ export async function renderPdfPage(documentRecord, pageIndex, scale = 1.25) {
   return canvas.toDataURL("image/png");
 }
 
+export async function renderPagePreview(page, sourceDocument, scale = 0.35) {
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("2D canvas desteklenmiyor");
+  }
+
+  const width = Math.max(1, Math.round(page.width * scale));
+  const height = Math.max(1, Math.round(page.height * scale));
+  canvas.width = width;
+  canvas.height = height;
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, width, height);
+
+  if (page.kind === "pdf" && sourceDocument) {
+    const pdf = await getPdfProxy(sourceDocument);
+    const pdfPage = await pdf.getPage(page.sourcePageIndex + 1);
+    const viewport = pdfPage.getViewport({ scale });
+    await pdfPage.render({ canvasContext: context, viewport }).promise;
+  } else if (page.kind === "image") {
+    const image = await loadImage(page.imageDataUrl);
+    context.drawImage(image, 0, 0, width, height);
+  }
+
+  if (page.annotations.strokes.length || page.annotations.items.length) {
+    const overlayDataUrl = await renderAnnotations(page, page.width, page.height, { scale });
+    const overlay = await loadImage(overlayDataUrl);
+    context.drawImage(overlay, 0, 0, width, height);
+  }
+
+  return canvas.toDataURL("image/png");
+}
+
 export async function exportProject(project) {
   const output = await PDFDocument.create();
 
@@ -293,17 +326,62 @@ async function renderAnnotations(page, width, height, options = {}) {
       context.fillStyle = item.color;
       context.font = `${item.fontSize}px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
       context.textRendering = "geometricPrecision";
-      context.textBaseline = "bottom";
-      const lines = item.text.split("\n");
-
+      context.textBaseline = "top";
       const lineHeight = item.fontSize * 1.45;
+      const padX = item.fontSize * 0.14;
+      const padY = item.fontSize * 0.06;
+      const maxTextWidth = Math.max(item.fontSize, (item.width ?? 0) - padX * 2);
+      const lines = wrapCanvasText(context, item.text, maxTextWidth);
+      const top = height - item.y - item.height + padY;
+
       lines.forEach((line, index) => {
-        context.fillText(line, item.x, height - item.y - (lines.length - 1 - index) * lineHeight);
+        context.fillText(line, item.x + padX, top + index * lineHeight, maxTextWidth);
       });
     }
   }
 
   return canvas.toDataURL("image/png");
+}
+
+function wrapCanvasText(context, text, maxWidth) {
+  const output = [];
+  const sourceLines = String(text ?? "").split("\n");
+
+  for (const sourceLine of sourceLines) {
+    if (!sourceLine.length) {
+      output.push(" ");
+      continue;
+    }
+
+    let current = "";
+    for (const token of sourceLine.match(/\S+\s*/g) ?? [" "]) {
+      const candidate = current + token;
+      if (!current || context.measureText(candidate).width <= maxWidth) {
+        current = candidate;
+        continue;
+      }
+
+      output.push(current.trimEnd());
+      if (context.measureText(token).width <= maxWidth) {
+        current = token;
+        continue;
+      }
+
+      current = "";
+      for (const char of token) {
+        const charCandidate = current + char;
+        if (!current || context.measureText(charCandidate).width <= maxWidth) {
+          current = charCandidate;
+        } else {
+          output.push(current);
+          current = char;
+        }
+      }
+    }
+    output.push(current.trimEnd() || " ");
+  }
+
+  return output;
 }
 
 function loadImage(src) {
