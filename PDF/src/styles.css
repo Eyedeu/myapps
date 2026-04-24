@@ -1371,7 +1371,7 @@ button {
 .annotation-text-selected-shell {
   position: absolute;
   inset: 0;
-  padding: 8px;
+  padding: 0;
   box-sizing: border-box;
   z-index: 1;
   touch-action: none;
@@ -1520,10 +1520,11 @@ button {
   min-height: 0;
   min-width: 0;
   line-height: 1.45;
+  padding: 0.06em 0.14em;
   border: none;
   outline: none;
   resize: none;
-  overflow: auto;
+  overflow: hidden;
   background: transparent;
   caret-color: currentColor;
   color: inherit;
