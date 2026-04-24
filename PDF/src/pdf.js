@@ -291,7 +291,7 @@ async function renderAnnotations(page, width, height, options = {}) {
   for (const item of page.annotations.items) {
     if (item.type === "text") {
       context.fillStyle = item.color;
-      context.font = `${item.fontSize}px sans-serif`;
+      context.font = `${item.fontSize}px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
       context.textRendering = "geometricPrecision";
       context.textBaseline = "bottom";
       const lines = item.text.split("\n");

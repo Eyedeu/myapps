@@ -1431,14 +1431,62 @@ function SortablePageCard({
   );
 }
 
-/** Metin kutusu boyutu (PDF birimi); baslangicta sikisma olmasin diye biraz payli. */
+/** Onizleme / PDF ile ayni sans ailesi; canvas olcumu webde kirpilmayi onler. */
+const ANNOTATION_TEXT_FONT_STACK = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+
+let measureTextCanvas;
+let measureTextContext;
+function getMeasureTextContext() {
+  if (!measureTextCanvas) {
+    measureTextCanvas = document.createElement("canvas");
+    measureTextContext = measureTextCanvas.getContext("2d");
+  }
+  return measureTextContext;
+}
+
+/** Metin kutusu boyutu (PDF birimi); gercek glyph genisligi + pay. */
 function measureTextBox(text, fontSize) {
-  const s = String(text);
-  const lines = Math.max(s.split("\n").length, 1);
-  const ch = Math.max(s.replace(/\n/g, "").length, 1);
-  const width = Math.max(ch * fontSize * 0.64, fontSize * 3.4) + fontSize * 0.45;
-  const height = Math.max(fontSize * lines * 1.45, fontSize * 1.55);
+  const ctx = getMeasureTextContext();
+  if (!ctx) {
+    const s = String(text);
+    const lines = Math.max(s.split("\n").length, 1);
+    const ch = Math.max(s.replace(/\n/g, "").length, 1);
+    return {
+      width: Math.max(ch * fontSize * 0.68, fontSize * 3.5) + fontSize * 0.5,
+      height: Math.max(fontSize * lines * 1.45, fontSize * 1.55),
+    };
+  }
+  ctx.font = `${fontSize}px ${ANNOTATION_TEXT_FONT_STACK}`;
+  const parts = String(text).split("\n");
+  let maxW = fontSize * 0.35;
+  for (const line of parts) {
+    const lineStr = line.length ? line : " ";
+    const w = ctx.measureText(lineStr).width;
+    if (w > maxW) {
+      maxW = w;
+    }
+  }
+  const lineCount = Math.max(parts.length, 1);
+  const padX = fontSize * 0.22;
+  const width = Math.ceil(maxW + padX * 2);
+  const height = Math.ceil(Math.max(fontSize * lineCount * 1.45, fontSize * 1.55));
   return { width, height };
+}
+
+function shouldUseImmediateTextDrag(event) {
+  if (event.pointerType === "touch" || event.pointerType === "pen") {
+    return true;
+  }
+  if (event.pointerType && event.pointerType !== "mouse") {
+    return true;
+  }
+  if (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0) {
+    return true;
+  }
+  if (typeof globalThis.matchMedia === "function" && globalThis.matchMedia("(pointer: coarse)").matches) {
+    return true;
+  }
+  return false;
 }
 
 function getTextLayoutSize(item) {
@@ -2286,12 +2334,13 @@ function PageEditor({
     }
 
     event.stopPropagation();
+    const immediateText = item.type === "text" && shouldUseImmediateTextDrag(event);
     if (event.cancelable) {
       if (tool === "eraser") {
         event.preventDefault();
       } else if (item.type !== "text") {
         event.preventDefault();
-      } else if (event.pointerType === "touch" || event.pointerType === "pen") {
+      } else if (immediateText) {
         event.preventDefault();
       }
     }
@@ -2320,8 +2369,7 @@ function PageEditor({
     const anchor = getItemBottomLeftPdf(event) ?? { x: item.x, y: item.y };
     const offsetX = coords.x - anchor.x;
     const offsetY = coords.y - anchor.y;
-    const touchLike = event.pointerType === "touch" || event.pointerType === "pen";
-    if (item.type === "text" && !touchLike) {
+    if (item.type === "text" && !immediateText) {
       itemDragArmRef.current = {
         itemId: item.id,
         offsetX,
