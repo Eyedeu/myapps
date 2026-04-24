@@ -1745,9 +1745,14 @@ function PageEditor({
       host.scrollLeft = left;
       host.scrollTop = top;
     };
-    const keepTextAboveKeyboard = (force = false) => {
+    const keepTextAboveKeyboard = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
+        if (lockedTop != null) {
+          const restoreLeft = textEditScrollRestoreRef.current?.left ?? host.scrollLeft;
+          setExactScroll(restoreLeft, lockedTop);
+          return;
+        }
         const annotation = host.querySelector(`[data-item-id="${textEditingItemId}"]`);
         if (!annotation) {
           return;
@@ -1765,11 +1770,6 @@ function PageEditor({
         const restoreLeft = restore?.left ?? host.scrollLeft;
         let nextTop = host.scrollTop;
 
-        if (!force && lockedTop != null && itemRect.top >= visibleTop && itemRect.bottom <= visibleBottom) {
-          setExactScroll(restoreLeft, lockedTop);
-          return;
-        }
-
         if (itemRect.bottom > visibleBottom) {
           nextTop += itemRect.bottom - visibleBottom;
         } else if (itemRect.top < visibleTop) {
@@ -1780,9 +1780,9 @@ function PageEditor({
       });
     };
 
-    keepTextAboveKeyboard(true);
-    window.setTimeout(() => keepTextAboveKeyboard(true), 80);
-    window.setTimeout(() => keepTextAboveKeyboard(true), 220);
+    keepTextAboveKeyboard();
+    window.setTimeout(keepTextAboveKeyboard, 80);
+    window.setTimeout(keepTextAboveKeyboard, 220);
     window.visualViewport?.addEventListener("resize", keepTextAboveKeyboard);
     window.visualViewport?.addEventListener("scroll", keepTextAboveKeyboard);
     window.addEventListener("resize", keepTextAboveKeyboard);
@@ -1796,7 +1796,7 @@ function PageEditor({
       window.setTimeout(centerDefaultView, 160);
       textEditScrollRestoreRef.current = null;
     };
-  }, [page.annotations.items, setPageZoom, textEditingItemId]);
+  }, [setPageZoom, textEditingItemId]);
 
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
