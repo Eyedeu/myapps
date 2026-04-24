@@ -1367,11 +1367,13 @@ button {
   padding: 8px;
   box-sizing: border-box;
   z-index: 1;
+  touch-action: manipulation;
 }
 
 .annotation-text-fill {
   position: absolute;
   inset: 0;
+  z-index: 0;
   overflow: hidden;
   white-space: pre-wrap;
   word-break: break-word;
@@ -1390,45 +1392,78 @@ button {
 }
 
 .annotation-item.signature .annotation-knob-corner,
-.annotation-item.embedded-image .annotation-knob-corner,
-.annotation-item.text .annotation-knob-corner {
+.annotation-item.embedded-image .annotation-knob-corner {
   position: absolute;
 }
 
 .annotation-item.signature .annotation-knob--tl,
-.annotation-item.embedded-image .annotation-knob--tl,
-.annotation-item.text .annotation-knob--tl {
+.annotation-item.embedded-image .annotation-knob--tl {
   top: 0;
   left: 0;
   transform: translate(-50%, -50%);
 }
 
 .annotation-item.signature .annotation-knob--tr,
-.annotation-item.embedded-image .annotation-knob--tr,
-.annotation-item.text .annotation-knob--tr {
+.annotation-item.embedded-image .annotation-knob--tr {
   top: 0;
   right: 0;
   transform: translate(50%, -50%);
 }
 
 .annotation-item.signature .annotation-knob--br,
-.annotation-item.embedded-image .annotation-knob--br,
-.annotation-item.text .annotation-knob--br {
+.annotation-item.embedded-image .annotation-knob--br {
   bottom: 0;
   right: 0;
   transform: translate(50%, 50%);
 }
 
 .annotation-item.signature .annotation-knob--bl,
-.annotation-item.embedded-image .annotation-knob--bl,
-.annotation-item.text .annotation-knob--bl {
+.annotation-item.embedded-image .annotation-knob--bl {
   bottom: 0;
   left: 0;
   transform: translate(-50%, 50%);
 }
 
+/* Metin tutamac: kucuk, koseden disari, genis dokunma alani */
+.annotation-item.text .annotation-knob-corner {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  min-width: 11px;
+  min-height: 11px;
+  padding: 14px;
+  margin: -14px;
+  box-sizing: content-box;
+  z-index: 10;
+}
+
+.annotation-item.text .annotation-knob--tl {
+  top: 0;
+  left: 0;
+  transform: translate(-65%, -65%);
+}
+
+.annotation-item.text .annotation-knob--tr {
+  top: 0;
+  right: 0;
+  transform: translate(65%, -65%);
+}
+
+.annotation-item.text .annotation-knob--br {
+  bottom: 0;
+  right: 0;
+  transform: translate(65%, 65%);
+}
+
+.annotation-item.text .annotation-knob--bl {
+  bottom: 0;
+  left: 0;
+  transform: translate(-65%, 65%);
+}
+
 .annotation-item.text {
   z-index: 6;
+  touch-action: manipulation;
   text-align: left;
   box-sizing: border-box;
   line-height: 1.35;
@@ -1452,6 +1487,7 @@ button {
   font: inherit;
   box-sizing: border-box;
   max-width: 100%;
+  touch-action: auto;
   -webkit-user-select: text;
   user-select: text;
   -webkit-user-drag: none;

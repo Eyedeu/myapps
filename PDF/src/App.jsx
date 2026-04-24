@@ -1437,40 +1437,11 @@ function getTextLayoutSize(item) {
   return measureTextBox(item.text, item.fontSize);
 }
 
-/** Imza / gorsel kutusu ve metin punto: sadece kose tutamaclari. */
+/** Imza / gorsel / metin kutusu: ayni PDF kose geometrisi (x,y,w,h). */
 function computeResizePatch(state, coords, pageW, pageH) {
   const dx = coords.x - state.start.x;
   const dy = coords.y - state.start.y;
-  const { x0, y0, w0, h0, handle, type } = state;
-
-  if (type === "text") {
-    let delta = 0;
-    switch (handle) {
-      case "br":
-        delta = Math.max(dx, -dy) * 0.12;
-        break;
-      case "bl":
-        delta = Math.max(-dx, -dy) * 0.12;
-        break;
-      case "tr":
-        delta = Math.max(dx, dy) * 0.12;
-        break;
-      case "tl":
-        delta = Math.max(-dx, dy) * 0.12;
-        break;
-      default:
-        delta = Math.max(dx, -dy) * 0.12;
-    }
-    const fontSize = Math.round(clamp(state.fontSize + delta, 8, 140));
-    let { width, height } = measureTextBox(state.text ?? "", fontSize);
-    width = Math.min(width, pageW - x0);
-    return {
-      kind: "text",
-      fontSize,
-      width,
-      height,
-    };
-  }
+  const { x0, y0, w0, h0, handle } = state;
 
   const ratio0 = h0 / w0 || 0.4;
   const top0 = y0 + h0;
@@ -1525,10 +1496,10 @@ function computeResizePatch(state, coords, pageW, pageH) {
   if (x + w > pageW) {
     w = Math.max(24, pageW - x);
   }
-  return { kind: "box", x, y, width: w, height: h };
+  return { x, y, width: w, height: h };
 }
 
-const TEXT_DRAG_THRESHOLD_PX = 8;
+const TEXT_DRAG_THRESHOLD_PX = 14;
 
 function PageEditor({
   accentColor,
@@ -2030,14 +2001,6 @@ function PageEditor({
                 if (item.id !== pr.state.itemId) {
                   return item;
                 }
-                if (patch.kind === "text") {
-                  return {
-                    ...item,
-                    fontSize: patch.fontSize,
-                    width: patch.width,
-                    height: patch.height,
-                  };
-                }
                 return { ...item, x: patch.x, y: patch.y, width: patch.width, height: patch.height };
               }),
             },
@@ -2164,14 +2127,6 @@ function PageEditor({
             if (item.id !== st.itemId) {
               return item;
             }
-            if (patch.kind === "text") {
-              return {
-                ...item,
-                fontSize: patch.fontSize,
-                width: patch.width,
-                height: patch.height,
-              };
-            }
             return { ...item, x: patch.x, y: patch.y, width: patch.width, height: patch.height };
           }),
         },
@@ -2183,6 +2138,14 @@ function PageEditor({
   }
 
   function handleStagePointerUp(event) {
+    const textTapToEdit =
+      tool === "select" &&
+      itemDragArmRef.current &&
+      !dragState.current &&
+      event &&
+      (event.pointerType === "touch" || event.pointerType === "pen");
+    const textTapItemId = textTapToEdit ? itemDragArmRef.current.itemId : null;
+
     flushDragResizeFromPointer(event);
     clearErasingPointer(event);
     if (annotationPointerCaptureRef.current && event.pointerId != null) {
@@ -2218,6 +2181,14 @@ function PageEditor({
     itemDragArmRef.current = null;
     resizeState.current = null;
     strokeDragState.current = null;
+
+    if (textTapItemId) {
+      const it = pageSyncRef.current.annotations.items.find((i) => i.id === textTapItemId);
+      if (it?.type === "text") {
+        setSelectedItemId(textTapItemId);
+        setTextEditingItemId(textTapItemId);
+      }
+    }
   }
 
   function handleStagePointerLeave() {
@@ -2236,7 +2207,7 @@ function PageEditor({
     }
 
     event.stopPropagation();
-    if (event.cancelable) {
+    if ((item.type !== "text" || tool === "eraser") && event.cancelable) {
       event.preventDefault();
     }
 
@@ -2351,8 +2322,9 @@ function PageEditor({
           if (item.type !== "text") {
             return { ...item, text };
           }
-          let { width, height } = measureTextBox(text, item.fontSize);
-          width = Math.min(width, page.width - item.x);
+          const m = measureTextBox(text, item.fontSize);
+          const width = Math.min(Math.max(m.width, item.width ?? 0), page.width - item.x);
+          const height = Math.max(m.height, item.height ?? 0);
           return { ...item, text, width, height };
         }),
       },
@@ -2394,6 +2366,10 @@ function PageEditor({
       return;
     }
 
+    const box =
+      item.type === "text"
+        ? getTextLayoutSize(item)
+        : { width: item.width ?? 24, height: item.height ?? 24 };
     resizeState.current = {
       itemId: item.id,
       type: item.type,
@@ -2401,10 +2377,8 @@ function PageEditor({
       start: coords,
       x0: item.x,
       y0: item.y,
-      w0: item.width ?? 0,
-      h0: item.height ?? 0,
-      fontSize: item.fontSize,
-      ...(item.type === "text" ? { text: item.text } : {}),
+      w0: box.width,
+      h0: box.height,
     };
   }
 
@@ -2630,9 +2604,6 @@ function AnnotationItem({
 
     function onTextBodyPointerDown(event) {
       event.stopPropagation();
-      if (event.cancelable) {
-        event.preventDefault();
-      }
       if (event.detail === 2 && onRequestTextEdit) {
         onRequestTextEdit(item.id);
         return;
@@ -2674,9 +2645,6 @@ function AnnotationItem({
                   return;
                 }
                 event.stopPropagation();
-                if (event.cancelable) {
-                  event.preventDefault();
-                }
                 if (event.detail === 2 && onRequestTextEdit) {
                   onRequestTextEdit(item.id);
                   return;
