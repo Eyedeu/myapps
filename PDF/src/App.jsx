@@ -1762,10 +1762,16 @@ function PageEditor({
         const viewportTop = viewport?.offsetTop ?? 0;
         const viewportBottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
         const keyboardHeight = viewport ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
+        const expectedKeyboardHeight =
+          keyboardHeight > 40
+            ? keyboardHeight
+            : typeof navigator !== "undefined" && navigator.maxTouchPoints > 0
+              ? Math.min(340, Math.max(220, window.innerHeight * 0.38))
+              : 0;
         const hostRect = host.getBoundingClientRect();
         const itemRect = annotation.getBoundingClientRect();
         const visibleTop = Math.max(hostRect.top, viewportTop) + 12;
-        const visibleBottom = Math.min(hostRect.bottom, viewportBottom, window.innerHeight - keyboardHeight) - 24;
+        const visibleBottom = Math.min(hostRect.bottom, viewportBottom, window.innerHeight - expectedKeyboardHeight) - 24;
         const restore = textEditScrollRestoreRef.current;
         const restoreLeft = restore?.left ?? host.scrollLeft;
         let nextTop = host.scrollTop;
