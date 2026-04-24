@@ -1565,6 +1565,36 @@ function computeResizePatch(state, coords, pageW, pageH) {
   const dy = coords.y - state.start.y;
   const { x0, y0, w0, h0, handle, type, text, fontSize } = state;
 
+  if (type === "text") {
+    const right0 = x0 + w0;
+    let x = x0;
+    let y = y0;
+    let w = w0;
+
+    switch (handle) {
+      case "tl":
+      case "bl": {
+        x = clamp(coords.x, 0, Math.max(0, right0 - 24));
+        w = right0 - x;
+        break;
+      }
+      case "tr":
+      case "br":
+      default: {
+        w = clamp(coords.x - x0, 24, pageW - x0);
+        break;
+      }
+    }
+
+    const resized = measureTextBox(text ?? "", fontSize, w);
+    let h = Math.max(24, Math.min(resized.height, pageH - y));
+    if (handle === "tl" || handle === "tr") {
+      const top0 = y0 + h0;
+      y = clamp(top0 - h, 0, Math.max(0, pageH - h));
+    }
+    return { x, y, width: w, height: h, maxWidth: w };
+  }
+
   const ratio0 = h0 / w0 || 0.4;
   const top0 = y0 + h0;
   const right0 = x0 + w0;
@@ -1618,15 +1648,7 @@ function computeResizePatch(state, coords, pageW, pageH) {
   if (x + w > pageW) {
     w = Math.max(24, pageW - x);
   }
-  const patch = { x, y, width: w, height: h };
-  if (type === "text") {
-    const resized = measureTextBox(text ?? "", fontSize, w);
-    const nextH = Math.min(resized.height, pageH - y);
-    patch.width = w;
-    patch.height = Math.max(24, nextH);
-    patch.maxWidth = w;
-  }
-  return patch;
+  return { x, y, width: w, height: h };
 }
 
 const TEXT_DRAG_THRESHOLD_PX = 14;
@@ -1745,47 +1767,50 @@ function PageEditor({
       host.scrollLeft = left;
       host.scrollTop = top;
     };
+    const calculateKeyboardSafeTop = () => {
+      if (lockedTop != null) {
+        return lockedTop;
+      }
+      const annotation = host.querySelector(`[data-item-id="${textEditingItemId}"]`);
+      if (!annotation) {
+        return host.scrollTop;
+      }
+
+      const viewport = window.visualViewport;
+      const viewportTop = viewport?.offsetTop ?? 0;
+      const viewportBottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+      const keyboardHeight = viewport ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
+      const expectedKeyboardHeight =
+        keyboardHeight > 40
+          ? keyboardHeight
+          : typeof navigator !== "undefined" && navigator.maxTouchPoints > 0
+            ? Math.min(340, Math.max(220, window.innerHeight * 0.4))
+            : 0;
+      const hostRect = host.getBoundingClientRect();
+      const itemRect = annotation.getBoundingClientRect();
+      const visibleTop = Math.max(hostRect.top, viewportTop) + 12;
+      const visibleBottom = Math.min(hostRect.bottom, viewportBottom, window.innerHeight - expectedKeyboardHeight) - 24;
+      let nextTop = host.scrollTop;
+
+      if (itemRect.bottom > visibleBottom) {
+        nextTop += itemRect.bottom - visibleBottom;
+      } else if (itemRect.top < visibleTop) {
+        nextTop -= visibleTop - itemRect.top;
+      }
+      lockedTop = clamp(nextTop, 0, Math.max(0, host.scrollHeight - host.clientHeight));
+      return lockedTop;
+    };
     const keepTextAboveKeyboard = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        if (lockedTop != null) {
-          const restoreLeft = textEditScrollRestoreRef.current?.left ?? host.scrollLeft;
-          setExactScroll(restoreLeft, lockedTop);
-          return;
-        }
-        const annotation = host.querySelector(`[data-item-id="${textEditingItemId}"]`);
-        if (!annotation) {
-          return;
-        }
-
-        const viewport = window.visualViewport;
-        const viewportTop = viewport?.offsetTop ?? 0;
-        const viewportBottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
-        const keyboardHeight = viewport ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
-        const expectedKeyboardHeight =
-          keyboardHeight > 40
-            ? keyboardHeight
-            : typeof navigator !== "undefined" && navigator.maxTouchPoints > 0
-              ? Math.min(340, Math.max(220, window.innerHeight * 0.38))
-              : 0;
-        const hostRect = host.getBoundingClientRect();
-        const itemRect = annotation.getBoundingClientRect();
-        const visibleTop = Math.max(hostRect.top, viewportTop) + 12;
-        const visibleBottom = Math.min(hostRect.bottom, viewportBottom, window.innerHeight - expectedKeyboardHeight) - 24;
         const restore = textEditScrollRestoreRef.current;
         const restoreLeft = restore?.left ?? host.scrollLeft;
-        let nextTop = host.scrollTop;
-
-        if (itemRect.bottom > visibleBottom) {
-          nextTop += itemRect.bottom - visibleBottom;
-        } else if (itemRect.top < visibleTop) {
-          nextTop -= visibleTop - itemRect.top;
-        }
-        lockedTop = clamp(nextTop, 0, Math.max(0, host.scrollHeight - host.clientHeight));
-        setExactScroll(restoreLeft, lockedTop);
+        const locked = calculateKeyboardSafeTop();
+        setExactScroll(restoreLeft, locked);
       });
     };
 
+    setExactScroll(textEditScrollRestoreRef.current.left, calculateKeyboardSafeTop());
     keepTextAboveKeyboard();
     window.setTimeout(keepTextAboveKeyboard, 80);
     window.setTimeout(keepTextAboveKeyboard, 220);
