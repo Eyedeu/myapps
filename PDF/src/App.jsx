@@ -1677,6 +1677,7 @@ function PageEditor({
   const pendingResizeRef = useRef(null);
   const pageRef = useRef(page);
   const pageZoomRef = useRef(pageZoom);
+  const textEditingItemIdRef = useRef(textEditingItemId);
   const drawingStrokeIdRef = useRef(drawingStrokeId);
   const pinchStateRef = useRef(null);
 
@@ -1689,6 +1690,13 @@ function PageEditor({
   useEffect(() => {
     pageZoomRef.current = pageZoom;
   }, [pageZoom]);
+  useEffect(() => {
+    textEditingItemIdRef.current = textEditingItemId;
+    if (!textEditingItemId && hostRef.current) {
+      const rect = hostRef.current.getBoundingClientRect();
+      setHostSize({ width: rect.width, height: rect.height });
+    }
+  }, [textEditingItemId]);
   useEffect(() => {
     drawingStrokeIdRef.current = drawingStrokeId;
   }, [drawingStrokeId]);
@@ -1708,6 +1716,9 @@ function PageEditor({
 
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
+      if (textEditingItemIdRef.current) {
+        return;
+      }
       const entry = entries[0];
       setHostSize({
         width: entry.contentRect.width,
@@ -2530,14 +2541,20 @@ function PageEditor({
           if (item.type !== "text") {
             return { ...item, text };
           }
-          const maxWidth = Math.max(24, page.width - item.x - 4);
-          const maxHeight = Math.max(24, page.height - item.y);
+          const pageMaxWidth = Math.max(24, page.width - 8);
+          const centerX = item.x + (item.width ?? 0) / 2;
+          const natural = measureTextBox(text, item.fontSize, pageMaxWidth);
+          const width = Math.min(Math.max(natural.width, item.fontSize * 3), pageMaxWidth);
+          const x = clamp(centerX - width / 2, 4, Math.max(4, page.width - width - 4));
+          const maxWidth = Math.max(24, page.width - x - 4);
           const m = measureTextBox(text, item.fontSize, maxWidth);
+          const height = Math.min(m.height, Math.max(24, page.height - item.y));
           return {
             ...item,
             text,
+            x,
             width: Math.min(m.width, maxWidth),
-            height: Math.min(m.height, maxHeight),
+            height,
             maxWidth,
           };
         }),
@@ -2819,7 +2836,11 @@ function AnnotationItem({
     if (item.type !== "text" || !selected || !textEditing || !textAreaRef.current) {
       return;
     }
-    textAreaRef.current.focus();
+    try {
+      textAreaRef.current.focus({ preventScroll: true });
+    } catch {
+      textAreaRef.current.focus();
+    }
   }, [item.type, item.id, selected, textEditing]);
 
   if (item.type === "text") {
