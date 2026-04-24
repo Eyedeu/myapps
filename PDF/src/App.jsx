@@ -1678,6 +1678,7 @@ function PageEditor({
   const pageRef = useRef(page);
   const pageZoomRef = useRef(pageZoom);
   const textEditingItemIdRef = useRef(textEditingItemId);
+  const textEditScrollRestoreRef = useRef(null);
   const drawingStrokeIdRef = useRef(drawingStrokeId);
   const pinchStateRef = useRef(null);
 
@@ -1713,6 +1714,64 @@ function PageEditor({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [textEditingItemId, setTextEditingItemId]);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || !textEditingItemId) {
+      return undefined;
+    }
+
+    textEditScrollRestoreRef.current ??= {
+      left: host.scrollLeft,
+      top: host.scrollTop,
+    };
+
+    let raf = 0;
+    const keepTextAboveKeyboard = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const annotation = host.querySelector(`[data-item-id="${textEditingItemId}"]`);
+        if (!annotation) {
+          return;
+        }
+
+        const viewport = window.visualViewport;
+        const viewportTop = viewport?.offsetTop ?? 0;
+        const viewportBottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+        const hostRect = host.getBoundingClientRect();
+        const itemRect = annotation.getBoundingClientRect();
+        const visibleTop = Math.max(hostRect.top, viewportTop) + 12;
+        const visibleBottom = Math.min(hostRect.bottom, viewportBottom) - 18;
+        const restoreLeft = textEditScrollRestoreRef.current?.left ?? host.scrollLeft;
+
+        host.scrollLeft = restoreLeft;
+        if (itemRect.bottom > visibleBottom) {
+          host.scrollTop += itemRect.bottom - visibleBottom;
+        } else if (itemRect.top < visibleTop) {
+          host.scrollTop -= visibleTop - itemRect.top;
+        }
+        host.scrollLeft = restoreLeft;
+      });
+    };
+
+    keepTextAboveKeyboard();
+    window.visualViewport?.addEventListener("resize", keepTextAboveKeyboard);
+    window.visualViewport?.addEventListener("scroll", keepTextAboveKeyboard);
+    window.addEventListener("resize", keepTextAboveKeyboard);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.visualViewport?.removeEventListener("resize", keepTextAboveKeyboard);
+      window.visualViewport?.removeEventListener("scroll", keepTextAboveKeyboard);
+      window.removeEventListener("resize", keepTextAboveKeyboard);
+      const restore = textEditScrollRestoreRef.current;
+      if (restore && hostRef.current) {
+        hostRef.current.scrollLeft = restore.left;
+        hostRef.current.scrollTop = restore.top;
+      }
+      textEditScrollRestoreRef.current = null;
+    };
+  }, [page.annotations.items, textEditingItemId]);
 
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
@@ -2869,6 +2928,7 @@ function AnnotationItem({
 
     return (
       <div
+        data-item-id={item.id}
         className={selected ? "annotation-item text selected" : "annotation-item text"}
         style={{
           left,
@@ -2935,6 +2995,7 @@ function AnnotationItem({
 
   return (
     <div
+      data-item-id={item.id}
       className={selected ? `annotation-item ${imgKind} selected` : `annotation-item ${imgKind}`}
       style={{
         left,
