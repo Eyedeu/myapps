@@ -784,6 +784,7 @@ export default function App() {
                 tool={tool}
                 updatePage={updateSinglePage}
                 viewScrollUnlocked={viewScrollUnlocked}
+                onViewScrollToggle={toggleViewScroll}
                 setPageZoom={setPageZoom}
                 textEditingItemId={textEditingItemId}
                 setTextEditingItemId={setTextEditingItemId}
@@ -1447,20 +1448,64 @@ function getMeasureTextContext() {
   return measureTextContext;
 }
 
-/** Metin kutusu boyutu (PDF birimi); gercek glyph genisligi + pay. */
-function measureTextBox(text, fontSize) {
+/** Metin kutusu boyutu (PDF birimi); gercek glyph genisligi + gerekirse satir kirma. */
+function measureTextBox(text, fontSize, maxWidth = Infinity) {
+  const padX = fontSize * 0.28;
+  const padY = fontSize * 0.12;
+  const lineHeight = fontSize * 1.45;
+  const usableMaxWidth = Number.isFinite(maxWidth) ? Math.max(fontSize * 2.2, maxWidth - padX) : Infinity;
   const ctx = getMeasureTextContext();
   if (!ctx) {
     const s = String(text);
     const lines = Math.max(s.split("\n").length, 1);
     const ch = Math.max(s.replace(/\n/g, "").length, 1);
     return {
-      width: Math.max(ch * fontSize * 0.68, fontSize * 3.5) + fontSize * 0.5,
-      height: Math.max(fontSize * lines * 1.45, fontSize * 1.55),
+      width: Math.min(Math.max(ch * fontSize * 0.68, fontSize * 3.5) + padX, maxWidth),
+      height: Math.max(lineHeight * lines + padY, fontSize * 1.55),
     };
   }
   ctx.font = `${fontSize}px ${ANNOTATION_TEXT_FONT_STACK}`;
-  const parts = String(text).split("\n");
+  const sourceLines = String(text).split("\n");
+  const parts = [];
+
+  for (const sourceLine of sourceLines) {
+    if (!sourceLine.length) {
+      parts.push(" ");
+      continue;
+    }
+    if (!Number.isFinite(usableMaxWidth)) {
+      parts.push(sourceLine);
+      continue;
+    }
+
+    let current = "";
+    for (const token of sourceLine.match(/\S+\s*/g) ?? [" "]) {
+      const candidate = current + token;
+      if (!current || ctx.measureText(candidate).width <= usableMaxWidth) {
+        current = candidate;
+        continue;
+      }
+      parts.push(current.trimEnd());
+
+      if (ctx.measureText(token).width <= usableMaxWidth) {
+        current = token;
+        continue;
+      }
+
+      current = "";
+      for (const char of token) {
+        const charCandidate = current + char;
+        if (!current || ctx.measureText(charCandidate).width <= usableMaxWidth) {
+          current = charCandidate;
+        } else {
+          parts.push(current);
+          current = char;
+        }
+      }
+    }
+    parts.push(current.trimEnd() || " ");
+  }
+
   let maxW = fontSize * 0.35;
   for (const line of parts) {
     const lineStr = line.length ? line : " ";
@@ -1470,9 +1515,8 @@ function measureTextBox(text, fontSize) {
     }
   }
   const lineCount = Math.max(parts.length, 1);
-  const padX = fontSize * 0.22;
-  const width = Math.ceil(maxW + padX * 2);
-  const height = Math.ceil(Math.max(fontSize * lineCount * 1.45, fontSize * 1.55));
+  const width = Math.ceil(Math.min(maxW + padX, Number.isFinite(maxWidth) ? maxWidth : maxW + padX));
+  const height = Math.ceil(Math.max(lineHeight * lineCount + padY, fontSize * 1.55));
   return { width, height };
 }
 
@@ -1496,7 +1540,7 @@ function getTextLayoutSize(item) {
   if (item.width != null && item.height != null) {
     return { width: item.width, height: item.height };
   }
-  return measureTextBox(item.text, item.fontSize);
+  return measureTextBox(item.text, item.fontSize, item.maxWidth);
 }
 
 /** Koseyle verilen kutuya sigacak en buyuk punto (ikili arama). */
@@ -1594,6 +1638,7 @@ function PageEditor({
   activeSignature,
   documentsById,
   fontSize,
+  onViewScrollToggle,
   page,
   pageZoom,
   penMode,
@@ -1725,6 +1770,35 @@ function PageEditor({
   }, [tool]);
 
   const lastPointerTapRef = useRef({ t: 0, x: 0, y: 0 });
+
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) {
+      return undefined;
+    }
+    const onDown = (event) => {
+      if (event.button > 0 || event.target?.closest?.(".annotation-item")) {
+        return;
+      }
+      const now = performance.now();
+      const last = lastPointerTapRef.current;
+      if (now - last.t < 400 && last.t > 0) {
+        const dist = Math.hypot(event.clientX - last.x, event.clientY - last.y);
+        if (dist < 72) {
+          if (event.cancelable) {
+            event.preventDefault();
+          }
+          event.stopImmediatePropagation();
+          lastPointerTapRef.current = { t: 0, x: 0, y: 0 };
+          onViewScrollToggle();
+          return;
+        }
+      }
+      lastPointerTapRef.current = { t: now, x: event.clientX, y: event.clientY };
+    };
+    el.addEventListener("pointerdown", onDown, { capture: true });
+    return () => el.removeEventListener("pointerdown", onDown, { capture: true });
+  }, [onViewScrollToggle]);
 
   useLayoutEffect(() => {
     const el = hostRef.current;
@@ -1910,11 +1984,13 @@ function PageEditor({
     if (tool === "text") {
       const t = textValue.trim() || DEFAULT_TEXT;
       const fs = fontSize;
-      let { width: tw, height: th } = measureTextBox(t, fs);
-      tw = Math.min(tw, page.width - 8);
+      const maxWidth = Math.max(24, page.width - coords.x - 4);
+      let { width: tw, height: th } = measureTextBox(t, fs, maxWidth);
       th = Math.min(th, page.height - 8);
       const x = clamp(coords.x - tw / 2, 4, Math.max(4, page.width - tw - 4));
       const y = clamp(coords.y - th / 2, 4, Math.max(4, page.height - th - 4));
+      const itemMaxWidth = Math.max(24, page.width - x - 4);
+      const fitted = measureTextBox(t, fs, itemMaxWidth);
       const item = {
         id: uid("item"),
         type: "text",
@@ -1923,8 +1999,9 @@ function PageEditor({
         y,
         color: accentColor,
         fontSize: fs,
-        width: tw,
-        height: th,
+        width: fitted.width,
+        height: Math.min(fitted.height, page.height - y),
+        maxWidth: itemMaxWidth,
       };
 
       updatePage({
@@ -2147,8 +2224,8 @@ function PageEditor({
                 item.id === p.itemId
                   ? {
                       ...item,
-                      x: clamp(p.coords.x - p.offsetX, 0, pg.width),
-                      y: clamp(p.coords.y - p.offsetY, 0, pg.height),
+                      x: clamp(p.coords.x - p.offsetX, 0, Math.max(0, pg.width - (item.width ?? 0))),
+                      y: clamp(p.coords.y - p.offsetY, 0, Math.max(0, pg.height - (item.height ?? 0))),
                     }
                   : item,
               ),
@@ -2210,8 +2287,8 @@ function PageEditor({
             item.id === itemId
               ? {
                   ...item,
-                  x: clamp(c.x - offsetX, 0, pg.width),
-                  y: clamp(c.y - offsetY, 0, pg.height),
+                  x: clamp(c.x - offsetX, 0, Math.max(0, pg.width - (item.width ?? 0))),
+                  y: clamp(c.y - offsetY, 0, Math.max(0, pg.height - (item.height ?? 0))),
                 }
               : item,
           ),
@@ -2453,10 +2530,16 @@ function PageEditor({
           if (item.type !== "text") {
             return { ...item, text };
           }
-          const m = measureTextBox(text, item.fontSize);
-          const width = Math.min(Math.max(m.width, item.width ?? 0), page.width - item.x);
-          const height = Math.max(m.height, item.height ?? 0);
-          return { ...item, text, width, height };
+          const maxWidth = Math.max(24, page.width - item.x - 4);
+          const maxHeight = Math.max(24, page.height - item.y);
+          const m = measureTextBox(text, item.fontSize, maxWidth);
+          return {
+            ...item,
+            text,
+            width: Math.min(m.width, maxWidth),
+            height: Math.min(m.height, maxHeight),
+            maxWidth,
+          };
         }),
       },
     });
@@ -2518,7 +2601,13 @@ function PageEditor({
     <div className="page-editor-shell">
       <div
         ref={hostRef}
-        className={tool === "eraser" ? "page-stage page-stage--eraser" : "page-stage"}
+        className={[
+          "page-stage",
+          tool === "eraser" ? "page-stage--eraser" : "",
+          viewScrollUnlocked ? "page-stage--pan" : "page-stage--locked",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         onPointerDown={handleStagePointerDown}
         onPointerMove={handleStagePointerMove}
         onPointerUp={(event) => handleStagePointerUp(event)}

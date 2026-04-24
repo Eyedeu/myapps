@@ -1238,6 +1238,16 @@ button {
   cursor: crosshair;
 }
 
+.page-stage--locked {
+  overflow: hidden;
+  touch-action: none;
+}
+
+.page-stage--pan {
+  overflow: auto;
+  touch-action: pan-x pan-y;
+}
+
 .app-shell.editing .page-stage {
   flex: 1 1 auto;
   min-height: 0;
@@ -1392,7 +1402,7 @@ button {
   box-sizing: border-box;
   padding: 0.06em 0.14em;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-start;
   min-height: 0;
   pointer-events: none;
@@ -1525,6 +1535,9 @@ button {
   outline: none;
   resize: none;
   overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   background: transparent;
   caret-color: currentColor;
   color: inherit;
