@@ -1559,31 +1559,11 @@ function getTextEditBox(item, text, page) {
   return { x, width: maxWidth, height, maxWidth };
 }
 
-/** Koseyle verilen kutuya sigacak en buyuk punto (ikili arama). */
-function fitFontSizeToBox(text, maxW, maxH) {
-  const w = Math.max(24, maxW);
-  const h = Math.max(24, maxH);
-  let lo = 8;
-  let hi = 140;
-  let best = 8;
-  while (lo <= hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    const { width, height } = measureTextBox(text ?? "", mid);
-    if (width <= w && height <= h) {
-      best = mid;
-      lo = mid + 1;
-    } else {
-      hi = mid - 1;
-    }
-  }
-  return best;
-}
-
 /** Imza / gorsel / metin kutusu: ayni PDF kose geometrisi (x,y,w,h). */
 function computeResizePatch(state, coords, pageW, pageH) {
   const dx = coords.x - state.start.x;
   const dy = coords.y - state.start.y;
-  const { x0, y0, w0, h0, handle, type, text } = state;
+  const { x0, y0, w0, h0, handle, type, text, fontSize } = state;
 
   const ratio0 = h0 / w0 || 0.4;
   const top0 = y0 + h0;
@@ -1640,7 +1620,11 @@ function computeResizePatch(state, coords, pageW, pageH) {
   }
   const patch = { x, y, width: w, height: h };
   if (type === "text") {
-    patch.fontSize = fitFontSizeToBox(text ?? "", w, h);
+    const resized = measureTextBox(text ?? "", fontSize, w);
+    const nextH = Math.min(resized.height, pageH - y);
+    patch.width = w;
+    patch.height = Math.max(24, nextH);
+    patch.maxWidth = w;
   }
   return patch;
 }
@@ -2199,7 +2183,7 @@ function PageEditor({
                   y: patch.y,
                   width: patch.width,
                   height: patch.height,
-                  ...(patch.fontSize != null ? { fontSize: patch.fontSize } : {}),
+                  ...(patch.maxWidth != null ? { maxWidth: patch.maxWidth } : {}),
                 };
               }),
             },
@@ -2337,7 +2321,7 @@ function PageEditor({
               y: patch.y,
               width: patch.width,
               height: patch.height,
-              ...(patch.fontSize != null ? { fontSize: patch.fontSize } : {}),
+              ...(patch.maxWidth != null ? { maxWidth: patch.maxWidth } : {}),
             };
           }),
         },
@@ -2618,7 +2602,7 @@ function PageEditor({
       y0: item.y,
       w0: box.width,
       h0: box.height,
-      ...(item.type === "text" ? { text: item.text } : {}),
+      ...(item.type === "text" ? { text: item.text, fontSize: item.fontSize } : {}),
     };
   }
 
