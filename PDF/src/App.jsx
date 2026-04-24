@@ -1422,11 +1422,13 @@ function SortablePageCard({
   );
 }
 
-/** Metin kutusu boyutu (PDF birimi); imza ile ayni kutu modeli. */
+/** Metin kutusu boyutu (PDF birimi); baslangicta sikisma olmasin diye biraz payli. */
 function measureTextBox(text, fontSize) {
-  const lines = Math.max(String(text).split("\n").length, 1);
-  const width = Math.max(String(text).length * fontSize * 0.55, fontSize * 3);
-  const height = fontSize * lines * 1.35;
+  const s = String(text);
+  const lines = Math.max(s.split("\n").length, 1);
+  const ch = Math.max(s.replace(/\n/g, "").length, 1);
+  const width = Math.max(ch * fontSize * 0.64, fontSize * 3.4) + fontSize * 0.45;
+  const height = Math.max(fontSize * lines * 1.45, fontSize * 1.55);
   return { width, height };
 }
 
@@ -1500,6 +1502,8 @@ function computeResizePatch(state, coords, pageW, pageH) {
 }
 
 const TEXT_DRAG_THRESHOLD_PX = 14;
+/** Parmak kalkinca metin edit: sadece gercekten hareketsiz dokunus */
+const TEXT_TAP_EDIT_MAX_DRAG_PX = 10;
 
 function PageEditor({
   accentColor,
@@ -1971,7 +1975,9 @@ function PageEditor({
       const arm = itemDragArmRef.current;
       const dx = event.clientX - arm.originClientX;
       const dy = event.clientY - arm.originClientY;
-      if (dx * dx + dy * dy >= TEXT_DRAG_THRESHOLD_PX * TEXT_DRAG_THRESHOLD_PX) {
+      const d = Math.hypot(dx, dy);
+      arm.maxDrag = Math.max(arm.maxDrag ?? 0, d);
+      if (d * d >= TEXT_DRAG_THRESHOLD_PX * TEXT_DRAG_THRESHOLD_PX) {
         dragState.current = {
           itemId: arm.itemId,
           offsetX: arm.offsetX,
@@ -2138,13 +2144,18 @@ function PageEditor({
   }
 
   function handleStagePointerUp(event) {
-    const textTapToEdit =
+    const armPre = itemDragArmRef.current;
+    const hadDragPre = !!dragState.current;
+    const touchLike =
+      event && (event.pointerType === "touch" || event.pointerType === "pen");
+    const textTapItemId =
       tool === "select" &&
-      itemDragArmRef.current &&
-      !dragState.current &&
-      event &&
-      (event.pointerType === "touch" || event.pointerType === "pen");
-    const textTapItemId = textTapToEdit ? itemDragArmRef.current.itemId : null;
+      armPre &&
+      !hadDragPre &&
+      touchLike &&
+      (armPre.maxDrag ?? 0) < TEXT_TAP_EDIT_MAX_DRAG_PX
+        ? armPre.itemId
+        : null;
 
     flushDragResizeFromPointer(event);
     clearErasingPointer(event);
@@ -2207,8 +2218,14 @@ function PageEditor({
     }
 
     event.stopPropagation();
-    if ((item.type !== "text" || tool === "eraser") && event.cancelable) {
-      event.preventDefault();
+    if (event.cancelable) {
+      if (tool === "eraser") {
+        event.preventDefault();
+      } else if (item.type !== "text") {
+        event.preventDefault();
+      } else if (event.pointerType === "touch" || event.pointerType === "pen") {
+        event.preventDefault();
+      }
     }
 
     if (tool === "eraser") {
@@ -2242,6 +2259,7 @@ function PageEditor({
         offsetY,
         originClientX: event.clientX,
         originClientY: event.clientY,
+        maxDrag: 0,
       };
     } else {
       dragState.current = {
