@@ -1729,6 +1729,17 @@ function PageEditor({
 
     let raf = 0;
     let lockedTop = null;
+    const centerDefaultView = () => {
+      const stageEl = hostRef.current;
+      if (!stageEl) {
+        return;
+      }
+      setPageZoom(DEFAULT_PAGE_ZOOM);
+      requestAnimationFrame(() => {
+        stageEl.scrollLeft = Math.max(0, (stageEl.scrollWidth - stageEl.clientWidth) / 2);
+        stageEl.scrollTop = Math.max(0, (stageEl.scrollHeight - stageEl.clientHeight) / 2);
+      });
+    };
     const setExactScroll = (left, top) => {
       host.style.scrollBehavior = "auto";
       host.scrollLeft = left;
@@ -1745,10 +1756,11 @@ function PageEditor({
         const viewport = window.visualViewport;
         const viewportTop = viewport?.offsetTop ?? 0;
         const viewportBottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+        const keyboardHeight = viewport ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
         const hostRect = host.getBoundingClientRect();
         const itemRect = annotation.getBoundingClientRect();
         const visibleTop = Math.max(hostRect.top, viewportTop) + 12;
-        const visibleBottom = Math.min(hostRect.bottom, viewportBottom) - 18;
+        const visibleBottom = Math.min(hostRect.bottom, viewportBottom, window.innerHeight - keyboardHeight) - 24;
         const restore = textEditScrollRestoreRef.current;
         const restoreLeft = restore?.left ?? host.scrollLeft;
         let nextTop = host.scrollTop;
@@ -1780,24 +1792,11 @@ function PageEditor({
       window.visualViewport?.removeEventListener("resize", keepTextAboveKeyboard);
       window.visualViewport?.removeEventListener("scroll", keepTextAboveKeyboard);
       window.removeEventListener("resize", keepTextAboveKeyboard);
-      const restore = textEditScrollRestoreRef.current;
-      if (restore && hostRef.current) {
-        const restoreHost = hostRef.current;
-        const applyRestore = () => {
-          restoreHost.style.scrollBehavior = "auto";
-          restoreHost.scrollLeft = restore.left;
-          restoreHost.scrollTop = restore.top;
-        };
-        applyRestore();
-        requestAnimationFrame(applyRestore);
-        window.setTimeout(() => {
-          applyRestore();
-          restoreHost.style.scrollBehavior = restore.behavior;
-        }, 120);
-      }
+      centerDefaultView();
+      window.setTimeout(centerDefaultView, 160);
       textEditScrollRestoreRef.current = null;
     };
-  }, [page.annotations.items, textEditingItemId]);
+  }, [page.annotations.items, setPageZoom, textEditingItemId]);
 
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
