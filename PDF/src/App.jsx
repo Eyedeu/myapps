@@ -1724,9 +1724,15 @@ function PageEditor({
     textEditScrollRestoreRef.current ??= {
       left: host.scrollLeft,
       top: host.scrollTop,
+      behavior: host.style.scrollBehavior,
     };
 
     let raf = 0;
+    const setExactScroll = (left, top) => {
+      host.style.scrollBehavior = "auto";
+      host.scrollLeft = left;
+      host.scrollTop = top;
+    };
     const keepTextAboveKeyboard = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
@@ -1742,15 +1748,16 @@ function PageEditor({
         const itemRect = annotation.getBoundingClientRect();
         const visibleTop = Math.max(hostRect.top, viewportTop) + 12;
         const visibleBottom = Math.min(hostRect.bottom, viewportBottom) - 18;
-        const restoreLeft = textEditScrollRestoreRef.current?.left ?? host.scrollLeft;
+        const restore = textEditScrollRestoreRef.current;
+        const restoreLeft = restore?.left ?? host.scrollLeft;
+        let nextTop = host.scrollTop;
 
-        host.scrollLeft = restoreLeft;
         if (itemRect.bottom > visibleBottom) {
-          host.scrollTop += itemRect.bottom - visibleBottom;
+          nextTop += itemRect.bottom - visibleBottom;
         } else if (itemRect.top < visibleTop) {
-          host.scrollTop -= visibleTop - itemRect.top;
+          nextTop -= visibleTop - itemRect.top;
         }
-        host.scrollLeft = restoreLeft;
+        setExactScroll(restoreLeft, clamp(nextTop, 0, Math.max(0, host.scrollHeight - host.clientHeight)));
       });
     };
 
@@ -1766,8 +1773,18 @@ function PageEditor({
       window.removeEventListener("resize", keepTextAboveKeyboard);
       const restore = textEditScrollRestoreRef.current;
       if (restore && hostRef.current) {
-        hostRef.current.scrollLeft = restore.left;
-        hostRef.current.scrollTop = restore.top;
+        const restoreHost = hostRef.current;
+        const applyRestore = () => {
+          restoreHost.style.scrollBehavior = "auto";
+          restoreHost.scrollLeft = restore.left;
+          restoreHost.scrollTop = restore.top;
+        };
+        applyRestore();
+        requestAnimationFrame(applyRestore);
+        window.setTimeout(() => {
+          applyRestore();
+          restoreHost.style.scrollBehavior = restore.behavior;
+        }, 120);
       }
       textEditScrollRestoreRef.current = null;
     };
