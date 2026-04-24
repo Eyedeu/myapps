@@ -1938,13 +1938,16 @@ function PageEditor({
       const t = textValue.trim() || DEFAULT_TEXT;
       const fs = fontSize;
       let { width: tw, height: th } = measureTextBox(t, fs);
-      tw = Math.min(tw, page.width - coords.x);
+      tw = Math.min(tw, page.width - 8);
+      th = Math.min(th, page.height - 8);
+      const x = clamp(coords.x - tw / 2, 4, Math.max(4, page.width - tw - 4));
+      const y = clamp(coords.y - th / 2, 4, Math.max(4, page.height - th - 4));
       const item = {
         id: uid("item"),
         type: "text",
         text: t,
-        x: coords.x,
-        y: coords.y,
+        x,
+        y,
         color: accentColor,
         fontSize: fs,
         width: tw,
@@ -2572,6 +2575,7 @@ function PageEditor({
                 key={item.id}
                 item={item}
                 page={page}
+                displayScale={stageHeight / page.height}
                 selected={item.id === selectedItemId}
                 onPointerDown={beginItemDrag}
                 onResizePointerDown={beginItemResize}
@@ -2626,6 +2630,7 @@ function PageEditor({
                 key={item.id}
                 item={item}
                 page={page}
+                displayScale={stageHeight / page.height}
                 selected={item.id === selectedItemId}
                 textEditing={item.id === textEditingItemId}
                 onPointerDown={beginItemDrag}
@@ -2712,6 +2717,7 @@ function BaseLayer({ page, sourceDocument }) {
 }
 
 function AnnotationItem({
+  displayScale = 1,
   item,
   onPointerDown,
   onResizePointerDown,
@@ -2737,6 +2743,7 @@ function AnnotationItem({
     const { width: bw, height: bh } = getTextLayoutSize(item);
     const wPct = `${(bw / page.width) * 100}%`;
     const hPct = `${(bh / page.height) * 100}%`;
+    const scaledFontSize = Math.max(1, item.fontSize * displayScale);
 
     function onTextBodyPointerDown(event) {
       event.stopPropagation();
@@ -2756,14 +2763,14 @@ function AnnotationItem({
           width: wPct,
           height: hPct,
           color: item.color,
-          fontSize: `${item.fontSize}px`,
+          fontSize: `${scaledFontSize}px`,
         }}
         role="presentation"
-        onPointerDown={selected ? undefined : onTextBodyPointerDown}
+        onPointerDown={!selected || !textEditing ? onTextBodyPointerDown : undefined}
       >
         {selected && !textEditing ? (
           <>
-            <div className="annotation-text-fill" onPointerDown={onTextBodyPointerDown}>
+            <div className="annotation-text-fill">
               {item.text}
             </div>
             <button type="button" className="annotation-knob-corner annotation-knob--tl" aria-label="Sol ust" onPointerDown={resize("tl")} />
@@ -2792,7 +2799,7 @@ function AnnotationItem({
                 ref={textAreaRef}
                 aria-label="Metin"
                 className="inline-textarea"
-                style={{ color: item.color, fontSize: `${item.fontSize}px` }}
+                style={{ color: item.color, fontSize: `${scaledFontSize}px` }}
                 value={item.text}
                 onChange={(event) => onTextChange(item.id, event.target.value)}
                 onPointerDown={(event) => event.stopPropagation()}
