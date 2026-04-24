@@ -475,8 +475,8 @@ export default function App() {
       }
       setStatus(
         next
-          ? "Sayfa kaydirma: acik. Cift tik tekrar: ciz, imza, tasma, silgi (sayfa oynamaz). "
-          : "Duzenleme modu. Cift tik: sayfayi yukari asagi saga sola serbestce kaydir.",
+          ? "Sayfa kaydirma: acik. Duzenleme dugmesiyle tekrar duzenlemeye donun."
+          : "Duzenleme modu. Metin, imza ve cizim araclari aktif.",
       );
       return next;
     });
@@ -723,6 +723,7 @@ export default function App() {
                 }}
                 onAddEmbeddedImage={() => embeddedPhotoInputRef.current?.click()}
                 viewScrollUnlocked={viewScrollUnlocked}
+                onViewScrollToggle={toggleViewScroll}
                 onCreateSignature={() => setSignaturePickerOpen(true)}
                 onDownloadPdf={downloadProject}
                 onChangePageByIndex={(index) => {
@@ -783,7 +784,6 @@ export default function App() {
                 tool={tool}
                 updatePage={updateSinglePage}
                 viewScrollUnlocked={viewScrollUnlocked}
-                onViewScrollToggle={toggleViewScroll}
                 setPageZoom={setPageZoom}
                 textEditingItemId={textEditingItemId}
                 setTextEditingItemId={setTextEditingItemId}
@@ -918,6 +918,7 @@ function EditToolbar({
   onRemoveSelectedItem,
   onRemoveSignature,
   onSelectSignature,
+  onViewScrollToggle,
   pageCount,
   pageZoom,
   selectedPageIndex,
@@ -1031,12 +1032,14 @@ function EditToolbar({
           <div className="tool-rail__trailing">
             <PageIndexControl onChangeIndex={onChangePageByIndex} pageCount={pageCount} pageIndex={selectedPageIndex} />
             <div className="tool-rail__zoom" title="Yakinlastirma: slider veya mobilde 2 parmak (pinch)">
-              <span
+              <button
+                type="button"
                 className={viewScrollUnlocked ? "view-scroll-pill is-on" : "view-scroll-pill"}
-                title="Cift tik: mod degistir. Acikken sayfayi serbestce kaydir; kapaliyken cizim hareket etmez"
+                title="Sayfayi kaydirma ve duzenleme modu arasinda gec"
+                onClick={onViewScrollToggle}
               >
                 {viewScrollUnlocked ? "Kaydirma" : "Duzenleme"}
-              </span>
+              </button>
               <button
                 className="zoom-inline-btn"
                 type="button"
@@ -1591,7 +1594,6 @@ function PageEditor({
   activeSignature,
   documentsById,
   fontSize,
-  onViewScrollToggle,
   page,
   pageZoom,
   penMode,
@@ -1723,35 +1725,6 @@ function PageEditor({
   }, [tool]);
 
   const lastPointerTapRef = useRef({ t: 0, x: 0, y: 0 });
-
-  useEffect(() => {
-    const el = hostRef.current;
-    if (!el) {
-      return undefined;
-    }
-    const onDown = (event) => {
-      if (event.button > 0) {
-        return;
-      }
-      const now = performance.now();
-      const last = lastPointerTapRef.current;
-      if (now - last.t < 400 && last.t > 0) {
-        const dist = Math.hypot(event.clientX - last.x, event.clientY - last.y);
-        if (dist < 72) {
-          onViewScrollToggle();
-          if (event.cancelable) {
-            event.preventDefault();
-          }
-          event.stopImmediatePropagation();
-          lastPointerTapRef.current = { t: 0, x: 0, y: 0 };
-          return;
-        }
-      }
-      lastPointerTapRef.current = { t: now, x: event.clientX, y: event.clientY };
-    };
-    el.addEventListener("pointerdown", onDown, { capture: true });
-    return () => el.removeEventListener("pointerdown", onDown, { capture: true });
-  }, [onViewScrollToggle]);
 
   useLayoutEffect(() => {
     const el = hostRef.current;
@@ -1961,6 +1934,7 @@ function PageEditor({
           items: [...page.annotations.items, item],
         },
       });
+      lastPointerTapRef.current = { t: 0, x: 0, y: 0 };
       setSelectedItemId(item.id);
       setSelectedStrokeId(null);
       setTextEditingItemId(null);
@@ -2085,8 +2059,12 @@ function PageEditor({
       if (d * d >= TEXT_DRAG_THRESHOLD_PX * TEXT_DRAG_THRESHOLD_PX) {
         dragState.current = {
           itemId: arm.itemId,
+          itemType: "text",
           offsetX: arm.offsetX,
           offsetY: arm.offsetY,
+          originClientX: arm.originClientX,
+          originClientY: arm.originClientY,
+          maxDrag: d,
         };
         itemDragArmRef.current = null;
       }
@@ -2146,7 +2124,12 @@ function PageEditor({
     }
 
     if (tool === "select" && dragState.current) {
-      const { itemId, offsetX, offsetY } = dragState.current;
+      const drag = dragState.current;
+      if (drag.originClientX != null && drag.originClientY != null) {
+        const d = Math.hypot(event.clientX - drag.originClientX, event.clientY - drag.originClientY);
+        drag.maxDrag = Math.max(drag.maxDrag ?? 0, d);
+      }
+      const { itemId, offsetX, offsetY } = drag;
       pendingItemDragRef.current = { itemId, coords, offsetX, offsetY };
       if (!itemDragRafRef.current) {
         itemDragRafRef.current = requestAnimationFrame(() => {
@@ -2264,17 +2247,18 @@ function PageEditor({
 
   function handleStagePointerUp(event) {
     const armPre = itemDragArmRef.current;
-    const hadDragPre = !!dragState.current;
-    const touchLike =
-      event && (event.pointerType === "touch" || event.pointerType === "pen");
+    const dragPre = dragState.current;
     const textTapItemId =
       tool === "select" &&
       armPre &&
-      !hadDragPre &&
-      touchLike &&
+      !dragPre &&
       (armPre.maxDrag ?? 0) < TEXT_TAP_EDIT_MAX_DRAG_PX
         ? armPre.itemId
-        : null;
+        : tool === "select" &&
+            dragPre?.itemType === "text" &&
+            (dragPre.maxDrag ?? 0) < TEXT_TAP_EDIT_MAX_DRAG_PX
+          ? dragPre.itemId
+          : null;
 
     flushDragResizeFromPointer(event);
     clearErasingPointer(event);
@@ -2337,6 +2321,7 @@ function PageEditor({
     }
 
     event.stopPropagation();
+    lastPointerTapRef.current = { t: 0, x: 0, y: 0 };
     const immediateText = item.type === "text" && shouldUseImmediateTextDrag(event);
     if (event.cancelable) {
       if (tool === "eraser") {
@@ -2384,6 +2369,14 @@ function PageEditor({
     } else {
       dragState.current = {
         itemId: item.id,
+        ...(item.type === "text"
+          ? {
+              itemType: "text",
+              originClientX: event.clientX,
+              originClientY: event.clientY,
+              maxDrag: 0,
+            }
+          : {}),
         offsetX,
         offsetY,
       };
@@ -2731,6 +2724,7 @@ function AnnotationItem({
   const bottom = `${(item.y / page.height) * 100}%`;
   const resize = (handle) => (event) => onResizePointerDown(item, event, handle);
   const textAreaRef = useRef(null);
+  const textPointerStartRef = useRef(null);
 
   useEffect(() => {
     if (item.type !== "text" || !selected || !textEditing || !textAreaRef.current) {
@@ -2747,11 +2741,28 @@ function AnnotationItem({
 
     function onTextBodyPointerDown(event) {
       event.stopPropagation();
+      textPointerStartRef.current = {
+        id: item.id,
+        x: event.clientX,
+        y: event.clientY,
+      };
       if (event.detail === 2 && onRequestTextEdit) {
         onRequestTextEdit(item.id);
         return;
       }
       onPointerDown(item, event);
+    }
+
+    function onTextBodyPointerUp(event) {
+      const start = textPointerStartRef.current;
+      textPointerStartRef.current = null;
+      if (
+        start?.id === item.id &&
+        onRequestTextEdit &&
+        Math.hypot(event.clientX - start.x, event.clientY - start.y) < TEXT_TAP_EDIT_MAX_DRAG_PX
+      ) {
+        onRequestTextEdit(item.id);
+      }
     }
 
     return (
@@ -2767,6 +2778,7 @@ function AnnotationItem({
         }}
         role="presentation"
         onPointerDown={!selected || !textEditing ? onTextBodyPointerDown : undefined}
+        onPointerUp={!textEditing ? onTextBodyPointerUp : undefined}
       >
         {selected && !textEditing ? (
           <>
