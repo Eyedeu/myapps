@@ -519,6 +519,29 @@ function App() {
     setDeleteTarget({ id: courseId, collection: "courses" });
   }
 
+  function openCourse(courseId) {
+    setActiveCourseId(courseId);
+    setActiveTab("homework");
+    setSelectedFiles([]);
+    setSelectedEntryIds([]);
+    setViewerItem(null);
+    setViewerFullScreen(false);
+    setChatFullScreen(false);
+    setStatus("");
+    setError("");
+  }
+
+  function leaveWorkspace() {
+    setActiveCourseId(null);
+    setSelectedFiles([]);
+    setSelectedEntryIds([]);
+    setViewerItem(null);
+    setViewerFullScreen(false);
+    setChatFullScreen(false);
+    setStatus("");
+    setError("");
+  }
+
   function startNewChat() {
     if (!activeCourseId) return;
     const newChat = {
@@ -780,95 +803,94 @@ FORMAT:
   }
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand-card">
-          <p className="eyebrow">Mesleki Öğrenme Alanı</p>
-          <h1>Ausbildung<span>Pro</span></h1>
-          <p className="muted">Her ders için konu anlatımı, ödev çözümü, sohbet ve sınav hazırlığı alanları.</p>
-          <div className="brand-actions">
-            <button className="secondary wide" onClick={() => setShowSettings(true)}>Ayarlar</button>
-          </div>
-        </div>
+    <div className={activeCourse ? "app-shell app-shell-workspace" : "app-shell app-shell-home"}>
+      {!activeCourse && (
+        <main className="home-main">
+          <section className="home-hero brand-card">
+            <div className="home-hero-copy">
+              <p className="eyebrow">Derslerim</p>
+              <h1>Ausbildung<span>Pro</span></h1>
+              <p className="muted">Derslerini tek ekranda yönet, istediğin dersi aç ve çalışma alanında ödev, konu anlatımı, çeviri, sınav ve sohbet araçlarını kullan.</p>
+            </div>
+            <div className="home-hero-actions">
+              <button className="secondary wide" onClick={() => setShowSettings(true)}>Ayarlar</button>
+            </div>
+          </section>
 
-        <div className="panel sidebar-panel">
-          <div className="panel-title">Yeni Ders</div>
-          <input value={courseTitle} onChange={(event) => setCourseTitle(event.target.value)} placeholder="Örn. WiSo" />
-          <button className="primary compact" onClick={addCourse}>Dersi Ekle</button>
-        </div>
+          <section className="home-grid">
+            <div className="panel home-create-panel">
+              <div className="panel-title">Yeni Ders</div>
+              <p className="section-copy">Çalışma alanını açmak için önce bir ders oluştur.</p>
+              <input value={courseTitle} onChange={(event) => setCourseTitle(event.target.value)} placeholder="Örn. WiSo" />
+              <button className="primary home-create-button" onClick={addCourse}>Dersi Ekle</button>
+            </div>
 
-        <div className="panel sidebar-panel">
-          <div className="row between">
-            <div className="panel-title">Derslerim</div>
-            <span className="badge">{state.courses.length}</span>
+            <div className="panel home-courses-panel">
+              <div className="row between">
+                <div className="panel-title">Derslerim</div>
+                <span className="badge">{state.courses.length}</span>
+              </div>
+              <div className="home-course-list">
+                {state.courses.length === 0 && <p className="empty">İlk dersini oluşturarak başlayabilirsin.</p>}
+                {state.courses.map((course) => (
+                  <button
+                    key={course.id}
+                    className="archive-item home-course-item"
+                    onClick={() => openCourse(course.id)}
+                  >
+                    <div className="home-course-main">
+                      <strong>{course.title}</strong>
+                      <div className="archive-meta">
+                        <span>{formatDate(course.createdAt)}</span>
+                        <span>{state.entries.filter((entry) => entry.courseId === course.id).length} içerik</span>
+                      </div>
+                    </div>
+                    <div className="home-course-actions">
+                      <span className="home-open-pill">Çalışma Alanı</span>
+                      <span className="icon-delete" onClick={(event) => { event.stopPropagation(); removeCourse(course.id); }} title="Dersi sil" aria-label="Dersi sil">{"\uD83D\uDDD1"}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {(status || error) && <div className={error ? "status error" : "status"}>{error || status}</div>}
+        </main>
+      )}
+
+      {activeCourse && (
+      <main className="content workspace-screen">
+        <header className="hero-header">
+          <div className="hero-copy">
+            <button className="back-link" onClick={leaveWorkspace}>← Derslerime Dön</button>
+            <p className="eyebrow">Çalışma Alanı</p>
+            <h2>{activeCourse.title}</h2>
+            <p className="hero-subtitle">Materyallerini tek yerde topla, içerik üret ve arşivden hızlıca geri aç.</p>
           </div>
-          <div className="archive-list">
-            {state.courses.length === 0 && <p className="empty">Başlamak için soldan yeni bir ders aç.</p>}
-            {state.courses.map((course) => (
-              <button
-                key={course.id}
-                className={`archive-item ${activeCourseId === course.id ? "active" : ""}`}
-                onClick={() => {
-                  setActiveCourseId(course.id);
-                  setSelectedEntryIds([]);
-                }}
-              >
-                <strong>{course.title}</strong>
-                <div className="archive-meta">
-                  <span>{formatDate(course.createdAt)}</span>
-                  <span>{state.entries.filter((entry) => entry.courseId === course.id).length} içerik</span>
-                </div>
-                <span className="icon-delete" onClick={(event) => { event.stopPropagation(); removeCourse(course.id); }} title="Dersi sil" aria-label="Dersi sil">{"\uD83D\uDDD1"}</span>
+          <div className="top-actions">
+            <div className="lang-pill">Almanca → Türkçe</div>
+            <button className="secondary workspace-settings-button" onClick={() => setShowSettings(true)}>Ayarlar</button>
+          </div>
+        </header>
+
+        <div className="workspace-nav">
+          <div className="tab-strip">
+            {[
+              ["homework", "Ödev Çözümü"],
+              ["topic", "Konu Anlatımı"],
+              ["translation", "Çeviri"],
+              ["exam", "Sınav Hazırlığı"],
+              ["chat", "Sohbet"]
+            ].map((item) => (
+              <button key={item[0]} className={activeTab === item[0] ? "tab active" : "tab"} onClick={() => setActiveTab(item[0])}>
+                {item[1]}
               </button>
             ))}
           </div>
         </div>
-      </aside>
 
-      <main className="content">
-        <header className="hero-header">
-          <div className="hero-copy">
-            <p className="eyebrow">Çalışma Alanı</p>
-            <h2>{activeCourse ? activeCourse.title : "Bir ders seç"}</h2>
-            <p className="hero-subtitle">
-              {activeCourse
-                ? "Materyallerini tek yerde topla, içerik üret ve arşivden hızlıca geri aç."
-                : "Bir ders seçerek ödev, konu anlatımı, sınav ve sohbet alanlarını kullanmaya başla."}
-            </p>
-          </div>
-          <div className="top-actions">
-            <div className="lang-pill">Almanca → Türkçe</div>
-          </div>
-        </header>
-
-        {activeCourse && (
-          <div className="workspace-nav">
-            <div className="tab-strip">
-              {[
-                ["homework", "Ödev Çözümü"],
-                ["topic", "Konu Anlatımı"],
-                ["translation", "Çeviri"],
-                ["exam", "Sınav Hazırlığı"],
-                ["chat", "Sohbet"]
-              ].map((item) => (
-                <button key={item[0]} className={activeTab === item[0] ? "tab active" : "tab"} onClick={() => setActiveTab(item[0])}>
-                  {item[1]}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {!activeCourse && (
-          <section className="welcome-card">
-            <div className="welcome-copy">
-              <div className="panel-title">Yeni Ders Oluştur</div>
-              <p>Her ders açıldığında ödev çözümü, konu anlatımı, sohbet ve sınav hazırlığı alanları otomatik hazır olur.</p>
-            </div>
-          </section>
-        )}
-
-        {activeCourse && activeTab === "homework" && (
+        {activeTab === "homework" && (
           <section className="workspace-grid">
             <div className="panel emphasis">
               <div className="panel-title">Ödev Çözümü</div>
@@ -887,7 +909,7 @@ FORMAT:
           </section>
         )}
 
-        {activeCourse && activeTab === "topic" && (
+        {activeTab === "topic" && (
           <section className="workspace-grid">
             <div className="panel emphasis">
               <div className="panel-title">Konu Anlatımı</div>
@@ -906,7 +928,7 @@ FORMAT:
           </section>
         )}
 
-        {activeCourse && activeTab === "translation" && (
+        {activeTab === "translation" && (
           <section className="workspace-grid">
             <div className="panel emphasis">
               <div className="panel-title">Çeviri</div>
@@ -925,7 +947,7 @@ FORMAT:
           </section>
         )}
 
-        {activeCourse && activeTab === "exam" && (
+        {activeTab === "exam" && (
           <section className="workspace-grid">
             <div className="panel emphasis">
               <div className="panel-title">Sınav Hazırlığı</div>
@@ -958,7 +980,7 @@ FORMAT:
           </section>
         )}
 
-        {activeCourse && activeTab === "chat" && (
+        {activeTab === "chat" && (
           <section className="workspace-grid chat-layout">
             <div className={`panel emphasis chat-panel ${chatFullScreen ? "chat-panel-full" : ""}`}>
               <div className="chat-toolbar">
@@ -1014,6 +1036,7 @@ FORMAT:
 
         {(status || error) && <div className={error ? "status error" : "status"}>{error || status}</div>}
       </main>
+      )}
 
       <ContentViewer
         item={viewerItem}
