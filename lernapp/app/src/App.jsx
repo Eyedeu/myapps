@@ -85,12 +85,19 @@ function parseExamJson(text) {
 }
 
 function renderInlineMarkup(text) {
-  const parts = String(text || "").split(/(\*\*.*?\*\*)/g);
-  return parts.map((part, partIndex) =>
-    part.startsWith("**") && part.endsWith("**")
-      ? <strong key={partIndex} className="rt-strong">{part.slice(2, -2)}</strong>
-      : <span key={partIndex}>{part}</span>
-  );
+  const parts = String(text || "").split(/(\*\*.*?\*\*|\[(?:Lösung|Loesung|Çözüm|Cozum)\s*:\s*.*?\])/g);
+  return parts.map((part, partIndex) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={partIndex} className="rt-strong">{part.slice(2, -2)}</strong>;
+    }
+
+    const solutionMatch = part.match(/^\[(?:Lösung|Loesung|Çözüm|Cozum)\s*:\s*(.*?)\]$/i);
+    if (solutionMatch) {
+      return <span key={partIndex} className="rt-solution">{solutionMatch[1]}</span>;
+    }
+
+    return <span key={partIndex}>{part}</span>;
+  });
 }
 
 function loadState() {
@@ -153,13 +160,40 @@ function renderRichText(text) {
     const wrongReasonMatch = trimmed.match(/^(Diger siklar neden yanlis|Yanlis secenekler)\s*:\s*(.+)$/i);
     const progressMatch = trimmed.match(/^\d+\s*\/\s*\d+$/);
     const categoryMatch = trimmed.match(/^Kategori\s*:\s*(.+)$/i);
+    const tableRowMatch = trimmed.startsWith("|") && trimmed.endsWith("|");
+    const tableDividerMatch = /^\|?(\s*:?-{3,}:?\s*\|)+\s*:?-{3,}:?\s*\|?$/.test(trimmed);
+    const solutionOnlyMatch = trimmed.match(/^\[(?:Lösung|Loesung|Çözüm|Cozum)\s*:\s*(.*?)\]$/i);
+    const bulletMatch = trimmed.match(/^(?:[-*])\s+(.+)$/);
 
     if (!trimmed) return <div key={index} className="rt-space" />;
     if (trimmed.startsWith("# ")) return <h1 key={index} className="rt-h1">{trimmed.slice(2)}</h1>;
     if (trimmed.startsWith("## ")) return <h2 key={index} className="rt-h2">{trimmed.slice(3)}</h2>;
     if (trimmed.startsWith("### ")) return <h3 key={index} className="rt-h3">{trimmed.slice(4)}</h3>;
+    if (tableDividerMatch) return null;
+    if (tableRowMatch) {
+      const cells = trimmed
+        .slice(1, -1)
+        .split("|")
+        .map((cell) => cell.trim());
+      return (
+        <div key={index} className="rt-table-row">
+          {cells.map((cell, cellIndex) => (
+            <div key={cellIndex} className="rt-table-cell">
+              {renderInlineMarkup(cell)}
+            </div>
+          ))}
+        </div>
+      );
+    }
     if (progressMatch) return <div key={index} className="rt-chip">{trimmed}</div>;
     if (categoryMatch) return <div key={index} className="rt-meta-line"><strong>Kategori:</strong> {renderInlineMarkup(categoryMatch[1])}</div>;
+    if (solutionOnlyMatch) {
+      return (
+        <div key={index} className="rt-note rt-note-solution">
+          <strong>Çözüm:</strong> {renderInlineMarkup(solutionOnlyMatch[1])}
+        </div>
+      );
+    }
     if (correctOptionMatch) {
       return (
         <div key={index} className="rt-option rt-option-correct">
@@ -191,7 +225,7 @@ function renderRichText(text) {
       );
     }
     if (/^\d+\.\s/.test(trimmed)) return <div key={index} className="rt-number">{trimmed}</div>;
-    if (trimmed.startsWith("- ")) return <div key={index} className="rt-bullet">{trimmed.slice(2)}</div>;
+    if (bulletMatch) return <div key={index} className="rt-bullet">{renderInlineMarkup(bulletMatch[1])}</div>;
     return (
       <p key={index} className="rt-p">
         {renderInlineMarkup(trimmed)}
@@ -204,12 +238,14 @@ function buildHomeworkPrompt(settings) {
   return `GOREV: ODEV COZUMU (Almanca -> Turkce)
 TALIMATLAR:
 1. Gorselleri veya PDF sayfalarini analiz et.
-2. BIREBIR SAYFA YAPISI: Orijinal sayfadaki basliklari, paragraflari ve duzeni koruyarak Markdown formatinda yeniden olustur.
-3. COZUM ENTEGRASYONU: Sorularin oldugu yerlere cozumleri dogru noktada yerlestir.
-4. KULLANICIYA sureci aciklama, "bunu yaptim" gibi meta yorumlar, markdown kisitlari, teknik notlar veya kontrol notlari yazma.
-5. Coktan secmeli sorularda sadece dogru secenegi [x] ile, digerlerini [ ] ile isaretle.
+2. BIREBIR SAYFA YAPISI: Orijinal sayfadaki basliklari, alt basliklari, paragraflari, tablo siralarini, secenekleri ve numaralandirmayi koruyarak Markdown formatinda yeniden olustur.
+3. COZUM ENTEGRASYONU: Cevabi sadece ilgili sorunun tam oldugu yerde goster; yeni bir ayri cozum raporu yazma.
+4. Coktan secmeli sorularda dogru secenegi [x] ile, digerlerini [ ] ile isaretle.
+5. Bosluk doldurma veya acik cevap gereken yerlerde cozumleri [Çözüm: ...] ya da [Lösung: ...] etiketiyle dogru satira yerlestir.
 6. Her sorudan hemen sonra en fazla 1-2 cumleyle "Dogru cevap neden dogru:" ve gerekiyorsa "Diger siklar neden yanlis:" satirlarini ekle.
-7. Sadece cozumlu nihai icerigi ver.
+7. KULLANICIYA sureci aciklama, "bunu yaptim" gibi meta yorumlar, markdown kisitlari, teknik notlar veya kontrol notlari yazma.
+8. Eksik baglam varsa sadece en sonda kisa bir "## Eksik Baglam" bolumu ac.
+9. Sadece cozumlu nihai icerigi ver.
 
 CIKTI DUZENI:
 # Baslik
@@ -222,7 +258,7 @@ CIKTI DUZENI:
 function buildTopicPrompt(settings) {
   return `GOREV: KONU ANLATIMI (Turkce)
 TALIMATLAR:
-1. Icerigi detaylica ama temiz bir duzende anlat.
+1. Icerigi detaylica ama temiz, ogrenci dostu ve kolay taranabilir bir duzende anlat.
 2. Asagidaki bolum basliklariyla ilerle:
    # Baslik
    ## Zusammenfassung
@@ -230,9 +266,13 @@ TALIMATLAR:
    ## Adim Adim Anlatim
    ## Onemli Terimler
    ## Kisa Tekrar
-3. Onemli terimleri Almanca - Turkce seklinde yaz.
-4. Onemli yerleri **kalin** yap.
-5. Gorseldeki baglamdan kopma.`;
+3. Zusammenfassung bolumunde once Almanca ana fikri kisa ver; ardindan Konu Ozetinde Turkce acikla.
+4. Adim Adim Anlatim bolumunde konuyu mantikli sira ile madde madde ilerlet.
+5. Onemli Terimler bolumunde terimleri Almanca - Turkce seklinde yaz ve gerekirse kisa anlam notu ekle.
+6. Uygun yerlerde Markdown tablo kullan. Tablo satirlarini | hucre | hucre | formatinda ver.
+7. Onemli yerleri **kalin** yap.
+8. Gorseldeki baglamdan kopma, gereksiz genel bilgi ekleme.
+9. KULLANICIYA sureci aciklama veya teknik not yazma.`;
 }
 
 function buildTranslationPrompt(settings) {
