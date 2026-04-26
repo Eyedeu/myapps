@@ -234,20 +234,59 @@ function renderRichText(text) {
   });
 }
 
+function renderPagedContent(text) {
+  if (!text) return null;
+  const lines = String(text).split("\n");
+  const pages = [];
+  let intro = [];
+  let currentPage = null;
+
+  lines.forEach((line) => {
+    if (/^##\s+Sayfa\s+/i.test(line.trim())) {
+      if (currentPage) pages.push(currentPage);
+      currentPage = [line];
+      return;
+    }
+
+    if (currentPage) {
+      currentPage.push(line);
+    } else {
+      intro.push(line);
+    }
+  });
+
+  if (currentPage) pages.push(currentPage);
+  if (pages.length === 0) return renderRichText(text);
+
+  return (
+    <div className="paged-content">
+      {intro.join("\n").trim() && <div className="rt-intro">{renderRichText(intro.join("\n"))}</div>}
+      {pages.map((pageLines, index) => (
+        <section key={index} className="rt-page">
+          {renderRichText(pageLines.join("\n"))}
+        </section>
+      ))}
+    </div>
+  );
+}
+
 function buildHomeworkPrompt(settings) {
   return `GOREV: ODEV COZUMU (Once Almanca cozumlu sayfa, sonra Turkce tercume)
 TALIMATLAR:
 1. Gorselleri veya PDF sayfalarini analiz et.
-2. BIREBIR SAYFA YAPISI: Orijinal sayfadaki A4/sayfa fotografi duzenini metinsel olarak olabildigince koru. Basliklari, alt basliklari, soru numaralarini, tablo satirlarini, bosluk doldurma alanlarini, secenekleri ve sayfa bolumlerini ayni sirada ver.
+2. A4 SAYFA KOPYASI GIBI CIKTI: Her yuklenen sayfayi ayri bir A4 kagidi gibi dusun. Sayfadaki ust/orta/alt akisi, basliklari, alt basliklari, soru numaralarini, tablo yerini, tablo kolonlarini, bosluk doldurma alanlarini, secenekleri ve sayfa bolumlerini ayni sirada koru.
 3. Her sayfa icin once "### Almanca Cozumlu Sayfa" bolumunu yaz. Bu bolum Almanca olsun ve sayfanin cozumlu nihai hali gibi gorunsun.
 4. COZUM ENTEGRASYONU: Cevabi sadece ilgili sorunun, boslugun veya secenegin tam oldugu yerde goster; ayri cozum raporu, kontrol notu veya surec aciklamasi yazma.
 5. Coktan secmeli sorularda dogru secenegi [x] ile, digerlerini [ ] ile isaretle. Dogru secenek metnini kalin yapabilirsin.
 6. Bosluk doldurma veya acik cevap gereken yerlerde cozumleri [Lösung: ...] etiketiyle dogru satira yerlestir.
 7. Her sorudan hemen sonra Almanca olarak en fazla 1-2 cumle "Dogru cevap neden dogru:" ve gerekiyorsa "Diger siklar neden yanlis:" satirlarini ekle.
 8. Her sayfanin Almanca cozumlu halinden sonra "### Turkce Tercume" bolumunu yaz. Bu bolum, hemen ustteki Almanca cozumlu sayfanin ayni yapida Turkce tercumesi olsun.
-9. KULLANICIYA sureci aciklama, "bunu yaptim" gibi meta yorumlar, markdown kisitlari, teknik notlar veya kontrol notlari yazma.
-10. Eksik baglam varsa sadece en sonda kisa bir "## Eksik Baglam" bolumu ac.
-11. Sadece cozumlu nihai icerigi ver.
+9. TABLO KURALI: Orijinalde tablo varsa mutlaka Markdown tablo olarak ayni yerde ver. Kolon sayisini, kolon basliklarini ve satir sirasini koru. Tabloyu listeye cevirme.
+10. FORM/BOSLUK KURALI: Bosluk, cizgi, kutucuk veya cevap alani varsa ayni satirda veya hemen yaninda [Lösung: ...] ile doldur.
+11. SAYFA DISIPLNI: Sayfalarin icerigini birlestirme; her sayfayi kendi "## Sayfa X" basligi altinda tut.
+12. KULLANICIYA sureci aciklama, "bunu yaptim" gibi meta yorumlar, markdown kisitlari, teknik notlar veya kontrol notlari yazma.
+13. Eksik baglam varsa sadece en sonda kisa bir "## Eksik Baglam" bolumu ac.
+14. Sadece cozumlu nihai icerigi ver.
 
 CIKTI DUZENI:
 # Baslik
@@ -291,12 +330,14 @@ function buildTranslationPrompt(settings) {
 TALIMATLAR:
 0. Ilk satirda, cevirinin ana fikrini yansitan kisa ve anlamli bir # Baslik yaz.
 1. Gorselleri veya PDF sayfalarini analiz et.
-2. BIREBIR SAYFA YAPISI: A4/PDF/fotograf duzenini metinsel olarak olabildigince koru. Basliklari, alt basliklari, tablo akisini, soru siralarini, madde yapisini, bosluklari ve sayfa bolumlerini ayni sirada ver.
+2. A4 SAYFA KOPYASI GIBI CIKTI: Her yuklenen sayfayi ayri bir A4 kagidi gibi dusun. Sayfadaki ust/orta/alt akisi, basliklari, alt basliklari, tablo yerini, tablo kolonlarini, soru siralarini, madde yapisini, bosluklari ve sayfa bolumlerini ayni sirada ver.
 3. METINLERI DOGRUDAN CEVIR: Icerigi ozetleme, yorumlama, sadelestirme veya yeniden yazma yapma.
 4. Tum Almanca icerigi Turkceye cevir. Sayfa uzerinde nerede duruyorsa tercume de ayni yerde/sirada dursun.
-5. Tablo varsa Markdown tablo olarak koru; soru ve secenekler varsa ayni numara/secenek yapisini koru.
-6. KULLANICIYA sureci aciklama, "bunu yaptim" gibi meta yorumlar, teknik notlar veya kontrol notlari yazma.
-7. Sadece nihai ceviri icerigini ver.
+5. TABLO KURALI: Orijinalde tablo varsa mutlaka Markdown tablo olarak ayni yerde ver. Kolon sayisini, kolon basliklarini ve satir sirasini koru. Tabloyu listeye cevirme.
+6. FORM/BOSLUK KURALI: Bosluk, cizgi, kutucuk veya cevap alani varsa ayni satirda/sirada cevirerek koru.
+7. SAYFA DISIPLNI: Sayfalarin icerigini birlestirme; her sayfayi kendi "## Sayfa X" basligi altinda tut.
+8. KULLANICIYA sureci aciklama, "bunu yaptim" gibi meta yorumlar, teknik notlar veya kontrol notlari yazma.
+9. Sadece nihai ceviri icerigini ver.
 
 CIKTI DUZENI:
 # Baslik
@@ -435,8 +476,8 @@ function ContentViewer({ item, onClose, fullScreen, onToggleFullScreen }) {
                 <ExamQuestion key={index} question={question} index={index} />
               ))}
             </div>
-          ) : (
-            renderRichText(item.output)
+        ) : (
+            renderPagedContent(item.output)
           )}
         </div>
       </div>
