@@ -235,44 +235,55 @@ function renderRichText(text) {
 }
 
 function buildHomeworkPrompt(settings) {
-  return `GOREV: ODEV COZUMU (Almanca -> Turkce)
+  return `GOREV: ODEV COZUMU (Once Almanca cozumlu sayfa, sonra Turkce tercume)
 TALIMATLAR:
 1. Gorselleri veya PDF sayfalarini analiz et.
-2. BIREBIR SAYFA YAPISI: Orijinal sayfadaki basliklari, alt basliklari, paragraflari, tablo siralarini, secenekleri ve numaralandirmayi koruyarak Markdown formatinda yeniden olustur.
-3. COZUM ENTEGRASYONU: Cevabi sadece ilgili sorunun tam oldugu yerde goster; yeni bir ayri cozum raporu yazma.
-4. Coktan secmeli sorularda dogru secenegi [x] ile, digerlerini [ ] ile isaretle.
-5. Bosluk doldurma veya acik cevap gereken yerlerde cozumleri [Çözüm: ...] ya da [Lösung: ...] etiketiyle dogru satira yerlestir.
-6. Her sorudan hemen sonra en fazla 1-2 cumleyle "Dogru cevap neden dogru:" ve gerekiyorsa "Diger siklar neden yanlis:" satirlarini ekle.
-7. KULLANICIYA sureci aciklama, "bunu yaptim" gibi meta yorumlar, markdown kisitlari, teknik notlar veya kontrol notlari yazma.
-8. Eksik baglam varsa sadece en sonda kisa bir "## Eksik Baglam" bolumu ac.
-9. Sadece cozumlu nihai icerigi ver.
+2. BIREBIR SAYFA YAPISI: Orijinal sayfadaki A4/sayfa fotografi duzenini metinsel olarak olabildigince koru. Basliklari, alt basliklari, soru numaralarini, tablo satirlarini, bosluk doldurma alanlarini, secenekleri ve sayfa bolumlerini ayni sirada ver.
+3. Her sayfa icin once "### Almanca Cozumlu Sayfa" bolumunu yaz. Bu bolum Almanca olsun ve sayfanin cozumlu nihai hali gibi gorunsun.
+4. COZUM ENTEGRASYONU: Cevabi sadece ilgili sorunun, boslugun veya secenegin tam oldugu yerde goster; ayri cozum raporu, kontrol notu veya surec aciklamasi yazma.
+5. Coktan secmeli sorularda dogru secenegi [x] ile, digerlerini [ ] ile isaretle. Dogru secenek metnini kalin yapabilirsin.
+6. Bosluk doldurma veya acik cevap gereken yerlerde cozumleri [Lösung: ...] etiketiyle dogru satira yerlestir.
+7. Her sorudan hemen sonra Almanca olarak en fazla 1-2 cumle "Dogru cevap neden dogru:" ve gerekiyorsa "Diger siklar neden yanlis:" satirlarini ekle.
+8. Her sayfanin Almanca cozumlu halinden sonra "### Turkce Tercume" bolumunu yaz. Bu bolum, hemen ustteki Almanca cozumlu sayfanin ayni yapida Turkce tercumesi olsun.
+9. KULLANICIYA sureci aciklama, "bunu yaptim" gibi meta yorumlar, markdown kisitlari, teknik notlar veya kontrol notlari yazma.
+10. Eksik baglam varsa sadece en sonda kisa bir "## Eksik Baglam" bolumu ac.
+11. Sadece cozumlu nihai icerigi ver.
 
 CIKTI DUZENI:
 # Baslik
 ## Sayfa 1
-[Sayfanin cozumlu hali]
+### Almanca Cozumlu Sayfa
+[Orijinal sayfa yapisi korunmus Almanca cozumlu hali]
+### Turkce Tercume
+[Ayni yapida Turkce tercume]
 ## Sayfa 2
-[Sayfanin cozumlu hali]`;
+[Ayni duzen]`;
 }
 
 function buildTopicPrompt(settings) {
-  return `GOREV: KONU ANLATIMI (Turkce)
+  return `GOREV: KONU ANLATIMI (Once Almanca, sonra Turkce)
 TALIMATLAR:
-1. Icerigi detaylica ama temiz, ogrenci dostu ve kolay taranabilir bir duzende anlat.
-2. Asagidaki bolum basliklariyla ilerle:
-   # Baslik
-   ## Zusammenfassung
-   ## Konu Ozeti
-   ## Adim Adim Anlatim
-   ## Onemli Terimler
-   ## Kisa Tekrar
-3. Zusammenfassung bolumunde once Almanca ana fikri kisa ver; ardindan Konu Ozetinde Turkce acikla.
-4. Adim Adim Anlatim bolumunde konuyu mantikli sira ile madde madde ilerlet.
-5. Onemli Terimler bolumunde terimleri Almanca - Turkce seklinde yaz ve gerekirse kisa anlam notu ekle.
+1. Icerigi once Almanca anlat, sonra ayni anlatimin Turkce tercumesini/aciklamasini ver.
+2. Detaylica ama temiz, ogrenci dostu ve kolay taranabilir bir duzende ilerle.
+3. Gorsel/PDF sayfasinin baglamindan kopma; gereksiz genel bilgi ekleme.
+4. Almanca bolum konuya ait ana anlatim olsun. Turkce bolum, Almanca bolumun ogrencinin anlayacagi sekilde Turkce karsiligi olsun.
+5. Onemli terimleri mutlaka Almanca - Turkce seklinde ver.
 6. Uygun yerlerde Markdown tablo kullan. Tablo satirlarini | hucre | hucre | formatinda ver.
 7. Onemli yerleri **kalin** yap.
-8. Gorseldeki baglamdan kopma, gereksiz genel bilgi ekleme.
-9. KULLANICIYA sureci aciklama veya teknik not yazma.`;
+8. KULLANICIYA sureci aciklama veya teknik not yazma.
+
+CIKTI DUZENI:
+# Baslik
+## Almanca Anlatim
+### Zusammenfassung
+### Schritt fuer Schritt
+### Wichtige Begriffe
+### Kurze Wiederholung
+## Turkce Tercume
+### Konu Ozeti
+### Adim Adim Anlatim
+### Onemli Terimler
+### Kisa Tekrar`;
 }
 
 function buildTranslationPrompt(settings) {
@@ -280,18 +291,20 @@ function buildTranslationPrompt(settings) {
 TALIMATLAR:
 0. Ilk satirda, cevirinin ana fikrini yansitan kisa ve anlamli bir # Baslik yaz.
 1. Gorselleri veya PDF sayfalarini analiz et.
-2. ORIJINAL SAYFA YAPISI: Basliklari, alt basliklari, tablo akisini, soru siralarini, madde yapisini ve sayfa bolumlerini olabildigince ayni sirada koru.
+2. BIREBIR SAYFA YAPISI: A4/PDF/fotograf duzenini metinsel olarak olabildigince koru. Basliklari, alt basliklari, tablo akisini, soru siralarini, madde yapisini, bosluklari ve sayfa bolumlerini ayni sirada ver.
 3. METINLERI DOGRUDAN CEVIR: Icerigi ozetleme, yorumlama, sadelestirme veya yeniden yazma yapma.
-4. Tum Almanca icerigi Turkceye cevir.
-5. KULLANICIYA sureci aciklama, "bunu yaptim" gibi meta yorumlar, teknik notlar veya kontrol notlari yazma.
-6. Sadece nihai ceviri icerigini ver.
+4. Tum Almanca icerigi Turkceye cevir. Sayfa uzerinde nerede duruyorsa tercume de ayni yerde/sirada dursun.
+5. Tablo varsa Markdown tablo olarak koru; soru ve secenekler varsa ayni numara/secenek yapisini koru.
+6. KULLANICIYA sureci aciklama, "bunu yaptim" gibi meta yorumlar, teknik notlar veya kontrol notlari yazma.
+7. Sadece nihai ceviri icerigini ver.
 
 CIKTI DUZENI:
 # Baslik
 ## Sayfa 1
-[Sayfanin Turkce cevirisi]
+### Turkce Cevrilmis Sayfa
+[Orijinal sayfa yapisi korunmus Turkce ceviri]
 ## Sayfa 2
-[Sayfanin Turkce cevirisi]`;
+[Ayni duzen]`;
 }
 
 function buildExamPrompt(settings, contextText) {
@@ -894,7 +907,7 @@ FORMAT:
           <section className="workspace-grid">
             <div className="panel emphasis">
               <div className="panel-title">Ödev Çözümü</div>
-              <p className="section-copy">Yüklediğin sayfaları aynı akışla, çözümleri doğru yerde olacak şekilde hazırlar.</p>
+              <p className="section-copy">Yüklediğin sayfaları önce Almanca çözümlü haliyle, ardından aynı düzende Türkçe tercümesiyle hazırlar.</p>
               <label>Dosya Yükle</label>
               <input type="file" multiple accept=".pdf,image/*" onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))} />
               <div className="file-list">
@@ -913,7 +926,7 @@ FORMAT:
           <section className="workspace-grid">
             <div className="panel emphasis">
               <div className="panel-title">Konu Anlatımı</div>
-              <p className="section-copy">Başlıklı, özetli ve daha okunabilir bölümlere ayrılmış anlatım oluşturur.</p>
+              <p className="section-copy">Konuyu önce Almanca anlatır, ardından aynı anlatımı Türkçe tercüme ve açıklamayla düzenler.</p>
               <label>Dosya Yükle</label>
               <input type="file" multiple accept=".pdf,image/*" onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))} />
               <div className="file-list">
@@ -932,7 +945,7 @@ FORMAT:
           <section className="workspace-grid">
             <div className="panel emphasis">
               <div className="panel-title">Çeviri</div>
-              <p className="section-copy">Yüklediğin PDF veya görselleri sayfa düzenini koruyarak birebir Türkçeye çevirir.</p>
+              <p className="section-copy">Yüklediğin PDF veya görselleri sayfa sırasını ve yapısını koruyarak Türkçeye çevirir.</p>
               <label>Dosya Yükle</label>
               <input type="file" multiple accept=".pdf,image/*" onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))} />
               <div className="file-list">

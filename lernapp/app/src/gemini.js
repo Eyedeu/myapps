@@ -77,7 +77,7 @@ async function tryGeminiCall({ apiKey, model, prompt, files = [], timeoutMs = 15
             temperature: 0.3,
             topP: 0.8,
             topK: 20,
-            maxOutputTokens: files.length > 0 ? 3072 : 2048,
+            maxOutputTokens: files.length > 0 ? 6144 : 3072,
             thinkingConfig: { thinkingBudget: 0 }
           }
         }),
