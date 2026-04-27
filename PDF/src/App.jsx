@@ -55,6 +55,9 @@ import {
 } from "./pdf";
 
 const DEFAULT_TEXT = "Metin";
+const TEXT_BOX_EDGE_MARGIN = 6;
+const TEXT_BOX_MIN_WIDTH = 96;
+const TEXT_BOX_DEFAULT_WIDTH = 220;
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2.5;
 const ZOOM_STEP = 0.02;
@@ -1443,15 +1446,18 @@ function getMeasureTextContext() {
 function measureTextBox(text, fontSize, maxWidth = Infinity) {
   const padX = fontSize * 0.28;
   const padY = fontSize * 0.12;
+  const measurementBuffer = Math.max(8, fontSize * 0.42);
   const lineHeight = fontSize * 1.45;
-  const usableMaxWidth = Number.isFinite(maxWidth) ? Math.max(fontSize * 2.2, maxWidth - padX) : Infinity;
+  const usableMaxWidth = Number.isFinite(maxWidth)
+    ? Math.max(fontSize * 2.2, maxWidth - padX - measurementBuffer)
+    : Infinity;
   const ctx = getMeasureTextContext();
   if (!ctx) {
     const s = String(text);
     const lines = Math.max(s.split("\n").length, 1);
     const ch = Math.max(s.replace(/\n/g, "").length, 1);
     return {
-      width: Math.min(Math.max(ch * fontSize * 0.68, fontSize * 3.5) + padX, maxWidth),
+      width: Math.min(Math.max(ch * fontSize * 0.68, fontSize * 3.5) + padX + measurementBuffer, maxWidth),
       height: Math.max(lineHeight * lines + padY, fontSize * 1.55),
     };
   }
@@ -1506,7 +1512,8 @@ function measureTextBox(text, fontSize, maxWidth = Infinity) {
     }
   }
   const lineCount = Math.max(parts.length, 1);
-  const width = Math.ceil(Math.min(maxW + padX, Number.isFinite(maxWidth) ? maxWidth : maxW + padX));
+  const naturalWidth = maxW + padX + measurementBuffer;
+  const width = Math.ceil(Math.min(naturalWidth, Number.isFinite(maxWidth) ? maxWidth : naturalWidth));
   const height = Math.ceil(Math.max(lineHeight * lineCount + padY, fontSize * 1.55));
   return { width, height };
 }
@@ -1534,16 +1541,24 @@ function getTextLayoutSize(item) {
   return measureTextBox(item.text, item.fontSize, item.maxWidth);
 }
 
-function getTextEditBox(item, text, page) {
-  const margin = 4;
-  const minWidth = Math.min(Math.max(item.fontSize * 2.2, 32), Math.max(24, page.width - margin * 2));
+function getTextEditBox(item, text, page, options = {}) {
+  const margin = TEXT_BOX_EDGE_MARGIN;
+  const minWidth = Math.min(
+    Math.max(TEXT_BOX_MIN_WIDTH, item.fontSize * 3.8),
+    Math.max(24, page.width - margin * 2),
+  );
+  const requestedWidth = item.userSized ? item.width : Math.max(item.width ?? 0, options.preferComfortWidth ? TEXT_BOX_DEFAULT_WIDTH : 0);
   const x = clamp(item.x ?? margin, margin, Math.max(margin, page.width - minWidth - margin));
   const maxWidth = Math.max(minWidth, page.width - x - margin);
-  const measured = measureTextBox(text, item.fontSize, maxWidth);
-  const width = clamp(measured.width, minWidth, maxWidth);
+  const measureWidth = item.userSized && requestedWidth ? clamp(requestedWidth, minWidth, maxWidth) : maxWidth;
+  const measured = measureTextBox(text, item.fontSize, measureWidth);
+  const targetWidth = item.userSized
+    ? measureWidth
+    : Math.max(measured.width, requestedWidth, minWidth);
+  const width = clamp(targetWidth, minWidth, maxWidth);
   const height = Math.min(measured.height, Math.max(24, page.height - item.y));
 
-  return { x, width, height, maxWidth };
+  return { x, width, height, maxWidth: item.userSized ? width : maxWidth };
 }
 
 /** Imza / gorsel / metin kutusu: ayni PDF kose geometrisi (x,y,w,h). */
@@ -1561,14 +1576,14 @@ function computeResizePatch(state, coords, pageW, pageH) {
     switch (handle) {
       case "tl":
       case "bl": {
-        x = clamp(coords.x, 0, Math.max(0, right0 - 24));
+        x = clamp(coords.x, 0, Math.max(0, right0 - TEXT_BOX_MIN_WIDTH));
         w = right0 - x;
         break;
       }
       case "tr":
       case "br":
       default: {
-        w = clamp(coords.x - x0, 24, pageW - x0);
+        w = clamp(coords.x - x0, TEXT_BOX_MIN_WIDTH, pageW - x0);
         break;
       }
     }
@@ -1579,7 +1594,7 @@ function computeResizePatch(state, coords, pageW, pageH) {
       const top0 = y0 + h0;
       y = clamp(top0 - h, 0, Math.max(0, pageH - h));
     }
-    return { x, y, width: w, height: h, maxWidth: w };
+    return { x, y, width: w, height: h, maxWidth: w, userSized: true };
   }
 
   const ratio0 = h0 / w0 || 0.4;
@@ -2100,12 +2115,21 @@ function PageEditor({
     if (tool === "text") {
       const t = textValue.trim() || DEFAULT_TEXT;
       const fs = fontSize;
-      const initialMaxWidth = Math.max(24, page.width - 8);
-      let { width: tw, height: th } = measureTextBox(t, fs, initialMaxWidth);
-      th = Math.min(th, page.height - 8);
-      const x = clamp(coords.x - tw / 2, 4, Math.max(4, page.width - tw - 4));
-      const y = clamp(coords.y - th / 2, 4, Math.max(4, page.height - th - 4));
-      const editBox = getTextEditBox({ x, y, width: tw, fontSize: fs }, t, page);
+      const maxInitialWidth = Math.max(24, page.width - TEXT_BOX_EDGE_MARGIN * 2);
+      const natural = measureTextBox(t, fs, maxInitialWidth);
+      const tw = Math.min(Math.max(natural.width, TEXT_BOX_DEFAULT_WIDTH), maxInitialWidth);
+      const th = Math.min(natural.height, page.height - TEXT_BOX_EDGE_MARGIN * 2);
+      const x = clamp(
+        coords.x - tw / 2,
+        TEXT_BOX_EDGE_MARGIN,
+        Math.max(TEXT_BOX_EDGE_MARGIN, page.width - tw - TEXT_BOX_EDGE_MARGIN),
+      );
+      const y = clamp(
+        coords.y - th / 2,
+        TEXT_BOX_EDGE_MARGIN,
+        Math.max(TEXT_BOX_EDGE_MARGIN, page.height - th - TEXT_BOX_EDGE_MARGIN),
+      );
+      const editBox = getTextEditBox({ x, y, width: tw, fontSize: fs }, t, page, { preferComfortWidth: true });
       const item = {
         id: uid("item"),
         type: "text",
@@ -2117,6 +2141,7 @@ function PageEditor({
         width: editBox.width,
         height: editBox.height,
         maxWidth: editBox.maxWidth,
+        userSized: false,
       };
 
       updatePage({
