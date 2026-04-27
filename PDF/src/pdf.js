@@ -193,8 +193,24 @@ export async function exportProject(project) {
       }
     }
 
+    const embeddedImageItems = page.annotations.items.filter((item) => item.type === "embeddedImage");
+    const scaleX = pageWidth / coordW;
+    const scaleY = pageHeight / coordH;
+    for (const item of embeddedImageItems) {
+      const embeddedItemImage = await embedDataUrlImage(output, item.dataUrl);
+      pdfPage.drawImage(embeddedItemImage, {
+        x: item.x * scaleX,
+        y: pageHeight - (item.y + item.height) * scaleY,
+        width: item.width * scaleX,
+        height: item.height * scaleY,
+      });
+    }
+
     if (page.annotations.strokes.length || page.annotations.items.length) {
-      const overlayDataUrl = await renderAnnotations(page, coordW, coordH, { scale: ANNOTATION_EXPORT_SCALE });
+      const overlayDataUrl = await renderAnnotations(page, coordW, coordH, {
+        scale: ANNOTATION_EXPORT_SCALE,
+        skipEmbeddedImages: true,
+      });
       const overlayBytes = await fetch(overlayDataUrl).then((response) => response.arrayBuffer());
       const overlayImage = await output.embedPng(overlayBytes);
 
@@ -293,7 +309,7 @@ async function renderAnnotations(page, width, height, options = {}) {
   context.lineJoin = "round";
 
   for (const item of page.annotations.items) {
-    if (item.type === "signature" || item.type === "embeddedImage") {
+    if (item.type === "signature" || (item.type === "embeddedImage" && !options.skipEmbeddedImages)) {
       const image = await loadImage(item.dataUrl);
       context.drawImage(image, item.x, height - item.y - item.height, item.width, item.height);
     }
@@ -403,6 +419,23 @@ async function embedPageImage(output, page) {
   }
 
   const pngDataUrl = await convertImageToPng(page.imageDataUrl);
+  const pngBytes = await fetch(pngDataUrl).then((response) => response.arrayBuffer());
+  return await output.embedPng(pngBytes);
+}
+
+async function embedDataUrlImage(output, dataUrl) {
+  const [header] = dataUrl.split(",", 1);
+  const bytes = await fetch(dataUrl).then((response) => response.arrayBuffer());
+
+  if (/image\/jpe?g/i.test(header)) {
+    return await output.embedJpg(bytes);
+  }
+
+  if (/image\/png/i.test(header)) {
+    return await output.embedPng(bytes);
+  }
+
+  const pngDataUrl = await convertImageToPng(dataUrl);
   const pngBytes = await fetch(pngDataUrl).then((response) => response.arrayBuffer());
   return await output.embedPng(pngBytes);
 }

@@ -1536,18 +1536,14 @@ function getTextLayoutSize(item) {
 
 function getTextEditBox(item, text, page) {
   const margin = 4;
-  const minWidth = Math.min(Math.max(item.fontSize * 12, 120), Math.max(24, page.width - margin * 2));
-  const currentCenter = item.x + (item.width ?? minWidth) / 2;
-  const leftCapacity = Math.max(0, currentCenter - margin);
-  const rightCapacity = Math.max(0, page.width - margin - currentCenter);
-  const balancedWidth = Math.max(24, Math.min(page.width - margin * 2, Math.min(leftCapacity, rightCapacity) * 2));
-  const width = Math.max(minWidth, balancedWidth);
-  const x = clamp(currentCenter - width / 2, margin, Math.max(margin, page.width - width - margin));
-  const maxWidth = Math.max(24, Math.min(width, page.width - x - margin));
+  const minWidth = Math.min(Math.max(item.fontSize * 2.2, 32), Math.max(24, page.width - margin * 2));
+  const x = clamp(item.x ?? margin, margin, Math.max(margin, page.width - minWidth - margin));
+  const maxWidth = Math.max(minWidth, page.width - x - margin);
   const measured = measureTextBox(text, item.fontSize, maxWidth);
+  const width = clamp(measured.width, minWidth, maxWidth);
   const height = Math.min(measured.height, Math.max(24, page.height - item.y));
 
-  return { x, width: maxWidth, height, maxWidth };
+  return { x, width, height, maxWidth };
 }
 
 /** Imza / gorsel / metin kutusu: ayni PDF kose geometrisi (x,y,w,h). */
