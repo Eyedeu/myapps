@@ -1737,7 +1737,6 @@ function PageEditor({
     };
 
     let raf = 0;
-    let lockedTop = null;
     const centerDefaultView = () => {
       const stageEl = hostRef.current;
       if (!stageEl) {
@@ -1755,9 +1754,6 @@ function PageEditor({
       host.scrollTop = top;
     };
     const calculateKeyboardSafeTop = () => {
-      if (lockedTop != null) {
-        return lockedTop;
-      }
       const annotation = host.querySelector(`[data-item-id="${textEditingItemId}"]`);
       if (!annotation) {
         return host.scrollTop;
@@ -1775,8 +1771,9 @@ function PageEditor({
             : 0;
       const hostRect = host.getBoundingClientRect();
       const itemRect = annotation.getBoundingClientRect();
-      const visibleTop = Math.max(hostRect.top, viewportTop) + 12;
-      const visibleBottom = Math.min(hostRect.bottom, viewportBottom, window.innerHeight - expectedKeyboardHeight) - 24;
+      const safePadding = Math.max(56, itemRect.height * 0.35);
+      const visibleTop = Math.max(hostRect.top, viewportTop) + 16;
+      const visibleBottom = Math.min(hostRect.bottom, viewportBottom, window.innerHeight - expectedKeyboardHeight) - safePadding;
       let nextTop = host.scrollTop;
 
       if (itemRect.bottom > visibleBottom) {
@@ -1784,8 +1781,7 @@ function PageEditor({
       } else if (itemRect.top < visibleTop) {
         nextTop -= visibleTop - itemRect.top;
       }
-      lockedTop = clamp(nextTop, 0, Math.max(0, host.scrollHeight - host.clientHeight));
-      return lockedTop;
+      return clamp(nextTop, 0, Math.max(0, host.scrollHeight - host.clientHeight));
     };
     const keepTextAboveKeyboard = () => {
       cancelAnimationFrame(raf);
@@ -1801,12 +1797,19 @@ function PageEditor({
     keepTextAboveKeyboard();
     window.setTimeout(keepTextAboveKeyboard, 80);
     window.setTimeout(keepTextAboveKeyboard, 220);
+    const annotation = host.querySelector(`[data-item-id="${textEditingItemId}"]`);
+    const annotationResizeObserver =
+      annotation && typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(keepTextAboveKeyboard)
+        : null;
+    annotationResizeObserver?.observe(annotation);
     window.visualViewport?.addEventListener("resize", keepTextAboveKeyboard);
     window.visualViewport?.addEventListener("scroll", keepTextAboveKeyboard);
     window.addEventListener("resize", keepTextAboveKeyboard);
 
     return () => {
       cancelAnimationFrame(raf);
+      annotationResizeObserver?.disconnect();
       window.visualViewport?.removeEventListener("resize", keepTextAboveKeyboard);
       window.visualViewport?.removeEventListener("scroll", keepTextAboveKeyboard);
       window.removeEventListener("resize", keepTextAboveKeyboard);
@@ -2946,6 +2949,15 @@ function AnnotationItem({
     input.scrollTop = 0;
   }, [item.type, item.id, selected, textEditing]);
 
+  useLayoutEffect(() => {
+    if (item.type !== "text" || !selected || !textEditing || !textAreaRef.current) {
+      return;
+    }
+    const input = textAreaRef.current;
+    input.scrollLeft = 0;
+    input.scrollTop = 0;
+  }, [item.type, item.text, item.width, item.height, selected, textEditing]);
+
   if (item.type === "text") {
     const { width: bw, height: bh } = getTextLayoutSize(item);
     const wPct = `${(bw / page.width) * 100}%`;
@@ -2976,6 +2988,17 @@ function AnnotationItem({
       ) {
         onRequestTextEdit(item.id);
       }
+    }
+
+    function handleTextareaChange(event) {
+      onTextChange(item.id, event.target.value);
+      window.requestAnimationFrame(() => {
+        if (!textAreaRef.current) {
+          return;
+        }
+        textAreaRef.current.scrollLeft = 0;
+        textAreaRef.current.scrollTop = 0;
+      });
     }
 
     return (
@@ -3027,7 +3050,7 @@ function AnnotationItem({
                 className="inline-textarea"
                 style={{ color: item.color, fontSize: `${scaledFontSize}px` }}
                 value={item.text}
-                onChange={(event) => onTextChange(item.id, event.target.value)}
+                onChange={handleTextareaChange}
                 onPointerDown={(event) => event.stopPropagation()}
               />
             </div>
