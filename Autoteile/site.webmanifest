@@ -1,7 +1,9 @@
 {
   "name": "Autoteile Studio",
   "short_name": "Autoteile",
-  "start_url": "./",
+  "id": "/myapps/Autoteile/",
+  "start_url": "/myapps/Autoteile/",
+  "scope": "/myapps/Autoteile/",
   "display": "standalone",
   "background_color": "#f5f1e8",
   "theme_color": "#1f7fd9",
