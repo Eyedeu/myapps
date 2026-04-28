@@ -31,6 +31,13 @@ Donus formati (anahtar adlarini degistirme):
       "example_de": "Almanca kisa ornek",
       "example_tr": "Turkce kisa ceviri"
     }
+  ],
+  "transcript": [
+    {
+      "speaker": "Ogretmen|Ogrenci|Bilinmiyor",
+      "text_de": "orijinal almanca cumle veya cumleler",
+      "text_tr": "turkce ceviri"
+    }
   ]
 }`;
 
@@ -67,6 +74,9 @@ const els = {
   saveButton: document.querySelector("#saveButton"),
   cancelButton: document.querySelector("#cancelButton"),
   startButton: document.querySelector("#startButton"),
+  stealthButton: document.querySelector("#stealthButton"),
+  stealthOverlay: document.querySelector("#stealthOverlay"),
+  stealthDuration: document.querySelector("#stealthDuration"),
   settingsToggleButton: document.querySelector("#settingsToggleButton"),
   savePanel: document.querySelector("#savePanel"),
   saveForm: document.querySelector("#saveForm"),
@@ -201,6 +211,9 @@ function tickClock() {
   const formatted = formatDuration(totalMs);
   els.clock.textContent = formatted;
   els.durationLine.textContent = `Kayit suresi: ${formatted}`;
+  if (els.stealthDuration) {
+    els.stealthDuration.textContent = formatted;
+  }
 }
 
 async function requestWakeLock() {
@@ -361,6 +374,16 @@ async function startRecording() {
     setRecordingState("Mikrofon izni gerekli", false);
     setStatus("Mikrofon baslatilamadi. Safari izinlerini kontrol et.");
     console.error(error);
+  }
+}
+
+async function getMicrophonePermissionState() {
+  if (!navigator.permissions?.query) return "unknown";
+  try {
+    const result = await navigator.permissions.query({ name: "microphone" });
+    return result.state || "unknown";
+  } catch {
+    return "unknown";
   }
 }
 
@@ -613,6 +636,20 @@ function renderAnalysisBlock(rawAnalysis) {
         })
         .join("")
     : "";
+  const transcriptRows = Array.isArray(data.transcript)
+    ? data.transcript
+        .map((row) => {
+          const speaker = escapeHtml(row.speaker || "Bilinmiyor");
+          return `
+            <article class="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-amber-300">${speaker}</p>
+              <p class="mt-1 text-xs text-indigo-100">${escapeHtml(row.text_de || "-")}</p>
+              <p class="mt-2 text-xs text-slate-200">${escapeHtml(row.text_tr || "-")}</p>
+            </article>
+          `;
+        })
+        .join("")
+    : "";
 
   return `
     <section class="mt-3 rounded-2xl border border-slate-700 bg-gradient-to-b from-slate-900 to-slate-950 p-3">
@@ -652,8 +689,20 @@ function renderAnalysisBlock(rawAnalysis) {
              </div>`
           : ""
       }
+      ${
+        transcriptRows
+          ? `<div class="mt-3">
+               <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Orijinal Transkript + Turkce Ceviri</p>
+               <div class="mt-2 space-y-2">${transcriptRows}</div>
+             </div>`
+          : ""
+      }
     </section>
   `;
+}
+
+function showStealthMode(show) {
+  els.stealthOverlay.classList.toggle("hidden", !show);
 }
 
 function updatePauseButton() {
@@ -982,6 +1031,10 @@ function bindEvents() {
   els.saveButton.addEventListener("click", () => stopRecording({ save: true }));
   els.cancelButton.addEventListener("click", () => stopRecording({ save: false }));
   els.startButton.addEventListener("click", startRecording);
+  els.stealthButton.addEventListener("click", () => {
+    showStealthMode(true);
+    setStatus("Gizli mod acildi.");
+  });
   els.settingsToggleButton.addEventListener("click", () => showSettingsPanel(true));
   els.closeSettingsButton.addEventListener("click", () => showSettingsPanel(false));
 
@@ -1045,6 +1098,22 @@ function bindEvents() {
     }
   });
 
+  let lastStealthTapAt = 0;
+  els.stealthOverlay.addEventListener("dblclick", () => showStealthMode(false));
+  els.stealthOverlay.addEventListener(
+    "touchend",
+    () => {
+      const now = Date.now();
+      if (now - lastStealthTapAt < 320) {
+        showStealthMode(false);
+        lastStealthTapAt = 0;
+        return;
+      }
+      lastStealthTapAt = now;
+    },
+    { passive: true },
+  );
+
   document.addEventListener("visibilitychange", async () => {
     if (document.visibilityState === "hidden" && mediaRecorder?.state === "recording") {
       // Push buffered audio chunks before potential suspension.
@@ -1101,12 +1170,18 @@ async function init() {
   await renderHistory();
   showSavePanel(false);
   showSettingsPanel(false);
+  showStealthMode(false);
   await registerServiceWorker();
   const recovery = getRecoveryState();
   if (recovery?.active) {
     setStatus("Onceki oturumda aktif kayit algilandi. Otomatik kayit baslatiliyor...");
   }
-  await startRecording();
+  const micPermission = await getMicrophonePermissionState();
+  if (micPermission === "granted") {
+    await startRecording();
+  } else {
+    setStatus("Mikrofon izni bir kez verildikten sonra tekrar sorulmadan Baslat ile kayit acilir.");
+  }
 }
 
 init().catch((error) => {
