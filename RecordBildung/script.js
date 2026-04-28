@@ -492,6 +492,25 @@ async function getAudioDurationMs(blob) {
   });
 }
 
+function detectMimeTypeByName(fileName = "") {
+  const lower = String(fileName).toLowerCase();
+  if (lower.endsWith(".m4a") || lower.endsWith(".mp4")) return "audio/mp4";
+  if (lower.endsWith(".mp3")) return "audio/mpeg";
+  if (lower.endsWith(".wav")) return "audio/wav";
+  if (lower.endsWith(".aac")) return "audio/aac";
+  if (lower.endsWith(".ogg")) return "audio/ogg";
+  if (lower.endsWith(".webm")) return "audio/webm";
+  if (lower.endsWith(".caf")) return "audio/x-caf";
+  return "";
+}
+
+function normalizeAudioMimeType(file) {
+  const declared = String(file?.type || "").toLowerCase();
+  if (declared === "audio/m4a" || declared === "audio/x-m4a" || declared === "audio/mp4a-latm") return "audio/mp4";
+  if (declared.startsWith("audio/")) return declared;
+  return detectMimeTypeByName(file?.name || "") || "audio/mp4";
+}
+
 async function prepareUploadedRecording(file) {
   if (!file) return;
   const isAudio = (file.type || "").startsWith("audio/") || /\.(mp3|wav|m4a|aac|ogg|webm|mp4)$/i.test(file.name || "");
@@ -499,11 +518,13 @@ async function prepareUploadedRecording(file) {
     setStatus("Lutfen ses dosyasi sec.");
     return;
   }
-  const durationMs = await getAudioDurationMs(file);
+  const normalizedMime = normalizeAudioMimeType(file);
+  const normalizedBlob = file.slice(0, file.size, normalizedMime);
+  const durationMs = await getAudioDurationMs(normalizedBlob);
   pendingRecording = {
-    blob: file,
+    blob: normalizedBlob,
     durationMs,
-    mimeType: file.type || "audio/webm",
+    mimeType: normalizedMime,
   };
   await refreshLessonSelect();
   els.newLessonInput.value = "";
