@@ -13,6 +13,8 @@ Asagidaki kurallara harfiyen uy:
 3) Ciktin mutlaka GECERLI JSON olacak. JSON disinda hicbir metin yazma.
 4) Almanca orijinal icerigi koru ve her bolum icin Turkce ceviri ver.
 5) Ders disi, alakasiz, dedikodu turu konusmalari dahil etme.
+6) Transkript bolumu OZET degil, TAM olmalidir: dersle ilgili tum konusmalar kronolojik sirayla yazilmalidir.
+7) Transkriptte asla "..." ile kisaltma yapma, satir atlama yapma, atlanan bolum birakma.
 
 Donus formati (anahtar adlarini degistirme):
 {
@@ -41,7 +43,9 @@ Donus formati (anahtar adlarini degistirme):
       "text_de": "orijinal almanca cumle veya cumleler",
       "text_tr": "turkce ceviri"
     }
-  ]
+  ],
+  "transcript_full_de": "dersle ilgili tum konusmalarin kronolojik tam almanca transkripti",
+  "transcript_full_tr": "yukaridaki transkriptin tam turkce cevirisi"
 }`;
 
 let db;
@@ -749,6 +753,8 @@ function renderAnalysisBlock(rawAnalysis) {
         })
         .join("")
     : "";
+  const transcriptFullDe = escapeHtml(data.transcript_full_de || "");
+  const transcriptFullTr = escapeHtml(data.transcript_full_tr || "");
 
   return `
     <section class="mt-3 rounded-2xl border border-slate-700 bg-gradient-to-b from-slate-900 to-slate-950 p-3">
@@ -793,6 +799,20 @@ function renderAnalysisBlock(rawAnalysis) {
           ? `<div class="mt-3">
                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Orijinal Transkript + Turkce Ceviri</p>
                <div class="mt-2 space-y-2">${transcriptRows}</div>
+             </div>`
+          : ""
+      }
+      ${
+        transcriptFullDe || transcriptFullTr
+          ? `<div class="mt-3 grid gap-2 sm:grid-cols-2">
+               <article class="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+                 <p class="text-[11px] font-semibold uppercase tracking-wide text-indigo-300">Tam Transkript (DE)</p>
+                 <pre class="mt-2 max-h-72 overflow-y-auto whitespace-pre-wrap text-xs leading-5 text-indigo-100">${transcriptFullDe || "-"}</pre>
+               </article>
+               <article class="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+                 <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-300">Tam Ceviri (TR)</p>
+                 <pre class="mt-2 max-h-72 overflow-y-auto whitespace-pre-wrap text-xs leading-5 text-slate-200">${transcriptFullTr || "-"}</pre>
+               </article>
              </div>`
           : ""
       }
@@ -1028,6 +1048,11 @@ async function analyzeRecording(recordingId, button) {
               ],
             },
           ],
+          generationConfig: {
+            temperature: 0.2,
+            topP: 0.9,
+            maxOutputTokens: 8192,
+          },
         }),
       },
     );
