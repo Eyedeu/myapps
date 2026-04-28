@@ -236,29 +236,9 @@ function showSettingsPanel(show) {
   els.settingsPanel.classList.toggle("hidden", !show);
 }
 
-function isDetailMode() {
-  const url = new URL(window.location.href);
-  return Boolean(url.searchParams.get("lesson"));
-}
-
 function setViewMode(detail) {
   els.mainView.classList.toggle("hidden", detail);
   els.lessonDetailView.classList.toggle("hidden", !detail);
-}
-
-function getDetailParams() {
-  const url = new URL(window.location.href);
-  return {
-    lessonId: url.searchParams.get("lesson") || "",
-    recordingId: url.searchParams.get("recording") || "",
-  };
-}
-
-function openLessonInNewTab(lessonId) {
-  const url = new URL(window.location.href);
-  url.searchParams.set("lesson", lessonId);
-  url.searchParams.delete("recording");
-  window.open(url.toString(), "_blank", "noopener,noreferrer");
 }
 
 async function refreshLessonSelect() {
@@ -511,21 +491,14 @@ async function renderHistory() {
     .map(
       (lesson) => `
         <article class="rounded-3xl border border-slate-800 bg-black/50 p-4">
-          <div class="flex items-center justify-between gap-2">
-            <h3 class="text-lg font-semibold">${escapeHtml(lesson.name)}</h3>
-            <button class="open-lesson-tab rounded-xl bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-100" data-lesson-id="${lesson.id}" type="button">
-              Ac
-            </button>
-          </div>
+          <h3 class="text-lg font-semibold">${escapeHtml(lesson.name)}</h3>
           <div class="mt-3 space-y-3">
-            ${lesson.recordings.map(renderRecordingCard).join("")}
+            ${lesson.recordings.map((recording) => renderRecordingListItem(recording, lesson.id)).join("")}
           </div>
         </article>
       `,
     )
     .join("");
-  els.historyList.setAttribute("data-player-scope", "history");
-  attachPlaybackHandlers(els.historyList);
 }
 
 function renderRecordingCard(recording) {
@@ -566,6 +539,21 @@ function renderRecordingCard(recording) {
       </div>
       ${recording.analysis ? renderAnalysisBlock(recording.analysis) : `<p class="mt-3 text-xs text-slate-500">AI analizi henuz yok.</p>`}
     </section>
+  `;
+}
+
+function renderRecordingListItem(recording, lessonId) {
+  const date = new Date(recording.createdAt).toLocaleString("tr-TR");
+  return `
+    <button
+      class="open-recording-detail w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-3 text-left hover:border-emerald-500/50"
+      data-detail-lesson-id="${lessonId}"
+      data-detail-recording-id="${recording.id}"
+      type="button"
+    >
+      <p class="text-sm font-semibold text-slate-100">${escapeHtml(recording.title || "Kayit")}</p>
+      <p class="mt-1 text-xs text-slate-500">${escapeHtml(date)}</p>
+    </button>
   `;
 }
 
@@ -916,6 +904,7 @@ async function analyzeRecording(recordingId, button) {
 
     await putOne("recordings", {
       ...recording,
+      title: parseAnalysisJson(text)?.title?.trim() || recording.title,
       analysis: text,
       analyzedAt: new Date().toISOString(),
     });
@@ -1011,44 +1000,23 @@ function bindEvents() {
   });
 
   els.lessonDetailBackButton.addEventListener("click", () => {
-    const url = new URL(window.location.href);
-    url.searchParams.delete("lesson");
-    url.searchParams.delete("recording");
-    window.location.href = url.toString();
+    setViewMode(false);
+    activeDetailLessonId = "";
+    activeDetailRecordingId = "";
   });
 
   els.lessonRecordingsList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-detail-recording-id]");
     if (!button || !activeDetailLessonId) return;
     activeDetailRecordingId = button.dataset.detailRecordingId;
-    const url = new URL(window.location.href);
-    url.searchParams.set("lesson", activeDetailLessonId);
-    url.searchParams.set("recording", activeDetailRecordingId);
-    window.history.replaceState({}, "", url.toString());
     await renderLessonDetailView(activeDetailLessonId, activeDetailRecordingId);
   });
 
   els.historyList.addEventListener("click", async (event) => {
-    const openLessonButton = event.target.closest(".open-lesson-tab");
-    if (openLessonButton) {
-      openLessonInNewTab(openLessonButton.dataset.lessonId);
-      return;
-    }
-
-    const card = event.target.closest("[data-recording-id]");
-    if (!card) return;
-    const recordingId = card.dataset.recordingId;
-
-    if (event.target.closest(".analyze-recording")) {
-      await analyzeRecording(recordingId, event.target.closest(".analyze-recording"));
-    }
-    if (event.target.closest(".delete-recording")) {
-      await deleteRecording(recordingId);
-    }
-    if (event.target.closest(".download-recording")) {
-      const button = event.target.closest(".download-recording");
-      await downloadRecording(recordingId, button.dataset.url);
-    }
+    const item = event.target.closest(".open-recording-detail");
+    if (!item) return;
+    setViewMode(true);
+    await renderLessonDetailView(item.dataset.detailLessonId, item.dataset.detailRecordingId);
   });
 
   document.addEventListener("visibilitychange", async () => {
@@ -1103,15 +1071,6 @@ async function init() {
   await seedLessons();
   const settings = await getSettings();
   els.apiKeyInput.value = settings.geminiApiKey || "";
-  const detail = getDetailParams();
-  if (detail.lessonId) {
-    setViewMode(true);
-    await renderLessonDetailView(detail.lessonId, detail.recordingId);
-    showSavePanel(false);
-    showSettingsPanel(false);
-    return;
-  }
-
   setViewMode(false);
   await renderHistory();
   showSavePanel(false);
