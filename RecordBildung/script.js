@@ -1,6 +1,9 @@
 const DB_NAME = "recordbildung-assistant";
 const DB_VERSION = 1;
 const SETTINGS_KEY = "settings";
+const SHARE_DB_NAME = "recordbildung-share-target";
+const SHARE_DB_VERSION = 1;
+const SHARE_STORE = "inbox";
 const GEMINI_MODEL = "gemini-3.1-flash-lite-preview";
 const RECOVERY_KEY = "active-recording-session";
 const ANALYSIS_PROMPT = `Sen bir Ausbildung ders asistanisin.
@@ -99,6 +102,46 @@ function requestToPromise(request) {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
+}
+
+function openShareDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(SHARE_DB_NAME, SHARE_DB_VERSION);
+    request.onupgradeneeded = () => {
+      const nextDb = request.result;
+      if (!nextDb.objectStoreNames.contains(SHARE_STORE)) {
+        nextDb.createObjectStore(SHARE_STORE, { keyPath: "id" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function takeLatestSharedUpload() {
+  let shareDb;
+  try {
+    shareDb = await openShareDb();
+  } catch {
+    return null;
+  }
+  const records = await new Promise((resolve, reject) => {
+    const tx = shareDb.transaction(SHARE_STORE, "readonly");
+    const req = tx.objectStore(SHARE_STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+  if (!records.length) return null;
+  records.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  const latest = records[0];
+  await new Promise((resolve, reject) => {
+    const tx = shareDb.transaction(SHARE_STORE, "readwrite");
+    tx.objectStore(SHARE_STORE).clear();
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+  return latest;
 }
 
 function transactionDone(tx) {
@@ -1212,6 +1255,13 @@ async function init() {
   showSavePanel(false);
   showSettingsPanel(false);
   showStealthMode(false);
+  const shared = await takeLatestSharedUpload();
+  if (shared?.blob) {
+    await prepareUploadedRecording(
+      new File([shared.blob], shared.name || "shared-audio", { type: shared.type || "audio/webm" }),
+    );
+    setStatus("Paylasilan kayit alindi. Ders secip Kaydet.");
+  }
   await registerServiceWorker();
   const recovery = getRecoveryState();
   if (recovery?.active) {
