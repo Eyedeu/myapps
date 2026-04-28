@@ -13,6 +13,7 @@ let pendingRecording = null;
 let startedAt = 0;
 let durationTimer;
 let wakeLock = null;
+let selectedHistoryLessonId = "all";
 
 const els = {
   app: document.querySelector("#app"),
@@ -26,15 +27,20 @@ const els = {
   stopButton: document.querySelector("#stopButton"),
   cancelButton: document.querySelector("#cancelButton"),
   startButton: document.querySelector("#startButton"),
+  settingsToggleButton: document.querySelector("#settingsToggleButton"),
   savePanel: document.querySelector("#savePanel"),
   saveForm: document.querySelector("#saveForm"),
   lessonSelect: document.querySelector("#lessonSelect"),
   newLessonInput: document.querySelector("#newLessonInput"),
   saveRecordingButton: document.querySelector("#saveRecordingButton"),
   discardRecordingButton: document.querySelector("#discardRecordingButton"),
+  settingsPanel: document.querySelector("#settingsPanel"),
   historyList: document.querySelector("#historyList"),
+  historyLessonFilter: document.querySelector("#historyLessonFilter"),
+  deleteLessonButton: document.querySelector("#deleteLessonButton"),
   settingsForm: document.querySelector("#settingsForm"),
   apiKeyInput: document.querySelector("#apiKeyInput"),
+  closeSettingsButton: document.querySelector("#closeSettingsButton"),
 };
 
 function requestToPromise(request) {
@@ -182,11 +188,37 @@ function showSavePanel(show) {
   els.savePanel.classList.toggle("hidden", !show);
 }
 
+function showSettingsPanel(show) {
+  els.settingsPanel.classList.toggle("hidden", !show);
+}
+
 async function refreshLessonSelect() {
   const lessons = (await getAll("lessons")).sort((a, b) => a.name.localeCompare(b.name, "tr"));
   els.lessonSelect.innerHTML = lessons
     .map((lesson) => `<option value="${lesson.id}">${escapeHtml(lesson.name)}</option>`)
     .join("");
+}
+
+function refreshHistoryLessonFilter(lessons, recordings) {
+  const sortedLessons = [...lessons].sort((a, b) => a.name.localeCompare(b.name, "tr"));
+  const options = [`<option value="all">Tum dersler</option>`];
+  for (const lesson of sortedLessons) {
+    options.push(`<option value="${lesson.id}">${escapeHtml(lesson.name)}</option>`);
+  }
+  const hasOrphans = recordings.some((recording) => !sortedLessons.some((lesson) => lesson.id === recording.lessonId));
+  if (hasOrphans) {
+    options.push(`<option value="unknown">Derssiz</option>`);
+  }
+  els.historyLessonFilter.innerHTML = options.join("");
+
+  const validIds = new Set(["all", ...sortedLessons.map((lesson) => lesson.id), ...(hasOrphans ? ["unknown"] : [])]);
+  if (!validIds.has(selectedHistoryLessonId)) {
+    selectedHistoryLessonId = "all";
+  }
+  els.historyLessonFilter.value = selectedHistoryLessonId;
+  const canDelete = selectedHistoryLessonId !== "all" && selectedHistoryLessonId !== "unknown";
+  els.deleteLessonButton.disabled = !canDelete;
+  els.deleteLessonButton.classList.toggle("opacity-50", !canDelete);
 }
 
 function bestMimeType() {
@@ -316,28 +348,40 @@ async function savePendingRecording() {
 
 async function renderHistory() {
   const [lessons, recordings] = await Promise.all([getAll("lessons"), getAll("recordings")]);
+  refreshHistoryLessonFilter(lessons, recordings);
+
+  const filteredRecordings =
+    selectedHistoryLessonId === "all"
+      ? recordings
+      : selectedHistoryLessonId === "unknown"
+        ? recordings.filter((recording) => !lessons.some((lesson) => lesson.id === recording.lessonId))
+        : recordings.filter((recording) => recording.lessonId === selectedHistoryLessonId);
+
+  if (!filteredRecordings.length) {
+    const emptyMessage =
+      selectedHistoryLessonId === "all" ? "Henuz kayit yok." : "Bu ders icin kayit yok.";
+    els.historyList.innerHTML = `<div class="rounded-3xl border border-slate-800 p-6 text-center text-sm text-slate-400">${emptyMessage}</div>`;
+    return;
+  }
+
   const lessonMap = new Map(lessons.map((lesson) => [lesson.id, lesson]));
-  const grouped = lessons
+  let grouped = lessons
     .map((lesson) => ({
       ...lesson,
-      recordings: recordings
+      recordings: filteredRecordings
         .filter((recording) => recording.lessonId === lesson.id)
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
     }))
     .sort((a, b) => a.name.localeCompare(b.name, "tr"));
 
-  const orphanRecordings = recordings.filter((recording) => !lessonMap.has(recording.lessonId));
+  const orphanRecordings = filteredRecordings.filter((recording) => !lessonMap.has(recording.lessonId));
   if (orphanRecordings.length) {
     grouped.push({ id: "unknown", name: "Derssiz", recordings: orphanRecordings });
   }
 
-  if (!recordings.length) {
-    els.historyList.innerHTML = `<div class="rounded-3xl border border-slate-800 p-6 text-center text-sm text-slate-400">Henuz kayit yok.</div>`;
-    return;
-  }
+  grouped = grouped.filter((lesson) => lesson.recordings.length);
 
   els.historyList.innerHTML = grouped
-    .filter((lesson) => lesson.recordings.length)
     .map(
       (lesson) => `
         <article class="rounded-3xl border border-slate-800 bg-black/50 p-4">
@@ -472,6 +516,28 @@ async function deleteRecording(recordingId) {
   setStatus("Kayit silindi.");
 }
 
+async function deleteLesson(lessonId) {
+  if (!lessonId || lessonId === "all" || lessonId === "unknown") return;
+  const lesson = await getOne("lessons", lessonId);
+  if (!lesson) {
+    setStatus("Ders bulunamadi.");
+    return;
+  }
+  const ok = window.confirm(`"${lesson.name}" dersi ve bu derse ait tum kayitlar silinsin mi?`);
+  if (!ok) return;
+
+  const recordings = await getAll("recordings");
+  const toDelete = recordings.filter((recording) => recording.lessonId === lessonId);
+  for (const recording of toDelete) {
+    await deleteOne("recordings", recording.id);
+  }
+  await deleteOne("lessons", lessonId);
+  await refreshLessonSelect();
+  selectedHistoryLessonId = "all";
+  await renderHistory();
+  setStatus(`"${lesson.name}" dersi silindi.`);
+}
+
 async function downloadRecording(recordingId, url) {
   const recording = await getOne("recordings", recordingId);
   const ext = (recording?.mimeType || "").includes("mp4") ? "m4a" : "webm";
@@ -494,6 +560,8 @@ function bindEvents() {
   els.stopButton.addEventListener("click", () => stopRecording({ save: true }));
   els.cancelButton.addEventListener("click", () => stopRecording({ save: false }));
   els.startButton.addEventListener("click", startRecording);
+  els.settingsToggleButton.addEventListener("click", () => showSettingsPanel(true));
+  els.closeSettingsButton.addEventListener("click", () => showSettingsPanel(false));
 
   els.saveForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -509,6 +577,15 @@ function bindEvents() {
     event.preventDefault();
     await saveApiKey(els.apiKeyInput.value);
     setStatus("Gemini API key kaydedildi.");
+    showSettingsPanel(false);
+  });
+
+  els.historyLessonFilter.addEventListener("change", async () => {
+    selectedHistoryLessonId = els.historyLessonFilter.value || "all";
+    await renderHistory();
+  });
+  els.deleteLessonButton.addEventListener("click", async () => {
+    await deleteLesson(selectedHistoryLessonId);
   });
 
   els.historyList.addEventListener("click", async (event) => {
@@ -554,6 +631,7 @@ async function init() {
   els.apiKeyInput.value = settings.geminiApiKey || "";
   await renderHistory();
   showSavePanel(false);
+  showSettingsPanel(false);
   await registerServiceWorker();
   await startRecording();
 }
