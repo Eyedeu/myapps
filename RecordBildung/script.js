@@ -3,7 +3,36 @@ const DB_VERSION = 1;
 const SETTINGS_KEY = "settings";
 const GEMINI_MODEL = "gemini-3.1-flash-lite-preview";
 const RECOVERY_KEY = "active-recording-session";
-const ANALYSIS_PROMPT = `Sen bir Ausbildung asistanisin. Bu ses kaydindaki Almanca ders anlatimini transkript et. Mikrofonun hemen yanindaki ogrencilerin yaptigi ders disi, alakasiz konusmalari (geyik muhabbeti, ozel sohbetler) tamamen ayikla. Sadece ogretmenin anlattigi teknik bilgileri ve dersle ilgili mantikli ogrenci sorularini tut. Sonucu Turkce ozetle ve onemli Almanca teknik terimleri sozluk gibi acikla.`;
+const ANALYSIS_PROMPT = `Sen bir Ausbildung ders asistanisin.
+Asagidaki kurallara harfiyen uy:
+1) Asla selamlama yazma. "Merhaba", "Selam", "Umarim" gibi cumleler kullanma.
+2) Sadece ders icerigine odaklan.
+3) Ciktin mutlaka GECERLI JSON olacak. JSON disinda hicbir metin yazma.
+4) Almanca orijinal icerigi koru ve her bolum icin Turkce ceviri ver.
+5) Ders disi, alakasiz, dedikodu turu konusmalari dahil etme.
+
+Donus formati (anahtar adlarini degistirme):
+{
+  "title": "kisa baslik",
+  "summary_tr": ["madde1", "madde2"],
+  "summary_de": ["punkt1", "punkt2"],
+  "key_points": [
+    {
+      "topic_tr": "konu",
+      "topic_de": "thema",
+      "detail_tr": "aciklama",
+      "detail_de": "erklarung"
+    }
+  ],
+  "terms": [
+    {
+      "term_de": "Fachbegriff",
+      "meaning_tr": "Turkce karsiligi",
+      "example_de": "Almanca kisa ornek",
+      "example_tr": "Turkce kisa ceviri"
+    }
+  ]
+}`;
 
 let db;
 let mediaRecorder;
@@ -494,10 +523,107 @@ function renderRecordingCard(recording) {
         <button class="analyze-recording rounded-xl bg-emerald-500 px-3 py-2 text-xs font-semibold text-emerald-950">Analiz Et</button>
         <button class="download-recording rounded-xl bg-slate-800 px-3 py-2 text-xs font-semibold" data-url="${safeUrl}">Indir</button>
       </div>
+      ${recording.analysis ? renderAnalysisBlock(recording.analysis) : `<p class="mt-3 text-xs text-slate-500">AI analizi henuz yok.</p>`}
+    </section>
+  `;
+}
+
+function parseAnalysisJson(rawAnalysis) {
+  if (!rawAnalysis) return null;
+  const cleaned = String(rawAnalysis)
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "");
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    return null;
+  }
+}
+
+function renderBulletList(items, className) {
+  if (!Array.isArray(items) || !items.length) return `<p class="${className} text-slate-500">-</p>`;
+  return `<ul class="${className} list-disc space-y-1 pl-5">${items
+    .map((item) => `<li>${escapeHtml(item)}</li>`)
+    .join("")}</ul>`;
+}
+
+function renderAnalysisBlock(rawAnalysis) {
+  const data = parseAnalysisJson(rawAnalysis);
+  if (!data) {
+    return `<pre class="mt-3 whitespace-pre-wrap rounded-2xl bg-slate-900 p-3 text-xs leading-5 text-slate-200">${escapeHtml(rawAnalysis)}</pre>`;
+  }
+
+  const summaryTr = renderBulletList(data.summary_tr, "mt-2 text-xs text-slate-100");
+  const summaryDe = renderBulletList(data.summary_de, "mt-2 text-xs text-indigo-200");
+  const keyPoints = Array.isArray(data.key_points)
+    ? data.key_points
+        .map((point) => {
+          return `
+            <article class="rounded-xl border border-slate-800 bg-slate-900/70 p-3">
+              <p class="text-xs font-semibold text-emerald-300">${escapeHtml(point.topic_tr || "-")}</p>
+              <p class="mt-1 text-xs text-slate-200">${escapeHtml(point.detail_tr || "-")}</p>
+              <p class="mt-2 text-[11px] font-semibold uppercase tracking-wide text-indigo-300">${escapeHtml(point.topic_de || "-")}</p>
+              <p class="mt-1 text-xs text-indigo-100">${escapeHtml(point.detail_de || "-")}</p>
+            </article>
+          `;
+        })
+        .join("")
+    : "";
+
+  const termsRows = Array.isArray(data.terms)
+    ? data.terms
+        .map((term) => {
+          return `
+            <tr class="border-t border-slate-800">
+              <td class="px-2 py-2 align-top text-indigo-200">${escapeHtml(term.term_de || "-")}</td>
+              <td class="px-2 py-2 align-top text-slate-200">${escapeHtml(term.meaning_tr || "-")}</td>
+              <td class="px-2 py-2 align-top text-[11px] text-indigo-100">${escapeHtml(term.example_de || "-")}</td>
+              <td class="px-2 py-2 align-top text-[11px] text-slate-300">${escapeHtml(term.example_tr || "-")}</td>
+            </tr>
+          `;
+        })
+        .join("")
+    : "";
+
+  return `
+    <section class="mt-3 rounded-2xl border border-slate-700 bg-gradient-to-b from-slate-900 to-slate-950 p-3">
+      <h4 class="text-sm font-semibold text-emerald-300">${escapeHtml(data.title || "Ders Analizi")}</h4>
+      <div class="mt-3 grid gap-2 sm:grid-cols-2">
+        <article class="rounded-xl bg-slate-950/70 p-3">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Ozet (TR)</p>
+          ${summaryTr}
+        </article>
+        <article class="rounded-xl bg-slate-950/70 p-3">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-indigo-300">Zusammenfassung (DE)</p>
+          ${summaryDe}
+        </article>
+      </div>
       ${
-        recording.analysis
-          ? `<pre class="mt-3 whitespace-pre-wrap rounded-2xl bg-slate-900 p-3 text-xs leading-5 text-slate-200">${escapeHtml(recording.analysis)}</pre>`
-          : `<p class="mt-3 text-xs text-slate-500">AI analizi henuz yok.</p>`
+        keyPoints
+          ? `<div class="mt-3">
+               <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Kritik Noktalar / Schwerpunkte</p>
+               <div class="mt-2 space-y-2">${keyPoints}</div>
+             </div>`
+          : ""
+      }
+      ${
+        termsRows
+          ? `<div class="mt-3 overflow-x-auto rounded-xl border border-slate-800">
+               <table class="min-w-full border-collapse text-xs">
+                 <thead class="bg-slate-900">
+                   <tr class="text-left text-slate-400">
+                     <th class="px-2 py-2">DE Terim</th>
+                     <th class="px-2 py-2">TR Anlam</th>
+                     <th class="px-2 py-2">DE Ornek</th>
+                     <th class="px-2 py-2">TR Ceviri</th>
+                   </tr>
+                 </thead>
+                 <tbody>${termsRows}</tbody>
+               </table>
+             </div>`
+          : ""
       }
     </section>
   `;
