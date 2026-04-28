@@ -45,9 +45,17 @@ let durationTimer;
 let wakeLock = null;
 let selectedHistoryLessonId = "all";
 let recordingHeartbeatTimer;
+let activeDetailLessonId = "";
+let activeDetailRecordingId = "";
 
 const els = {
   app: document.querySelector("#app"),
+  mainView: document.querySelector("#mainView"),
+  lessonDetailView: document.querySelector("#lessonDetailView"),
+  lessonDetailTitle: document.querySelector("#lessonDetailTitle"),
+  lessonDetailBackButton: document.querySelector("#lessonDetailBackButton"),
+  lessonRecordingsList: document.querySelector("#lessonRecordingsList"),
+  lessonRecordingContent: document.querySelector("#lessonRecordingContent"),
   clock: document.querySelector("#clock"),
   dateLine: document.querySelector("#dateLine"),
   durationLine: document.querySelector("#durationLine"),
@@ -226,6 +234,31 @@ function showSavePanel(show) {
 
 function showSettingsPanel(show) {
   els.settingsPanel.classList.toggle("hidden", !show);
+}
+
+function isDetailMode() {
+  const url = new URL(window.location.href);
+  return Boolean(url.searchParams.get("lesson"));
+}
+
+function setViewMode(detail) {
+  els.mainView.classList.toggle("hidden", detail);
+  els.lessonDetailView.classList.toggle("hidden", !detail);
+}
+
+function getDetailParams() {
+  const url = new URL(window.location.href);
+  return {
+    lessonId: url.searchParams.get("lesson") || "",
+    recordingId: url.searchParams.get("recording") || "",
+  };
+}
+
+function openLessonInNewTab(lessonId) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("lesson", lessonId);
+  url.searchParams.delete("recording");
+  window.open(url.toString(), "_blank", "noopener,noreferrer");
 }
 
 async function refreshLessonSelect() {
@@ -478,7 +511,12 @@ async function renderHistory() {
     .map(
       (lesson) => `
         <article class="rounded-3xl border border-slate-800 bg-black/50 p-4">
-          <h3 class="text-lg font-semibold">${escapeHtml(lesson.name)}</h3>
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="text-lg font-semibold">${escapeHtml(lesson.name)}</h3>
+            <button class="open-lesson-tab rounded-xl bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-100" data-lesson-id="${lesson.id}" type="button">
+              Ac
+            </button>
+          </div>
           <div class="mt-3 space-y-3">
             ${lesson.recordings.map(renderRecordingCard).join("")}
           </div>
@@ -486,6 +524,8 @@ async function renderHistory() {
       `,
     )
     .join("");
+  els.historyList.setAttribute("data-player-scope", "history");
+  attachPlaybackHandlers(els.historyList);
 }
 
 function renderRecordingCard(recording) {
@@ -513,6 +553,7 @@ function renderRecordingCard(recording) {
           max="${totalSeconds || 1}"
           value="0"
           step="1"
+          dir="ltr"
         />
         <div class="mt-1 flex items-center justify-between text-[11px] text-slate-500">
           <span class="playback-current" data-recording-id="${recording.id}">00:00</span>
@@ -683,9 +724,10 @@ function togglePauseResume() {
 
 function syncPlaybackUi(recordingId, audio) {
   if (!recordingId || !audio) return;
-  const progress = els.historyList.querySelector(`.recording-progress[data-recording-id="${recordingId}"]`);
-  const current = els.historyList.querySelector(`.playback-current[data-recording-id="${recordingId}"]`);
-  const total = els.historyList.querySelector(`.playback-total[data-recording-id="${recordingId}"]`);
+  const scope = audio.closest("[data-player-scope]") || document;
+  const progress = scope.querySelector(`.recording-progress[data-recording-id="${recordingId}"]`);
+  const current = scope.querySelector(`.playback-current[data-recording-id="${recordingId}"]`);
+  const total = scope.querySelector(`.playback-total[data-recording-id="${recordingId}"]`);
   if (!progress || !current || !total) return;
 
   const durationSeconds = Number.isFinite(audio.duration) && audio.duration > 0 ? Math.floor(audio.duration) : Number(progress.max) || 0;
@@ -693,6 +735,111 @@ function syncPlaybackUi(recordingId, audio) {
   progress.value = String(Math.min(Math.floor(audio.currentTime || 0), Number(progress.max)));
   current.textContent = formatPlaybackTime(audio.currentTime || 0);
   total.textContent = formatPlaybackTime(durationSeconds);
+}
+
+function attachPlaybackHandlers(scopeEl) {
+  if (!scopeEl) return;
+  const players = scopeEl.querySelectorAll(".recording-audio");
+  for (const audio of players) {
+    if (audio.dataset.playbackBound === "true") continue;
+    audio.dataset.playbackBound = "true";
+    const recordingId = audio.dataset.recordingId;
+    audio.addEventListener("loadedmetadata", () => syncPlaybackUi(recordingId, audio));
+    audio.addEventListener("timeupdate", () => syncPlaybackUi(recordingId, audio));
+    audio.addEventListener("seeked", () => syncPlaybackUi(recordingId, audio));
+    audio.addEventListener("durationchange", () => syncPlaybackUi(recordingId, audio));
+    syncPlaybackUi(recordingId, audio);
+  }
+
+  const sliders = scopeEl.querySelectorAll(".recording-progress");
+  for (const slider of sliders) {
+    if (slider.dataset.sliderBound === "true") continue;
+    slider.dataset.sliderBound = "true";
+    slider.addEventListener("input", () => {
+      const recordingId = slider.dataset.recordingId;
+      const audio = scopeEl.querySelector(`.recording-audio[data-recording-id="${recordingId}"]`);
+      if (!audio) return;
+      audio.currentTime = Number(slider.value) || 0;
+      syncPlaybackUi(recordingId, audio);
+    });
+  }
+}
+
+function renderLessonRecordingDetail(recording) {
+  if (!recording) {
+    els.lessonRecordingContent.innerHTML =
+      `<div class="rounded-2xl border border-slate-800 p-6 text-center text-sm text-slate-400">Kayit secilmedi.</div>`;
+    return;
+  }
+  const date = new Date(recording.createdAt).toLocaleString("tr-TR");
+  const url = URL.createObjectURL(recording.blob);
+  const safeUrl = escapeHtml(url);
+  const totalSeconds = Math.max(0, Math.floor((recording.durationMs || 0) / 1000));
+  const totalText = formatPlaybackTime(totalSeconds);
+  els.lessonRecordingContent.setAttribute("data-player-scope", "detail");
+  els.lessonRecordingContent.innerHTML = `
+    <article class="rounded-2xl border border-slate-800 bg-slate-950 p-3">
+      <p class="text-sm font-semibold">${escapeHtml(recording.title || "Kayit")}</p>
+      <p class="text-xs text-slate-500">${escapeHtml(date)} - ${totalText}</p>
+      <audio class="recording-audio mt-3 w-full" controls src="${safeUrl}" data-recording-id="${recording.id}"></audio>
+      <div class="mt-2">
+        <input class="recording-progress w-full accent-emerald-500" data-recording-id="${recording.id}" type="range" min="0" max="${totalSeconds || 1}" value="0" step="1" dir="ltr" />
+        <div class="mt-1 flex items-center justify-between text-[11px] text-slate-500">
+          <span class="playback-current" data-recording-id="${recording.id}">00:00</span>
+          <span class="playback-total" data-recording-id="${recording.id}">${totalText}</span>
+        </div>
+      </div>
+      ${recording.analysis ? renderAnalysisBlock(recording.analysis) : `<p class="mt-3 text-xs text-slate-500">AI analizi henuz yok.</p>`}
+    </article>
+  `;
+  attachPlaybackHandlers(els.lessonRecordingContent);
+}
+
+async function renderLessonDetailView(lessonId, preferredRecordingId = "") {
+  const [lesson, recordings] = await Promise.all([getOne("lessons", lessonId), getAll("recordings")]);
+  if (!lesson) {
+    els.lessonDetailTitle.textContent = "Ders bulunamadi";
+    els.lessonRecordingsList.innerHTML =
+      `<div class="rounded-2xl border border-slate-800 p-4 text-xs text-slate-400">Bu ders silinmis veya bulunamadi.</div>`;
+    els.lessonRecordingContent.innerHTML = "";
+    return;
+  }
+  activeDetailLessonId = lessonId;
+  const lessonRecordings = recordings
+    .filter((recording) => recording.lessonId === lessonId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  els.lessonDetailTitle.textContent = lesson.name;
+  if (!lessonRecordings.length) {
+    els.lessonRecordingsList.innerHTML =
+      `<div class="rounded-2xl border border-slate-800 p-4 text-xs text-slate-400">Bu derste kayit yok.</div>`;
+    els.lessonRecordingContent.innerHTML = "";
+    return;
+  }
+
+  const selected =
+    lessonRecordings.find((recording) => recording.id === preferredRecordingId) ||
+    lessonRecordings.find((recording) => recording.id === activeDetailRecordingId) ||
+    lessonRecordings[0];
+  activeDetailRecordingId = selected.id;
+
+  els.lessonRecordingsList.innerHTML = lessonRecordings
+    .map((recording) => {
+      const active = recording.id === activeDetailRecordingId;
+      return `
+        <button
+          class="lesson-recording-item w-full rounded-xl border px-3 py-2 text-left ${active ? "border-emerald-500 bg-emerald-500/10" : "border-slate-800 bg-slate-900/60"}"
+          data-detail-recording-id="${recording.id}"
+          type="button"
+        >
+          <p class="text-xs font-semibold">${escapeHtml(recording.title || "Kayit")}</p>
+          <p class="mt-1 text-[11px] text-slate-400">${formatPlaybackTime((recording.durationMs || 0) / 1000)}</p>
+        </button>
+      `;
+    })
+    .join("");
+
+  renderLessonRecordingDetail(selected);
 }
 
 async function blobToBase64(blob) {
@@ -863,7 +1010,31 @@ function bindEvents() {
     await deleteLesson(selectedHistoryLessonId);
   });
 
+  els.lessonDetailBackButton.addEventListener("click", () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("lesson");
+    url.searchParams.delete("recording");
+    window.location.href = url.toString();
+  });
+
+  els.lessonRecordingsList.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-detail-recording-id]");
+    if (!button || !activeDetailLessonId) return;
+    activeDetailRecordingId = button.dataset.detailRecordingId;
+    const url = new URL(window.location.href);
+    url.searchParams.set("lesson", activeDetailLessonId);
+    url.searchParams.set("recording", activeDetailRecordingId);
+    window.history.replaceState({}, "", url.toString());
+    await renderLessonDetailView(activeDetailLessonId, activeDetailRecordingId);
+  });
+
   els.historyList.addEventListener("click", async (event) => {
+    const openLessonButton = event.target.closest(".open-lesson-tab");
+    if (openLessonButton) {
+      openLessonInNewTab(openLessonButton.dataset.lessonId);
+      return;
+    }
+
     const card = event.target.closest("[data-recording-id]");
     if (!card) return;
     const recordingId = card.dataset.recordingId;
@@ -879,28 +1050,6 @@ function bindEvents() {
       await downloadRecording(recordingId, button.dataset.url);
     }
   });
-
-  els.historyList.addEventListener("input", (event) => {
-    const slider = event.target.closest(".recording-progress");
-    if (!slider) return;
-    const recordingId = slider.dataset.recordingId;
-    const audio = els.historyList.querySelector(`.recording-audio[data-recording-id="${recordingId}"]`);
-    if (!audio) return;
-    audio.currentTime = Number(slider.value) || 0;
-    syncPlaybackUi(recordingId, audio);
-  });
-
-  els.historyList.addEventListener("loadedmetadata", (event) => {
-    const audio = event.target.closest(".recording-audio");
-    if (!audio) return;
-    syncPlaybackUi(audio.dataset.recordingId, audio);
-  }, true);
-
-  els.historyList.addEventListener("timeupdate", (event) => {
-    const audio = event.target.closest(".recording-audio");
-    if (!audio) return;
-    syncPlaybackUi(audio.dataset.recordingId, audio);
-  }, true);
 
   document.addEventListener("visibilitychange", async () => {
     if (document.visibilityState === "hidden" && mediaRecorder?.state === "recording") {
@@ -954,6 +1103,16 @@ async function init() {
   await seedLessons();
   const settings = await getSettings();
   els.apiKeyInput.value = settings.geminiApiKey || "";
+  const detail = getDetailParams();
+  if (detail.lessonId) {
+    setViewMode(true);
+    await renderLessonDetailView(detail.lessonId, detail.recordingId);
+    showSavePanel(false);
+    showSettingsPanel(false);
+    return;
+  }
+
+  setViewMode(false);
   await renderHistory();
   showSavePanel(false);
   showSettingsPanel(false);
