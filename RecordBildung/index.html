@@ -84,18 +84,27 @@
 
         <div id="controlPanel" class="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
           <button
-            id="stopButton"
+            id="pauseButton"
+            class="rounded-2xl bg-amber-400 px-4 py-3 text-sm font-semibold text-amber-950 active:scale-[0.98]"
+          >
+            Durdur
+          </button>
+          <button
+            id="saveButton"
             class="rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-emerald-950 active:scale-[0.98]"
           >
-            Durdur ve Kaydet
+            Kaydet
           </button>
           <button
             id="cancelButton"
             class="rounded-2xl bg-red-500 px-4 py-3 text-sm font-semibold text-white active:scale-[0.98]"
           >
-            Iptal Et
+            Iptal
           </button>
-          <button id="startButton" class="rounded-2xl bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-100">
+          <button
+            id="startButton"
+            class="rounded-2xl bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-100 sm:col-span-3"
+          >
             Baslat
           </button>
         </div>

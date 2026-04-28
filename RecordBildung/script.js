@@ -1,7 +1,6 @@
 const DB_NAME = "recordbildung-assistant";
 const DB_VERSION = 1;
 const SETTINGS_KEY = "settings";
-const DEFAULT_LESSONS = ["Matematik", "Mekanik", "Mevzuat"];
 const GEMINI_MODEL = "gemini-3.1-flash-lite-preview";
 const ANALYSIS_PROMPT = `Sen bir Ausbildung asistanisin. Bu ses kaydindaki Almanca ders anlatimini transkript et. Mikrofonun hemen yanindaki ogrencilerin yaptigi ders disi, alakasiz konusmalari (geyik muhabbeti, ozel sohbetler) tamamen ayikla. Sadece ogretmenin anlattigi teknik bilgileri ve dersle ilgili mantikli ogrenci sorularini tut. Sonucu Turkce ozetle ve onemli Almanca teknik terimleri sozluk gibi acikla.`;
 
@@ -24,7 +23,8 @@ const els = {
   recordingDot: document.querySelector("#recordingDot"),
   statusLine: document.querySelector("#statusLine"),
   controlPanel: document.querySelector("#controlPanel"),
-  stopButton: document.querySelector("#stopButton"),
+  pauseButton: document.querySelector("#pauseButton"),
+  saveButton: document.querySelector("#saveButton"),
   cancelButton: document.querySelector("#cancelButton"),
   startButton: document.querySelector("#startButton"),
   settingsToggleButton: document.querySelector("#settingsToggleButton"),
@@ -105,15 +105,7 @@ async function deleteOne(storeName, id) {
 }
 
 async function seedLessons() {
-  const existing = await getAll("lessons");
-  if (existing.length) return;
-
-  const tx = db.transaction("lessons", "readwrite");
-  const store = tx.objectStore("lessons");
-  for (const name of DEFAULT_LESSONS) {
-    store.put({ id: crypto.randomUUID(), name, createdAt: new Date().toISOString() });
-  }
-  await transactionDone(tx);
+  return;
 }
 
 async function getSettings() {
@@ -142,6 +134,17 @@ function formatDuration(ms) {
   const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
   const seconds = String(totalSeconds % 60).padStart(2, "0");
   return `${hours}:${minutes}:${seconds}`;
+}
+
+function formatPlaybackTime(seconds) {
+  const safeSeconds = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const secs = safeSeconds % 60;
+  if (hours > 0) {
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  }
+  return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
 
 function tickClock() {
@@ -259,6 +262,7 @@ async function startRecording() {
     durationTimer = window.setInterval(tickClock, 1000);
     await requestWakeLock();
     setRecordingState("REC", true);
+    updatePauseButton();
     setStatus("Kayit basladi.");
   } catch (error) {
     setRecordingState("Mikrofon izni gerekli", false);
@@ -283,6 +287,7 @@ async function stopRecording({ save }) {
   startedAt = 0;
   await releaseWakeLock();
   setRecordingState("Kayit durdu", false);
+  updatePauseButton();
   els.durationLine.textContent = "00:00:00";
 
   const blob = new Blob(chunks, { type: mediaRecorder.mimeType || "audio/webm" });
@@ -399,16 +404,33 @@ function renderRecordingCard(recording) {
   const date = new Date(recording.createdAt).toLocaleString("tr-TR");
   const url = URL.createObjectURL(recording.blob);
   const safeUrl = escapeHtml(url);
+  const totalSeconds = Math.max(0, Math.floor((recording.durationMs || 0) / 1000));
+  const totalText = formatPlaybackTime(totalSeconds);
   return `
     <section class="rounded-2xl border border-slate-800 bg-slate-950 p-3" data-recording-id="${recording.id}">
       <div class="flex items-start justify-between gap-3">
         <div>
           <p class="text-sm font-semibold">${escapeHtml(recording.title || "Kayit")}</p>
-          <p class="text-xs text-slate-500">${escapeHtml(date)} - ${formatDuration(recording.durationMs || 0)}</p>
+          <p class="text-xs text-slate-500">${escapeHtml(date)} - ${totalText}</p>
         </div>
         <button class="delete-recording rounded-xl bg-red-500/15 px-3 py-2 text-xs font-semibold text-red-200">Sil</button>
       </div>
-      <audio class="mt-3 w-full" controls src="${safeUrl}"></audio>
+      <audio class="recording-audio mt-3 w-full" controls src="${safeUrl}" data-recording-id="${recording.id}"></audio>
+      <div class="mt-2">
+        <input
+          class="recording-progress w-full accent-emerald-500"
+          data-recording-id="${recording.id}"
+          type="range"
+          min="0"
+          max="${totalSeconds || 1}"
+          value="0"
+          step="1"
+        />
+        <div class="mt-1 flex items-center justify-between text-[11px] text-slate-500">
+          <span class="playback-current" data-recording-id="${recording.id}">00:00</span>
+          <span class="playback-total" data-recording-id="${recording.id}">${totalText}</span>
+        </div>
+      </div>
       <div class="mt-3 grid grid-cols-2 gap-2">
         <button class="analyze-recording rounded-xl bg-emerald-500 px-3 py-2 text-xs font-semibold text-emerald-950">Analiz Et</button>
         <button class="download-recording rounded-xl bg-slate-800 px-3 py-2 text-xs font-semibold" data-url="${safeUrl}">Indir</button>
@@ -420,6 +442,55 @@ function renderRecordingCard(recording) {
       }
     </section>
   `;
+}
+
+function updatePauseButton() {
+  if (!mediaRecorder || mediaRecorder.state === "inactive") {
+    els.pauseButton.textContent = "Durdur";
+    els.pauseButton.disabled = true;
+    els.pauseButton.classList.add("opacity-50");
+    return;
+  }
+
+  if (mediaRecorder.state === "paused") {
+    els.pauseButton.textContent = "Devam Et";
+  } else {
+    els.pauseButton.textContent = "Durdur";
+  }
+  els.pauseButton.disabled = false;
+  els.pauseButton.classList.remove("opacity-50");
+}
+
+function togglePauseResume() {
+  if (!mediaRecorder || mediaRecorder.state === "inactive") {
+    setStatus("Duraklatmak icin aktif kayit olmali.");
+    updatePauseButton();
+    return;
+  }
+  if (mediaRecorder.state === "recording") {
+    mediaRecorder.pause();
+    setRecordingState("Duraklatildi", false);
+    setStatus("Kayit durduruldu. Devam Et ile surdur.");
+  } else if (mediaRecorder.state === "paused") {
+    mediaRecorder.resume();
+    setRecordingState("REC", true);
+    setStatus("Kayit devam ediyor.");
+  }
+  updatePauseButton();
+}
+
+function syncPlaybackUi(recordingId, audio) {
+  if (!recordingId || !audio) return;
+  const progress = els.historyList.querySelector(`.recording-progress[data-recording-id="${recordingId}"]`);
+  const current = els.historyList.querySelector(`.playback-current[data-recording-id="${recordingId}"]`);
+  const total = els.historyList.querySelector(`.playback-total[data-recording-id="${recordingId}"]`);
+  if (!progress || !current || !total) return;
+
+  const durationSeconds = Number.isFinite(audio.duration) && audio.duration > 0 ? Math.floor(audio.duration) : Number(progress.max) || 0;
+  progress.max = String(Math.max(durationSeconds, 1));
+  progress.value = String(Math.min(Math.floor(audio.currentTime || 0), Number(progress.max)));
+  current.textContent = formatPlaybackTime(audio.currentTime || 0);
+  total.textContent = formatPlaybackTime(durationSeconds);
 }
 
 async function blobToBase64(blob) {
@@ -557,7 +628,9 @@ function escapeHtml(value) {
 }
 
 function bindEvents() {
-  els.stopButton.addEventListener("click", () => stopRecording({ save: true }));
+  updatePauseButton();
+  els.pauseButton.addEventListener("click", togglePauseResume);
+  els.saveButton.addEventListener("click", () => stopRecording({ save: true }));
   els.cancelButton.addEventListener("click", () => stopRecording({ save: false }));
   els.startButton.addEventListener("click", startRecording);
   els.settingsToggleButton.addEventListener("click", () => showSettingsPanel(true));
@@ -604,6 +677,28 @@ function bindEvents() {
       await downloadRecording(recordingId, button.dataset.url);
     }
   });
+
+  els.historyList.addEventListener("input", (event) => {
+    const slider = event.target.closest(".recording-progress");
+    if (!slider) return;
+    const recordingId = slider.dataset.recordingId;
+    const audio = els.historyList.querySelector(`.recording-audio[data-recording-id="${recordingId}"]`);
+    if (!audio) return;
+    audio.currentTime = Number(slider.value) || 0;
+    syncPlaybackUi(recordingId, audio);
+  });
+
+  els.historyList.addEventListener("loadedmetadata", (event) => {
+    const audio = event.target.closest(".recording-audio");
+    if (!audio) return;
+    syncPlaybackUi(audio.dataset.recordingId, audio);
+  }, true);
+
+  els.historyList.addEventListener("timeupdate", (event) => {
+    const audio = event.target.closest(".recording-audio");
+    if (!audio) return;
+    syncPlaybackUi(audio.dataset.recordingId, audio);
+  }, true);
 
   document.addEventListener("visibilitychange", async () => {
     if (document.visibilityState === "visible" && mediaRecorder?.state === "recording") {
