@@ -8,7 +8,7 @@ iPhone Safari ve GitHub Pages icin hazirlanmis PWA tabanli ders kayit asistani.
 - Sade siyah saat ekrani kullanir; kontrol paneli cift tiklama/dokunma ile acilir.
 - Kayitlar ders klasorlerine ayrilarak IndexedDB icinde saklanir.
 - Settings ekranindan Gemini API key girilir; anahtar sadece tarayicida saklanir.
-- Kayitlar Gemini 1.5 Flash ile analiz edilip Turkce ozet ve Almanca teknik terim sozlugu uretilir.
+- Kayitlar `gemini-3.1-flash-lite-preview` ile analiz edilip Turkce ozet ve Almanca teknik terim sozlugu uretilir.
 - Manifest ve service worker ile ana ekrana eklenebilir.
 
 ## Notlar

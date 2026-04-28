@@ -2,7 +2,7 @@ const DB_NAME = "recordbildung-assistant";
 const DB_VERSION = 1;
 const SETTINGS_KEY = "settings";
 const DEFAULT_LESSONS = ["Matematik", "Mekanik", "Mevzuat"];
-const GEMINI_MODEL = "gemini-1.5-flash";
+const GEMINI_MODEL = "gemini-3.1-flash-lite-preview";
 const ANALYSIS_PROMPT = `Sen bir Ausbildung asistanisin. Bu ses kaydindaki Almanca ders anlatimini transkript et. Mikrofonun hemen yanindaki ogrencilerin yaptigi ders disi, alakasiz konusmalari (geyik muhabbeti, ozel sohbetler) tamamen ayikla. Sadece ogretmenin anlattigi teknik bilgileri ve dersle ilgili mantikli ogrenci sorularini tut. Sonucu Turkce ozetle ve onemli Almanca teknik terimleri sozluk gibi acikla.`;
 
 let db;
@@ -412,7 +412,7 @@ async function analyzeRecording(recordingId, button) {
 
   button.disabled = true;
   button.textContent = "Analiz ediliyor...";
-  setStatus("Ses Gemini 1.5 Flash ile analiz ediliyor.");
+  setStatus(`Ses ${GEMINI_MODEL} ile analiz ediliyor.`);
 
   try {
     const base64Audio = await blobToBase64(recording.blob);
@@ -442,7 +442,17 @@ async function analyzeRecording(recordingId, button) {
 
     const payload = await response.json();
     if (!response.ok) {
-      throw new Error(payload.error?.message || "Gemini istegi basarisiz oldu.");
+      const providerMessage = payload.error?.message || "";
+      const modelUnavailable =
+        /model|not found|unsupported|permission|not available|does not exist|not allowed/i.test(providerMessage) ||
+        response.status === 400 ||
+        response.status === 404;
+      if (modelUnavailable) {
+        throw new Error(
+          `${GEMINI_MODEL} su an kullanilamiyor. Baska bir model zorunluysa lutfen bana bildir.`,
+        );
+      }
+      throw new Error(providerMessage || "Gemini istegi basarisiz oldu.");
     }
 
     const text =
