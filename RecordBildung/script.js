@@ -2,6 +2,7 @@ const DB_NAME = "recordbildung-assistant";
 const DB_VERSION = 1;
 const SETTINGS_KEY = "settings";
 const GEMINI_MODEL = "gemini-3.1-flash-lite-preview";
+const RECOVERY_KEY = "active-recording-session";
 const ANALYSIS_PROMPT = `Sen bir Ausbildung asistanisin. Bu ses kaydindaki Almanca ders anlatimini transkript et. Mikrofonun hemen yanindaki ogrencilerin yaptigi ders disi, alakasiz konusmalari (geyik muhabbeti, ozel sohbetler) tamamen ayikla. Sadece ogretmenin anlattigi teknik bilgileri ve dersle ilgili mantikli ogrenci sorularini tut. Sonucu Turkce ozetle ve onemli Almanca teknik terimleri sozluk gibi acikla.`;
 
 let db;
@@ -10,9 +11,11 @@ let activeStream;
 let chunks = [];
 let pendingRecording = null;
 let startedAt = 0;
+let accumulatedDurationMs = 0;
 let durationTimer;
 let wakeLock = null;
 let selectedHistoryLessonId = "all";
+let recordingHeartbeatTimer;
 
 const els = {
   app: document.querySelector("#app"),
@@ -159,9 +162,10 @@ function tickClock() {
     month: "long",
   });
 
-  if (startedAt) {
-    els.durationLine.textContent = formatDuration(Date.now() - startedAt);
-  }
+  const isRecording = mediaRecorder?.state === "recording";
+  const runningPart = isRecording && startedAt ? Date.now() - startedAt : 0;
+  const totalMs = accumulatedDurationMs + runningPart;
+  els.durationLine.textContent = formatDuration(totalMs);
 }
 
 async function requestWakeLock() {
@@ -224,6 +228,47 @@ function refreshHistoryLessonFilter(lessons, recordings) {
   els.deleteLessonButton.classList.toggle("opacity-50", !canDelete);
 }
 
+function setRecoveryState(state) {
+  try {
+    if (!state) {
+      localStorage.removeItem(RECOVERY_KEY);
+      return;
+    }
+    localStorage.setItem(RECOVERY_KEY, JSON.stringify({ ...state, updatedAt: Date.now() }));
+  } catch {
+    // Ignore storage failures in private mode.
+  }
+}
+
+function getRecoveryState() {
+  try {
+    const raw = localStorage.getItem(RECOVERY_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function stopRecordingHeartbeat() {
+  if (!recordingHeartbeatTimer) return;
+  window.clearInterval(recordingHeartbeatTimer);
+  recordingHeartbeatTimer = undefined;
+}
+
+function startRecordingHeartbeat() {
+  stopRecordingHeartbeat();
+  recordingHeartbeatTimer = window.setInterval(() => {
+    const active = mediaRecorder?.state === "recording" || mediaRecorder?.state === "paused";
+    if (!active) return;
+    setRecoveryState({
+      active: true,
+      mode: mediaRecorder.state,
+      accumulatedDurationMs,
+      startedAt,
+    });
+  }, 3000);
+}
+
 function bestMimeType() {
   if (!window.MediaRecorder) return "";
   const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/aac"];
@@ -259,10 +304,18 @@ async function startRecording() {
 
     mediaRecorder.start(1000);
     startedAt = Date.now();
+    accumulatedDurationMs = 0;
     durationTimer = window.setInterval(tickClock, 1000);
+    startRecordingHeartbeat();
     await requestWakeLock();
     setRecordingState("REC", true);
     updatePauseButton();
+    setRecoveryState({
+      active: true,
+      mode: "recording",
+      accumulatedDurationMs,
+      startedAt,
+    });
     setStatus("Kayit basladi.");
   } catch (error) {
     setRecordingState("Mikrofon izni gerekli", false);
@@ -282,13 +335,19 @@ async function stopRecording({ save }) {
     mediaRecorder.stop();
   });
 
+  if (startedAt) {
+    accumulatedDurationMs += Date.now() - startedAt;
+  }
   window.clearInterval(durationTimer);
-  const durationMs = Date.now() - startedAt;
+  stopRecordingHeartbeat();
+  const durationMs = accumulatedDurationMs;
   startedAt = 0;
+  accumulatedDurationMs = 0;
   await releaseWakeLock();
   setRecordingState("Kayit durdu", false);
   updatePauseButton();
   els.durationLine.textContent = "00:00:00";
+  setRecoveryState(null);
 
   const blob = new Blob(chunks, { type: mediaRecorder.mimeType || "audio/webm" });
   mediaRecorder = null;
@@ -469,12 +528,29 @@ function togglePauseResume() {
   }
   if (mediaRecorder.state === "recording") {
     mediaRecorder.pause();
+    if (startedAt) {
+      accumulatedDurationMs += Date.now() - startedAt;
+    }
+    startedAt = 0;
     setRecordingState("Duraklatildi", false);
     setStatus("Kayit durduruldu. Devam Et ile surdur.");
+    setRecoveryState({
+      active: true,
+      mode: "paused",
+      accumulatedDurationMs,
+      startedAt,
+    });
   } else if (mediaRecorder.state === "paused") {
     mediaRecorder.resume();
+    startedAt = Date.now();
     setRecordingState("REC", true);
     setStatus("Kayit devam ediyor.");
+    setRecoveryState({
+      active: true,
+      mode: "recording",
+      accumulatedDurationMs,
+      startedAt,
+    });
   }
   updatePauseButton();
 }
@@ -701,8 +777,36 @@ function bindEvents() {
   }, true);
 
   document.addEventListener("visibilitychange", async () => {
-    if (document.visibilityState === "visible" && mediaRecorder?.state === "recording") {
-      await requestWakeLock();
+    if (document.visibilityState === "hidden" && mediaRecorder?.state === "recording") {
+      // Push buffered audio chunks before potential suspension.
+      try {
+        mediaRecorder.requestData();
+      } catch {
+        // Ignore requestData failures if recorder has just changed state.
+      }
+    }
+
+    if (document.visibilityState === "visible") {
+      if (mediaRecorder?.state === "recording") {
+        await requestWakeLock();
+      }
+      const recovery = getRecoveryState();
+      const hadActiveSession = recovery?.active && (recovery.mode === "recording" || recovery.mode === "paused");
+      const recorderLost = !mediaRecorder || mediaRecorder.state === "inactive";
+      if (hadActiveSession && recorderLost) {
+        setStatus("Arka planda kayit kesilmis olabilir. Yeni kayit otomatik baslatiliyor...");
+        await startRecording();
+      }
+    }
+  });
+
+  window.addEventListener("pagehide", () => {
+    if (mediaRecorder?.state === "recording") {
+      try {
+        mediaRecorder.requestData();
+      } catch {
+        // Ignore at unload boundaries.
+      }
     }
   });
 }
@@ -728,6 +832,10 @@ async function init() {
   showSavePanel(false);
   showSettingsPanel(false);
   await registerServiceWorker();
+  const recovery = getRecoveryState();
+  if (recovery?.active) {
+    setStatus("Onceki oturumda aktif kayit algilandi. Otomatik kayit baslatiliyor...");
+  }
   await startRecording();
 }
 
