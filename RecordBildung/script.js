@@ -1,4 +1,4 @@
-const DB_NAME = "gizli-ausbildung-assistant";
+const DB_NAME = "recordbildung-assistant";
 const DB_VERSION = 1;
 const SETTINGS_KEY = "settings";
 const DEFAULT_LESSONS = ["Matematik", "Mekanik", "Mevzuat"];

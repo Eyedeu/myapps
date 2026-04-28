@@ -1,4 +1,4 @@
-const CACHE_NAME = "gizli-ausbildung-v1";
+const CACHE_NAME = "recordbildung-v1";
 const APP_SHELL = [
   "./",
   "./index.html",
