@@ -189,20 +189,18 @@ function formatPlaybackTime(seconds) {
 
 function tickClock() {
   const now = new Date();
-  els.clock.textContent = now.toLocaleTimeString("tr-TR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
   els.dateLine.textContent = now.toLocaleDateString("tr-TR", {
     weekday: "long",
     day: "2-digit",
     month: "long",
-  });
+  }) + " • " + now.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 
   const isRecording = mediaRecorder?.state === "recording";
   const runningPart = isRecording && startedAt ? Date.now() - startedAt : 0;
   const totalMs = accumulatedDurationMs + runningPart;
-  els.durationLine.textContent = formatDuration(totalMs);
+  const formatted = formatDuration(totalMs);
+  els.clock.textContent = formatted;
+  els.durationLine.textContent = `Kayit suresi: ${formatted}`;
 }
 
 async function requestWakeLock() {
@@ -777,6 +775,11 @@ function renderLessonRecordingDetail(recording) {
           <span class="playback-total" data-recording-id="${recording.id}">${totalText}</span>
         </div>
       </div>
+      <div class="mt-3 grid grid-cols-3 gap-2">
+        <button class="analyze-recording rounded-xl bg-emerald-500 px-3 py-2 text-xs font-semibold text-emerald-950" data-recording-id="${recording.id}">Analiz Et</button>
+        <button class="download-recording rounded-xl bg-slate-800 px-3 py-2 text-xs font-semibold" data-recording-id="${recording.id}" data-url="${safeUrl}">Indir</button>
+        <button class="delete-recording rounded-xl bg-red-500/20 px-3 py-2 text-xs font-semibold text-red-200" data-recording-id="${recording.id}">Sil</button>
+      </div>
       ${recording.analysis ? renderAnalysisBlock(recording.analysis) : `<p class="mt-3 text-xs text-slate-500">AI analizi henuz yok.</p>`}
     </article>
   `;
@@ -908,7 +911,11 @@ async function analyzeRecording(recordingId, button) {
       analysis: text,
       analyzedAt: new Date().toISOString(),
     });
-    await renderHistory();
+    if (activeDetailLessonId) {
+      await renderLessonDetailView(activeDetailLessonId, recordingId);
+    } else {
+      await renderHistory();
+    }
     setStatus("Analiz kaydedildi.");
   } catch (error) {
     console.error(error);
@@ -921,7 +928,11 @@ async function analyzeRecording(recordingId, button) {
 
 async function deleteRecording(recordingId) {
   await deleteOne("recordings", recordingId);
-  await renderHistory();
+  if (activeDetailLessonId) {
+    await renderLessonDetailView(activeDetailLessonId, activeDetailRecordingId);
+  } else {
+    await renderHistory();
+  }
   setStatus("Kayit silindi.");
 }
 
@@ -1017,6 +1028,21 @@ function bindEvents() {
     if (!item) return;
     setViewMode(true);
     await renderLessonDetailView(item.dataset.detailLessonId, item.dataset.detailRecordingId);
+  });
+
+  els.lessonRecordingContent.addEventListener("click", async (event) => {
+    const recordingId = event.target.closest("[data-recording-id]")?.dataset.recordingId || activeDetailRecordingId;
+    if (!recordingId) return;
+    if (event.target.closest(".analyze-recording")) {
+      await analyzeRecording(recordingId, event.target.closest(".analyze-recording"));
+    }
+    if (event.target.closest(".delete-recording")) {
+      await deleteRecording(recordingId);
+    }
+    if (event.target.closest(".download-recording")) {
+      const button = event.target.closest(".download-recording");
+      await downloadRecording(recordingId, button.dataset.url);
+    }
   });
 
   document.addEventListener("visibilitychange", async () => {
