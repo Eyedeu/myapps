@@ -15,6 +15,7 @@ Asagidaki kurallara harfiyen uy:
 5) Ders disi, alakasiz, dedikodu turu konusmalari dahil etme.
 6) Transkript bolumu OZET degil, TAM olmalidir: dersle ilgili tum konusmalar kronolojik sirayla yazilmalidir.
 7) Transkriptte asla "..." ile kisaltma yapma, satir atlama yapma, atlanan bolum birakma.
+8) Konusmaci bilinmiyorsa "Bilinmiyor" yazma; bunun yerine tutarli sekilde "Konusmaci 1", "Konusmaci 2" gibi etiketler kullan.
 
 Donus formati (anahtar adlarini degistirme):
 {
@@ -740,18 +741,51 @@ function renderAnalysisBlock(rawAnalysis) {
         .join("")
     : "";
   const transcriptRows = Array.isArray(data.transcript)
-    ? data.transcript
-        .map((row) => {
-          const speaker = escapeHtml(row.speaker || "Bilinmiyor");
-          return `
-            <article class="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
-              <p class="text-[11px] font-semibold uppercase tracking-wide text-amber-300">${speaker}</p>
-              <p class="mt-1 text-xs text-indigo-100">${escapeHtml(row.text_de || "-")}</p>
-              <p class="mt-2 text-xs text-slate-200">${escapeHtml(row.text_tr || "-")}</p>
-            </article>
-          `;
-        })
-        .join("")
+    ? (() => {
+        let unknownCounter = 0;
+        const palette = [
+          { chip: "bg-cyan-500/20 text-cyan-200", border: "border-cyan-500/30" },
+          { chip: "bg-emerald-500/20 text-emerald-200", border: "border-emerald-500/30" },
+          { chip: "bg-violet-500/20 text-violet-200", border: "border-violet-500/30" },
+          { chip: "bg-amber-500/20 text-amber-200", border: "border-amber-500/30" },
+          { chip: "bg-pink-500/20 text-pink-200", border: "border-pink-500/30" },
+        ];
+
+        const normalizeSpeaker = (raw) => {
+          const base = String(raw || "").trim();
+          if (!base) return "Bilinmiyor";
+          if (/bilinmiyor|unknown|belirsiz/i.test(base)) return "Bilinmiyor";
+          if (/konusmaci|speaker/i.test(base)) return base;
+          return base;
+        };
+
+        const labelForSpeaker = (speaker) => {
+          if (speaker !== "Bilinmiyor") return speaker;
+          unknownCounter += 1;
+          return `Konusmaci ${unknownCounter}`;
+        };
+
+        const colorForSpeaker = (speakerLabel) => {
+          let hash = 0;
+          for (let i = 0; i < speakerLabel.length; i += 1) hash = (hash * 31 + speakerLabel.charCodeAt(i)) >>> 0;
+          return palette[hash % palette.length];
+        };
+
+        return data.transcript
+          .map((row) => {
+            const normalized = normalizeSpeaker(row.speaker);
+            const speakerLabel = labelForSpeaker(normalized);
+            const style = colorForSpeaker(speakerLabel);
+            return `
+              <article class="rounded-xl border ${style.border} bg-slate-950/70 p-3">
+                <p class="inline-flex rounded-md px-2 py-1 text-[11px] font-semibold uppercase tracking-wide ${style.chip}">${escapeHtml(speakerLabel)}</p>
+                <p class="mt-2 text-xs text-indigo-100">${escapeHtml(row.text_de || "-")}</p>
+                <p class="mt-2 text-xs text-slate-200">${escapeHtml(row.text_tr || "-")}</p>
+              </article>
+            `;
+          })
+          .join("");
+      })()
     : "";
   const transcriptFullDe = escapeHtml(data.transcript_full_de || "");
   const transcriptFullTr = escapeHtml(data.transcript_full_tr || "");
