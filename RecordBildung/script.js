@@ -13,7 +13,6 @@ let pendingRecording = null;
 let startedAt = 0;
 let durationTimer;
 let wakeLock = null;
-let controlsVisible = false;
 
 const els = {
   app: document.querySelector("#app"),
@@ -27,21 +26,15 @@ const els = {
   stopButton: document.querySelector("#stopButton"),
   cancelButton: document.querySelector("#cancelButton"),
   startButton: document.querySelector("#startButton"),
-  historyButton: document.querySelector("#historyButton"),
-  settingsButton: document.querySelector("#settingsButton"),
-  saveModal: document.querySelector("#saveModal"),
+  savePanel: document.querySelector("#savePanel"),
   saveForm: document.querySelector("#saveForm"),
   lessonSelect: document.querySelector("#lessonSelect"),
   newLessonInput: document.querySelector("#newLessonInput"),
   saveRecordingButton: document.querySelector("#saveRecordingButton"),
   discardRecordingButton: document.querySelector("#discardRecordingButton"),
-  historyModal: document.querySelector("#historyModal"),
   historyList: document.querySelector("#historyList"),
-  closeHistoryButton: document.querySelector("#closeHistoryButton"),
-  settingsModal: document.querySelector("#settingsModal"),
   settingsForm: document.querySelector("#settingsForm"),
   apiKeyInput: document.querySelector("#apiKeyInput"),
-  closeSettingsButton: document.querySelector("#closeSettingsButton"),
 };
 
 function requestToPromise(request) {
@@ -185,12 +178,8 @@ async function releaseWakeLock() {
   }
 }
 
-function showControls(show = !controlsVisible) {
-  controlsVisible = show;
-  els.controlPanel.classList.toggle("translate-y-full", !show);
-  els.controlPanel.classList.toggle("opacity-0", !show);
-  els.controlPanel.classList.toggle("pointer-events-none", !show);
-  els.controlPanel.setAttribute("aria-hidden", String(!show));
+function showSavePanel(show) {
+  els.savePanel.classList.toggle("hidden", !show);
 }
 
 async function refreshLessonSelect() {
@@ -281,7 +270,8 @@ async function stopRecording({ save }) {
   pendingRecording = { blob, durationMs, mimeType: blob.type || "audio/webm" };
   await refreshLessonSelect();
   els.newLessonInput.value = "";
-  showDialog(els.saveModal);
+  showSavePanel(true);
+  setStatus("Kaydi derse ekleyip kaydet.");
 }
 
 async function savePendingRecording() {
@@ -319,7 +309,7 @@ async function savePendingRecording() {
   });
 
   pendingRecording = null;
-  els.saveModal.close();
+  showSavePanel(false);
   setStatus("Kayit IndexedDB icine kaydedildi.");
   await renderHistory();
 }
@@ -402,7 +392,6 @@ async function blobToBase64(blob) {
 async function analyzeRecording(recordingId, button) {
   const settings = await getSettings();
   if (!settings.geminiApiKey) {
-    showDialog(els.settingsModal);
     setStatus("Analiz icin once Settings icinde Gemini API key gir.");
     return;
   }
@@ -492,15 +481,6 @@ async function downloadRecording(recordingId, url) {
   link.click();
 }
 
-function showDialog(dialog) {
-  if (dialog.open) return;
-  if (typeof dialog.showModal === "function") {
-    dialog.showModal();
-  } else {
-    dialog.setAttribute("open", "");
-  }
-}
-
 function escapeHtml(value) {
   return String(value || "")
     .replaceAll("&", "&amp;")
@@ -511,34 +491,9 @@ function escapeHtml(value) {
 }
 
 function bindEvents() {
-  let lastTapAt = 0;
-
-  els.app.addEventListener("dblclick", () => showControls());
-  els.app.addEventListener(
-    "touchend",
-    () => {
-      const now = Date.now();
-      if (now - lastTapAt < 320) {
-        showControls();
-        lastTapAt = 0;
-        return;
-      }
-      lastTapAt = now;
-    },
-    { passive: true },
-  );
   els.stopButton.addEventListener("click", () => stopRecording({ save: true }));
   els.cancelButton.addEventListener("click", () => stopRecording({ save: false }));
   els.startButton.addEventListener("click", startRecording);
-  els.historyButton.addEventListener("click", async () => {
-    await renderHistory();
-    showDialog(els.historyModal);
-  });
-  els.settingsButton.addEventListener("click", async () => {
-    const settings = await getSettings();
-    els.apiKeyInput.value = settings.geminiApiKey || "";
-    showDialog(els.settingsModal);
-  });
 
   els.saveForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -546,18 +501,15 @@ function bindEvents() {
   });
   els.discardRecordingButton.addEventListener("click", () => {
     pendingRecording = null;
-    els.saveModal.close();
+    showSavePanel(false);
     setStatus("Bekleyen kayit silindi.");
   });
 
-  els.closeHistoryButton.addEventListener("click", () => els.historyModal.close());
   els.settingsForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     await saveApiKey(els.apiKeyInput.value);
-    els.settingsModal.close();
     setStatus("Gemini API key kaydedildi.");
   });
-  els.closeSettingsButton.addEventListener("click", () => els.settingsModal.close());
 
   els.historyList.addEventListener("click", async (event) => {
     const card = event.target.closest("[data-recording-id]");
@@ -598,6 +550,10 @@ async function init() {
   bindEvents();
   db = await openDb();
   await seedLessons();
+  const settings = await getSettings();
+  els.apiKeyInput.value = settings.geminiApiKey || "";
+  await renderHistory();
+  showSavePanel(false);
   await registerServiceWorker();
   await startRecording();
 }
