@@ -109,6 +109,13 @@
             Baslat
           </button>
           <button
+            id="uploadRecordingButton"
+            class="rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-indigo-50 sm:col-span-3"
+          >
+            Kayit Yukle
+          </button>
+          <input id="uploadRecordingInput" type="file" accept="audio/*" class="hidden" />
+          <button
             id="stealthButton"
             class="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-200 sm:col-span-3"
           >
@@ -197,9 +204,7 @@
 
       <section id="stealthOverlay" class="fixed inset-0 z-50 hidden bg-black text-slate-200">
         <div class="flex min-h-screen flex-col items-center justify-center text-center">
-          <p class="text-xs uppercase tracking-[0.22em] text-slate-500">Gizli Mod</p>
-          <p id="stealthDuration" class="mt-4 font-mono text-4xl font-semibold">00:00:00</p>
-          <p class="mt-4 text-xs text-slate-500">Cift dokununca ana ekran geri gelir.</p>
+          <p class="text-[11px] text-slate-500">Cift dokununca ana ekran geri gelir.</p>
         </div>
       </section>
     </main>

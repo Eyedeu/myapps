@@ -74,9 +74,10 @@ const els = {
   saveButton: document.querySelector("#saveButton"),
   cancelButton: document.querySelector("#cancelButton"),
   startButton: document.querySelector("#startButton"),
+  uploadRecordingButton: document.querySelector("#uploadRecordingButton"),
+  uploadRecordingInput: document.querySelector("#uploadRecordingInput"),
   stealthButton: document.querySelector("#stealthButton"),
   stealthOverlay: document.querySelector("#stealthOverlay"),
-  stealthDuration: document.querySelector("#stealthDuration"),
   settingsToggleButton: document.querySelector("#settingsToggleButton"),
   savePanel: document.querySelector("#savePanel"),
   saveForm: document.querySelector("#saveForm"),
@@ -211,9 +212,6 @@ function tickClock() {
   const formatted = formatDuration(totalMs);
   els.clock.textContent = formatted;
   els.durationLine.textContent = `Kayit suresi: ${formatted}`;
-  if (els.stealthDuration) {
-    els.stealthDuration.textContent = formatted;
-  }
 }
 
 async function requestWakeLock() {
@@ -431,6 +429,43 @@ async function stopRecording({ save }) {
   els.newLessonInput.value = "";
   showSavePanel(true);
   setStatus("Kaydi derse ekleyip kaydet.");
+}
+
+async function getAudioDurationMs(blob) {
+  return new Promise((resolve) => {
+    const audio = document.createElement("audio");
+    const objectUrl = URL.createObjectURL(blob);
+    audio.preload = "metadata";
+    audio.src = objectUrl;
+    audio.onloadedmetadata = () => {
+      const durationSeconds = Number.isFinite(audio.duration) ? Math.max(0, audio.duration) : 0;
+      URL.revokeObjectURL(objectUrl);
+      resolve(Math.round(durationSeconds * 1000));
+    };
+    audio.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(0);
+    };
+  });
+}
+
+async function prepareUploadedRecording(file) {
+  if (!file) return;
+  const isAudio = (file.type || "").startsWith("audio/") || /\.(mp3|wav|m4a|aac|ogg|webm|mp4)$/i.test(file.name || "");
+  if (!isAudio) {
+    setStatus("Lutfen ses dosyasi sec.");
+    return;
+  }
+  const durationMs = await getAudioDurationMs(file);
+  pendingRecording = {
+    blob: file,
+    durationMs,
+    mimeType: file.type || "audio/webm",
+  };
+  await refreshLessonSelect();
+  els.newLessonInput.value = "";
+  showSavePanel(true);
+  setStatus("Yuklenen kayit secildi. Ders secip Kaydet.");
 }
 
 async function savePendingRecording() {
@@ -1031,6 +1066,12 @@ function bindEvents() {
   els.saveButton.addEventListener("click", () => stopRecording({ save: true }));
   els.cancelButton.addEventListener("click", () => stopRecording({ save: false }));
   els.startButton.addEventListener("click", startRecording);
+  els.uploadRecordingButton.addEventListener("click", () => els.uploadRecordingInput.click());
+  els.uploadRecordingInput.addEventListener("change", async () => {
+    const [file] = els.uploadRecordingInput.files || [];
+    await prepareUploadedRecording(file);
+    els.uploadRecordingInput.value = "";
+  });
   els.stealthButton.addEventListener("click", () => {
     showStealthMode(true);
     setStatus("Gizli mod acildi.");
@@ -1174,13 +1215,13 @@ async function init() {
   await registerServiceWorker();
   const recovery = getRecoveryState();
   if (recovery?.active) {
-    setStatus("Onceki oturumda aktif kayit algilandi. Otomatik kayit baslatiliyor...");
+    setStatus("Onceki oturumda aktif kayit algilandi. Baslat ile kaydi yeniden acabilirsin.");
   }
   const micPermission = await getMicrophonePermissionState();
   if (micPermission === "granted") {
-    await startRecording();
+    setStatus("Baslat ile kayda baslayabilirsin.");
   } else {
-    setStatus("Mikrofon izni bir kez verildikten sonra tekrar sorulmadan Baslat ile kayit acilir.");
+    setStatus("Baslat'a bastiginda mikrofon izni istenir; bir kez izin verdiginde tekrar isteme olasiligi azalir.");
   }
 }
 
